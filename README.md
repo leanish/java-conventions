@@ -14,8 +14,19 @@ Shared Gradle conventions for JDK-based projects.
 - Makes `check` depend on every `JacocoCoverageVerification` task.
 
 ## How to use
-1. Publish the plugin (for example, to `mavenLocal`).
-2. Add it to `settings.gradle.kts`:
+Publish the plugin in Gradle Plugin Portal
+
+### Single-project build
+`build.gradle.kts`:
+
+```kotlin
+plugins {
+    id("io.github.leanish.gradle-conventions") version "0.2.0"
+}
+```
+
+### Multi-project build
+`settings.gradle.kts`:
 
 ```kotlin
 pluginManagement {
@@ -30,13 +41,19 @@ pluginManagement {
 }
 ```
 
-3. Apply it in `build.gradle.kts`:
+Apply it in each `build.gradle.kts`:
 
 ```kotlin
 plugins {
     id("io.github.leanish.gradle-conventions")
 }
 ```
+
+## Publishing
+- For Gradle Plugin Portal, set `gradle.publish.key` and `gradle.publish.secret` in `~/.gradle/gradle.properties`,
+  or use `GRADLE_PUBLISH_KEY` and `GRADLE_PUBLISH_SECRET`.
+- Publish with `./gradlew publishPlugins`.
+- For local testing, use `./gradlew publishToMavenLocal`.
 
 ## Override patterns
 ### Override existing values

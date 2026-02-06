@@ -18,13 +18,13 @@ plugins {
 val excludedTags: List<String> = providers.systemProperty("excludeTags")
     .map { tags -> tags.split(',').map(String::trim).filter(String::isNotEmpty) }
     .getOrElse(emptyList())
-val defaultJdkVersion: JavaLanguageVersion = JavaLanguageVersion.of(25)
+val defaultJdkVersion = 25
 
 java {
     // Keep in sync with the release flag for IDE/tooling metadata; javac uses options.release.
-    sourceCompatibility = JavaVersion.toVersion(defaultJdkVersion.asInt())
+    sourceCompatibility = JavaVersion.toVersion(defaultJdkVersion)
     toolchain {
-        languageVersion.set(defaultJdkVersion)
+        languageVersion.set(JavaLanguageVersion.of(defaultJdkVersion))
     }
 }
 
@@ -135,7 +135,7 @@ tasks.named<JacocoReport>("jacocoTestReport").configure {
 }
 
 tasks.withType<JavaCompile>().configureEach {
-    options.release.set(defaultJdkVersion.asInt())
+    options.release.set(defaultJdkVersion)
 
     // Required from errorprone 2.46.0+ on JDK 21
     options.compilerArgs.add("-XDaddTypeAnnotationsToSymbol=true")

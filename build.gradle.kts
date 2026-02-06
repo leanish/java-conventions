@@ -1,6 +1,7 @@
 plugins {
     `kotlin-dsl`
     `maven-publish`
+    id("com.gradle.plugin-publish") version "2.0.0"
 }
 
 group = "io.github.leanish"
@@ -34,4 +35,18 @@ dependencies {
 
 tasks.test {
     useJUnitPlatform()
+}
+
+gradlePlugin {
+    website.set("https://github.com/leanish/gradle-conventions")
+    vcsUrl.set("https://github.com/leanish/gradle-conventions")
+    plugins {
+        create("gradleConventions") {
+            id = "io.github.leanish.gradle-conventions"
+            displayName = "Leanish Gradle Conventions"
+            description = "Shared Gradle conventions for JDK-based projects."
+            implementationClass = "Io_github_leanish_gradleConventionsPlugin"
+            tags.set(listOf("gradle", "conventions", "java", "checkstyle", "spotless", "jacoco", "errorprone"))
+        }
+    }
 }
