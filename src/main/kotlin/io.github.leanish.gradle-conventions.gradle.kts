@@ -40,6 +40,7 @@ dependencies {
     compileOnly("org.projectlombok:lombok:1.18.42")
     annotationProcessor("org.projectlombok:lombok:1.18.42")
     testAnnotationProcessor("org.projectlombok:lombok:1.18.42")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher:6.0.2")
 
     errorprone("com.google.errorprone:error_prone_core:2.46.0")
     errorprone("com.uber.nullaway:nullaway:0.13.1")
@@ -61,13 +62,17 @@ val projectSuppressionsFile: File = rootProject.file("config/checkstyle/suppress
 val writeCheckstyleConfig: TaskProvider<Task> = tasks.register("writeCheckstyleConfig") {
     description = "Writes bundled Checkstyle configuration to the build directory"
     outputs.dir(checkstyleConfigDir)
-    inputs.file(projectSuppressionsFile).optional()
+    if (projectSuppressionsFile.exists()) {
+        inputs.file(projectSuppressionsFile)
+    }
 
     doLast {
         val outputDir = checkstyleConfigDir.get().asFile
         outputDir.mkdirs()
 
-        val checkstyleResource = requireNotNull(javaClass.classLoader.getResource("checkstyle/checkstyle.xml")) {
+        val checkstyleResource = requireNotNull(
+            PluginResources::class.java.classLoader.getResource("checkstyle/checkstyle.xml"),
+        ) {
             "Missing bundled Checkstyle configuration"
         }
 
@@ -77,7 +82,7 @@ val writeCheckstyleConfig: TaskProvider<Task> = tasks.register("writeCheckstyleC
             suppressionsFile.writeText(projectSuppressionsFile.readText())
         } else {
             val emptySuppressionsResource = requireNotNull(
-                javaClass.classLoader.getResource("checkstyle/empty-suppressions.xml"),
+                PluginResources::class.java.classLoader.getResource("checkstyle/empty-suppressions.xml"),
             ) {
                 "Missing bundled empty Checkstyle suppressions"
             }

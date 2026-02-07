@@ -116,6 +116,64 @@ class GradleConventionsPluginTest {
     }
 
     @Test
+    fun addsLauncherDependencyAndMavenCentralRepository() {
+        val projectDir = tempDir.resolve("dependency-behavior").toFile()
+        projectDir.mkdirs()
+
+        writeFile(projectDir, "settings.gradle.kts", "rootProject.name = \"test-dependency-behavior\"")
+        writeFile(
+            projectDir,
+            "build.gradle.kts",
+            """
+            import net.ltgt.gradle.errorprone.errorprone
+            import org.gradle.api.artifacts.repositories.MavenArtifactRepository
+            import org.gradle.api.tasks.compile.JavaCompile
+
+            plugins {
+                id("io.github.leanish.gradle-conventions")
+            }
+
+            tasks.register("dumpConventions") {
+                doLast {
+                    val hasMavenCentral = project.repositories
+                        .withType(MavenArtifactRepository::class.java)
+                        .any { repository ->
+                            val url = repository.url.toString().removeSuffix("/")
+                            url == "https://repo.maven.apache.org/maven2"
+                        }
+                    println("hasMavenCentral=${'$'}hasMavenCentral")
+
+                    val runtimeOnlyDependencies = configurations.getByName("testRuntimeOnly").dependencies
+                    val launcherDependency = runtimeOnlyDependencies.firstOrNull {
+                        it.group == "org.junit.platform" && it.name == "junit-platform-launcher"
+                    }
+                    println("hasLauncherDependency=${'$'}{launcherDependency != null}")
+                    println("launcherVersion=${'$'}{launcherDependency?.version}")
+
+                    val compileJava = project.tasks.findByName("compileJava") as JavaCompile?
+                    val nullAwayConfigured = compileJava?.options?.errorprone?.errorproneArgs?.get()?.contains(
+                        "-XepOpt:NullAway:AnnotatedPackages=io.github.leanish",
+                    ) ?: false
+                    println("nullAwayConfigured=${'$'}nullAwayConfigured")
+                }
+            }
+            """.trimIndent(),
+        )
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withArguments("dumpConventions")
+            .withPluginClasspath()
+            .build()
+
+        assertThat(result.output)
+            .contains("hasMavenCentral=true")
+            .contains("hasLauncherDependency=true")
+            .contains("launcherVersion=6.0.2")
+            .contains("nullAwayConfigured=true")
+    }
+
+    @Test
     fun customPreCommitHookIsUsedWhenPresent() {
         val projectDir = tempDir.resolve("hooks").toFile()
         projectDir.mkdirs()

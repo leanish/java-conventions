@@ -10,11 +10,14 @@ Shared Gradle conventions for JDK-based projects.
 - Sets JaCoCo tool version and enforces instruction coverage.
 - Configures Spotless for basic Java formatting (unused imports, trailing whitespace, newline at EOF).
 - Adds common compile/test dependencies (Lombok, JSpecify, JetBrains annotations, Error Prone/NullAway).
+- Configures all `Test` tasks to use JUnit Platform and adds `org.junit.platform:junit-platform-launcher:6.0.2` as `testRuntimeOnly`.
 - Adds root-only helper tasks (`installGitHooks`, `setupProject`) and makes `build` depend on `installGitHooks`.
 - Makes `check` depend on every `JacocoCoverageVerification` task.
 
 ## How to use
-Publish the plugin in Gradle Plugin Portal
+Publish the plugin to the Gradle Plugin Portal.
+
+The plugin adds `mavenCentral()` to every project where it is applied.
 
 ### Single-project build
 `build.gradle.kts`:
@@ -46,6 +49,14 @@ Apply it in each `build.gradle.kts`:
 ```kotlin
 plugins {
     id("io.github.leanish.gradle-conventions")
+}
+```
+
+If you want root-only tasks (`installGitHooks`, `setupProject`) in a multi-project build, apply the plugin in the root project too:
+
+```kotlin
+plugins {
+    id("io.github.leanish.gradle-conventions") version "0.2.0"
 }
 ```
 
@@ -120,14 +131,38 @@ tasks.withType<JavaCompile>().configureEach {
 - Default minimum is `0.85` unless overridden.
 - Set `-DexcludeTags=integration` (or any tags) to skip those tests and disable coverage verification.
 
+## JUnit Platform
+- All `Test` tasks call `useJUnitPlatform()`.
+- The plugin adds `org.junit.platform:junit-platform-launcher:6.0.2` as `testRuntimeOnly`.
+- If you need different test execution behavior for specific tasks, override those tasks in your build script.
+
 ## Error Prone
 The conventions plugin applies `net.ltgt.errorprone` and adds Error Prone + NullAway dependencies automatically.
 It:
 - Adds `-XDaddTypeAnnotationsToSymbol=true`.
 - Configures Error Prone with default arguments (including NullAway).
+- Sets NullAway annotated packages to `io.github.leanish` by default.
 - Disables Error Prone for `compileTestJava`.
+
+To override the default NullAway package configuration:
+
+```kotlin
+tasks.withType<JavaCompile>().configureEach {
+    options.errorprone {
+        errorproneArgs.removeAll { it.startsWith("-XepOpt:NullAway:AnnotatedPackages=") }
+        errorproneArgs.add("-XepOpt:NullAway:AnnotatedPackages=com.example")
+    }
+}
+```
 
 ## Notes
 - Checkstyle uses the configuration bundled in this plugin. If `config/checkstyle/suppressions.xml` exists, it is applied; otherwise no suppressions are used.
 - The plugin does not add a toolchain resolver; ensure the configured JDK is available locally or add a resolver in the consuming project.
+- The plugin adds `mavenCentral()` to project repositories.
 - Dependencies added by the plugin are additive; your project dependencies remain in effect.
+- The bundled pre-commit hook runs `./gradlew spotlessApply` and `./gradlew checkstyleMain checkstyleTest`, and may modify files before commit.
+
+## v0.3 TODOs
+- Make repository conventions configurable (for example, allow disabling imposed `mavenCentral()`).
+- Add publishing conventions support (`maven-publish`) similar to `sqs-codec` and `terminator` defaults.
+- Add Spotless license header conventions for MIT-licensed projects.
