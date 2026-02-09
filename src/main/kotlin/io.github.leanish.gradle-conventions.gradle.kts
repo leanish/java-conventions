@@ -1,7 +1,11 @@
 import io.github.leanish.gradleconventions.PluginResources
 import java.io.File
+import org.gradle.api.GradleException
 import org.gradle.api.JavaVersion
+import org.gradle.api.artifacts.repositories.MavenArtifactRepository
 import org.gradle.api.plugins.quality.Checkstyle
+import org.gradle.api.publish.PublishingExtension
+import org.gradle.api.publish.maven.MavenPublication
 import org.gradle.jvm.toolchain.JavaLanguageVersion
 import net.ltgt.gradle.errorprone.errorprone
 import org.gradle.testing.jacoco.tasks.JacocoReport
@@ -18,6 +22,43 @@ plugins {
 val excludedTags: List<String> = providers.systemProperty("excludeTags")
     .map { tags -> tags.split(',').map(String::trim).filter(String::isNotEmpty) }
     .getOrElse(emptyList())
+
+fun requireBooleanProperty(name: String, defaultValue: Boolean): Provider<Boolean> {
+    return providers.provider {
+        val configuredValue = findProperty(name)?.toString()?.trim()
+        if (configuredValue == null) {
+            return@provider defaultValue
+        }
+
+        when (configuredValue.lowercase()) {
+            "true" -> true
+            "false" -> false
+            else -> throw GradleException(
+                "Property '$name' must be 'true' or 'false', got '$configuredValue'",
+            )
+        }
+    }
+}
+
+val mavenCentralEnabled: Provider<Boolean> = requireBooleanProperty(
+    name = "leanish.conventions.repositories.mavenCentral.enabled",
+    defaultValue = true,
+)
+val publishingConventionsEnabled: Provider<Boolean> = requireBooleanProperty(
+    name = "leanish.conventions.publishing.enabled",
+    defaultValue = true,
+)
+val publishingGithubOwner: Provider<String> = providers.gradleProperty("leanish.conventions.publishing.githubOwner")
+    .orElse("leanish")
+val publishingGithubRepository: Provider<String> = providers.provider { project.name }
+val publishingPomName: Provider<String> = providers.provider { project.name }
+val publishingPomDescription: Provider<String> =
+    providers.provider {
+        project.description?.takeIf(String::isNotBlank) ?: project.name
+    }
+val publishingDeveloperId: Provider<String> = providers.provider { "leanish" }
+val publishingDeveloperName: Provider<String> = providers.provider { "Leandro Aguiar" }
+val publishingDeveloperUrl: Provider<String> = providers.provider { "https://github.com/leanish" }
 val defaultJdkVersion = 25
 
 java {
@@ -29,7 +70,9 @@ java {
 }
 
 repositories {
-    mavenCentral()
+    if (mavenCentralEnabled.get()) {
+        mavenCentral()
+    }
 }
 
 dependencies {
@@ -51,6 +94,95 @@ spotless {
         removeUnusedImports()
         trimTrailingWhitespace()
         endWithNewline()
+
+        val projectHeaderFile = rootProject.file("LICENSE_HEADER")
+        if (projectHeaderFile.exists()) {
+            licenseHeaderFile(projectHeaderFile)
+        } else {
+            logger.info(
+                "Skipping Spotless license header conventions because LICENSE_HEADER was not found at: ${projectHeaderFile.path}",
+            )
+        }
+    }
+}
+
+if (publishingConventionsEnabled.get()) {
+    pluginManager.apply("maven-publish")
+}
+
+plugins.withId("maven-publish") {
+    if (!publishingConventionsEnabled.get()) {
+        return@withId
+    }
+
+    extensions.configure<PublishingExtension>("publishing") {
+        publications {
+            val javaComponent = components.findByName("java")
+            val existingPublication = findByName("mavenJava")
+            val publication = when (existingPublication) {
+                is MavenPublication -> existingPublication
+                null -> create("mavenJava", MavenPublication::class.java)
+                else -> throw GradleException(
+                    "Publication 'mavenJava' exists but is not a MavenPublication (${existingPublication::class.java.name})",
+                )
+            }
+
+            if (javaComponent != null && existingPublication == null) {
+                publication.from(javaComponent)
+            }
+
+            val githubRepoUrl = providers.provider {
+                "https://github.com/${publishingGithubOwner.get()}/${publishingGithubRepository.get()}"
+            }
+            val githubScmUrl = providers.provider {
+                "scm:git:${githubRepoUrl.get()}.git"
+            }
+            val githubDeveloperScmUrl = providers.provider {
+                "scm:git:ssh://git@github.com/${publishingGithubOwner.get()}/${publishingGithubRepository.get()}.git"
+            }
+
+            publication.pom {
+                name.set(publishingPomName)
+                description.set(publishingPomDescription)
+                url.set(githubRepoUrl)
+                licenses {
+                    license {
+                        name.set("The MIT License")
+                        url.set("https://opensource.org/licenses/MIT")
+                    }
+                }
+                developers {
+                    developer {
+                        id.set(publishingDeveloperId)
+                        name.set(publishingDeveloperName)
+                        url.set(publishingDeveloperUrl)
+                    }
+                }
+                scm {
+                    url.set(githubRepoUrl)
+                    connection.set(githubScmUrl)
+                    developerConnection.set(githubDeveloperScmUrl)
+                }
+            }
+        }
+
+        repositories {
+            if (findByName("mavenLocal") == null) {
+                mavenLocal()
+            }
+
+            val existingGithubPackages = findByName("GitHubPackages")
+            if (existingGithubPackages !is MavenArtifactRepository) {
+                maven {
+                    name = "GitHubPackages"
+                    url = uri("https://maven.pkg.github.com/${publishingGithubOwner.get()}/${publishingGithubRepository.get()}")
+                    credentials {
+                        username = findProperty("gpr.user") as String? ?: System.getenv("GITHUB_ACTOR")
+                        password = findProperty("gpr.key") as String? ?: System.getenv("GITHUB_TOKEN")
+                    }
+                }
+            }
+        }
     }
 }
 

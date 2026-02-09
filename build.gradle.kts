@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "io.github.leanish"
-version = "0.2.0"
+version = "0.3.0"
 
 repositories {
     gradlePluginPortal()
@@ -44,7 +44,23 @@ gradlePlugin {
         named("io.github.leanish.gradle-conventions") {
             displayName = "Leanish Gradle Conventions"
             description = "Shared Gradle conventions for JDK-based projects."
-            tags.set(listOf("conventions", "java", "checkstyle", "spotless", "jacoco", "errorprone"))
+            tags.set(
+                listOf(
+                    "conventions",
+                    "java",
+                    "checkstyle",
+                    "spotless",
+                    "junit",
+                    "coverage",
+                    "jacoco",
+                    "errorprone",
+                    "nullaway",
+                    "license",
+                    "git-hooks",
+                    "publishing",
+                    "maven-publish",
+                ),
+            )
         }
     }
 }

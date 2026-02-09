@@ -174,6 +174,229 @@ class GradleConventionsPluginTest {
     }
 
     @Test
+    fun canDisableMavenCentralWithProperty() {
+        val projectDir = tempDir.resolve("repository-toggle").toFile()
+        projectDir.mkdirs()
+
+        writeFile(projectDir, "settings.gradle.kts", "rootProject.name = \"test-repository-toggle\"")
+        writeFile(
+            projectDir,
+            "build.gradle.kts",
+            """
+            import org.gradle.api.artifacts.repositories.MavenArtifactRepository
+
+            plugins {
+                id("io.github.leanish.gradle-conventions")
+            }
+
+            tasks.register("dumpConventions") {
+                doLast {
+                    val hasMavenCentral = project.repositories
+                        .withType(MavenArtifactRepository::class.java)
+                        .any { repository ->
+                            val url = repository.url.toString().removeSuffix("/")
+                            url == "https://repo.maven.apache.org/maven2"
+                        }
+                    println("hasMavenCentral=${'$'}hasMavenCentral")
+                }
+            }
+            """.trimIndent(),
+        )
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withArguments(
+                "-Pleanish.conventions.repositories.mavenCentral.enabled=false",
+                "dumpConventions",
+            )
+            .withPluginClasspath()
+            .build()
+
+        assertThat(result.output)
+            .contains("hasMavenCentral=false")
+    }
+
+    @Test
+    fun appliesPublishingConventionsByDefault() {
+        val projectDir = tempDir.resolve("publishing-conventions").toFile()
+        projectDir.mkdirs()
+
+        writeFile(projectDir, "settings.gradle.kts", "rootProject.name = \"publishing-sample\"")
+        writeFile(
+            projectDir,
+            "build.gradle.kts",
+            """
+            plugins {
+                id("io.github.leanish.gradle-conventions")
+            }
+
+            group = "io.github.leanish"
+            version = "1.2.3"
+            description = "Publishing sample library"
+            """.trimIndent(),
+        )
+
+        val tasksResult = GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withArguments(
+                "tasks",
+                "--all",
+            )
+            .withPluginClasspath()
+            .build()
+
+        assertThat(tasksResult.output)
+            .contains("publishMavenJavaPublicationToMavenLocal")
+            .contains("publishMavenJavaPublicationToGitHubPackagesRepository")
+
+        GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withArguments(
+                "generatePomFileForMavenJavaPublication",
+            )
+            .withPluginClasspath()
+            .build()
+
+        val generatedPom = projectDir.resolve("build/publications/mavenJava/pom-default.xml").readText()
+        assertThat(generatedPom)
+            .contains("<name>publishing-sample</name>")
+            .contains("<description>Publishing sample library</description>")
+            .contains("<url>https://github.com/leanish/publishing-sample</url>")
+            .contains("<connection>scm:git:https://github.com/leanish/publishing-sample.git</connection>")
+            .contains(
+                "<developerConnection>scm:git:ssh://git@github.com/leanish/publishing-sample.git</developerConnection>",
+            )
+            .contains("<id>leanish</id>")
+            .contains("<name>Leandro Aguiar</name>")
+            .contains("<url>https://github.com/leanish</url>")
+    }
+
+    @Test
+    fun canDisablePublishingConventionsWithProperty() {
+        val projectDir = tempDir.resolve("publishing-conventions-disabled").toFile()
+        projectDir.mkdirs()
+
+        writeFile(projectDir, "settings.gradle.kts", "rootProject.name = \"publishing-disabled\"")
+        writeFile(
+            projectDir,
+            "build.gradle.kts",
+            """
+            plugins {
+                id("io.github.leanish.gradle-conventions")
+            }
+            """.trimIndent(),
+        )
+
+        val tasksResult = GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withArguments(
+                "-Pleanish.conventions.publishing.enabled=false",
+                "tasks",
+                "--all",
+            )
+            .withPluginClasspath()
+            .build()
+
+        assertThat(tasksResult.output)
+            .doesNotContain("publishMavenJavaPublicationToMavenLocal")
+            .doesNotContain("publishMavenJavaPublicationToGitHubPackagesRepository")
+    }
+
+    @Test
+    fun appliesLicenseHeaderWhenLicenseHeaderFileExists() {
+        val projectDir = tempDir.resolve("license-header").toFile()
+        projectDir.mkdirs()
+
+        writeFile(projectDir, "settings.gradle.kts", "rootProject.name = \"license-header\"")
+        writeFile(
+            projectDir,
+            "build.gradle.kts",
+            """
+            plugins {
+                id("io.github.leanish.gradle-conventions")
+            }
+            """.trimIndent(),
+        )
+        writeFile(
+            projectDir,
+            "LICENSE_HEADER",
+            """
+            /*
+             * Custom License Header
+             */
+
+            """.trimIndent(),
+        )
+        writeFile(
+            projectDir,
+            "src/main/java/io/github/leanish/sample/Sample.java",
+            """
+            package io.github.leanish.sample;
+
+            public class Sample {
+                public String value() {
+                    return "ok";
+                }
+            }
+            """.trimIndent(),
+        )
+
+        GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withArguments("spotlessApply")
+            .withPluginClasspath()
+            .build()
+
+        val formattedSource =
+            projectDir.resolve("src/main/java/io/github/leanish/sample/Sample.java").readText()
+        assertThat(formattedSource)
+            .contains("Custom License Header")
+            .contains("package io.github.leanish.sample;")
+    }
+
+    @Test
+    fun skipsLicenseHeaderWhenLicenseHeaderFileIsMissing() {
+        val projectDir = tempDir.resolve("license-header-disabled").toFile()
+        projectDir.mkdirs()
+
+        writeFile(projectDir, "settings.gradle.kts", "rootProject.name = \"license-header-disabled\"")
+        writeFile(
+            projectDir,
+            "build.gradle.kts",
+            """
+            plugins {
+                id("io.github.leanish.gradle-conventions")
+            }
+            """.trimIndent(),
+        )
+        writeFile(
+            projectDir,
+            "src/main/java/io/github/leanish/sample/Sample.java",
+            """
+            package io.github.leanish.sample;
+
+            public class Sample {
+                public String value() {
+                    return "ok";
+                }
+            }
+            """.trimIndent(),
+        )
+
+        GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withArguments("spotlessApply")
+            .withPluginClasspath()
+            .build()
+
+        val formattedSource =
+            projectDir.resolve("src/main/java/io/github/leanish/sample/Sample.java").readText()
+        assertThat(formattedSource)
+            .doesNotContain("Licensed under the MIT License.")
+            .contains("package io.github.leanish.sample;")
+    }
+
+    @Test
     fun customPreCommitHookIsUsedWhenPresent() {
         val projectDir = tempDir.resolve("hooks").toFile()
         projectDir.mkdirs()
@@ -236,7 +459,9 @@ class GradleConventionsPluginTest {
     }
 
     private fun writeFile(projectDir: File, name: String, content: String) {
-        projectDir.resolve(name).writeText(content)
+        val file = projectDir.resolve(name)
+        file.parentFile?.mkdirs()
+        file.writeText(content)
     }
 
     private fun loadBundledPreCommitHook(): String {
