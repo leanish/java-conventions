@@ -1,4 +1,21 @@
-import io.github.leanish.gradleconventions.PluginResources
+/*
+ * Copyright (c) 2026 Leandro Aguiar
+ * Licensed under the MIT License.
+ * See LICENSE file in the project root for full license information.
+ */
+import io.github.leanish.gradleconventions.ConventionProperties.GITHUB_ACTOR_ENV
+import io.github.leanish.gradleconventions.ConventionProperties.GITHUB_PACKAGES_KEY
+import io.github.leanish.gradleconventions.ConventionProperties.GITHUB_PACKAGES_USER
+import io.github.leanish.gradleconventions.ConventionProperties.GITHUB_TOKEN_ENV
+import io.github.leanish.gradleconventions.ConventionProperties.PUBLISHING_DEVELOPER_ID
+import io.github.leanish.gradleconventions.ConventionProperties.PUBLISHING_DEVELOPER_ID_ENV
+import io.github.leanish.gradleconventions.ConventionProperties.PUBLISHING_DEVELOPER_NAME
+import io.github.leanish.gradleconventions.ConventionProperties.PUBLISHING_DEVELOPER_NAME_ENV
+import io.github.leanish.gradleconventions.ConventionProperties.PUBLISHING_DEVELOPER_URL
+import io.github.leanish.gradleconventions.ConventionProperties.PUBLISHING_DEVELOPER_URL_ENV
+import io.github.leanish.gradleconventions.javaConventionsProviders
+import io.github.leanish.gradleconventions.stringProperty
+import io.github.leanish.gradleconventions.PropertyParser
 import java.io.File
 import org.gradle.api.GradleException
 import org.gradle.api.JavaVersion
@@ -23,108 +40,28 @@ val excludedTags: List<String> = providers.systemProperty("excludeTags")
     .map { tags -> tags.split(',').map(String::trim).filter(String::isNotEmpty) }
     .getOrElse(emptyList())
 
-fun requireBooleanProperty(name: String, defaultValue: Boolean): Provider<Boolean> {
-    return providers.provider {
-        val configuredValue = findProperty(name)?.toString()?.trim()
-        if (configuredValue == null) {
-            return@provider defaultValue
-        }
+private val conventionProviders = javaConventionsProviders()
+val mavenCentralEnabled = conventionProviders.mavenCentralEnabled
+val publishingConventionsEnabled = conventionProviders.publishingConventionsEnabled
+val publishingGithubOwner = conventionProviders.publishingGithubOwner
+val publishingGithubRepository = conventionProviders.publishingGithubRepository
+val publishingPomName = conventionProviders.publishingPomName
+val publishingPomDescription = conventionProviders.publishingPomDescription
+val nullAwayAnnotatedPackages = conventionProviders.nullAwayAnnotatedPackages
+val checkstyleConfigDir = conventionProviders.checkstyleConfigDir
+val checkstyleConfigFile = conventionProviders.checkstyleConfigFile
+val checkstyleSuppressionsFile = conventionProviders.checkstyleSuppressionsFile
+val runtimeLauncher = conventionProviders.runtimeLauncher
 
-        when (configuredValue.lowercase()) {
-            "true" -> true
-            "false" -> false
-            else -> throw GradleException(
-                "Property '$name' must be 'true' or 'false', got '$configuredValue'",
-            )
-        }
-    }
-}
-
-fun detectBasePackagesFromMainJavaSources(projectDir: File): List<String> {
-    val sourceRoot = projectDir.resolve("src/main/java")
-    if (!sourceRoot.exists() || !sourceRoot.isDirectory) {
-        return emptyList()
-    }
-
-    val packageRegex = Regex("""^\s*package\s+([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)\s*;""")
-    val detectedPackages = linkedSetOf<String>()
-
-    sourceRoot.walkTopDown()
-        .filter { file -> file.isFile && file.extension == "java" }
-        .forEach { sourceFile ->
-            sourceFile.useLines { lines ->
-                val packageName = lines.firstNotNullOfOrNull { line ->
-                    packageRegex.find(line)?.groupValues?.get(1)
-                }
-                if (packageName != null) {
-                    detectedPackages.add(packageName)
-                }
-            }
-        }
-
-    val sortedPackages = detectedPackages.sorted()
-    val rootPackages = mutableListOf<String>()
-    sortedPackages.forEach { packageName ->
-        if (rootPackages.none { parent -> packageName == parent || packageName.startsWith("$parent.") }) {
-            rootPackages.add(packageName)
-        }
-    }
-    return rootPackages
-}
-
-val mavenCentralEnabled: Provider<Boolean> = requireBooleanProperty(
-    name = "leanish.conventions.repositories.mavenCentral.enabled",
-    defaultValue = true,
-)
-val publishingConventionsEnabled: Provider<Boolean> = requireBooleanProperty(
-    name = "leanish.conventions.publishing.enabled",
-    defaultValue = true,
-)
-val publishingGithubOwner: Provider<String> = providers.gradleProperty("leanish.conventions.publishing.githubOwner")
-    .orElse("leanish")
-val publishingGithubRepository: Provider<String> = providers.provider { project.name }
-val publishingPomName: Provider<String> = providers.provider { project.name }
-val publishingPomDescription: Provider<String> =
-    providers.provider {
-        project.description?.takeIf(String::isNotBlank) ?: project.name
-    }
-val basePackagePropertyName = "leanish.conventions.basePackage"
-val nullAwayAnnotatedPackages: Provider<String> = providers.provider {
-    val configuredBasePackage = findProperty(basePackagePropertyName)?.toString()?.trim()
-    if (configuredBasePackage != null) {
-        if (configuredBasePackage.isEmpty()) {
-            throw GradleException("Property '$basePackagePropertyName' must not be blank")
-        }
-        return@provider configuredBasePackage
-    }
-
-    val detectedBasePackages = detectBasePackagesFromMainJavaSources(layout.projectDirectory.asFile)
-    if (detectedBasePackages.isEmpty()) {
-        throw GradleException(
-            "Property '$basePackagePropertyName' must be configured or at least one Java package declaration must be discoverable under src/main/java",
-        )
-    }
-
-    val inferredBasePackages = detectedBasePackages.joinToString(",")
-    if (!extensions.extraProperties.has(basePackagePropertyName)) {
-        extensions.extraProperties.set(basePackagePropertyName, inferredBasePackages)
-        logger.lifecycle(
-            "Inferred '$basePackagePropertyName=$inferredBasePackages' from source packages under src/main/java",
-        )
-    }
-    inferredBasePackages
-}
-val publishingDeveloperId: Provider<String> = providers.provider { "leanish" }
-val publishingDeveloperName: Provider<String> = providers.provider { "Leandro Aguiar" }
-val publishingDeveloperUrl: Provider<String> = providers.provider { "https://github.com/leanish" }
 val defaultJdkVersion = 25
-
 java {
     // Keep in sync with the release flag for IDE/tooling metadata; javac uses options.release.
     sourceCompatibility = JavaVersion.toVersion(defaultJdkVersion)
     toolchain {
         languageVersion.set(JavaLanguageVersion.of(defaultJdkVersion))
     }
+    withSourcesJar()
+    withJavadocJar()
 }
 
 repositories {
@@ -138,12 +75,16 @@ dependencies {
     testCompileOnly("org.jspecify:jspecify:1.0.0")
     compileOnly("org.jetbrains:annotations:26.0.2-1")
     testCompileOnly("org.jetbrains:annotations:26.0.2-1")
+    compileOnly("com.google.errorprone:error_prone_annotations:2.47.0")
+    testCompileOnly("com.google.errorprone:error_prone_annotations:2.47.0")
     compileOnly("org.projectlombok:lombok:1.18.42")
     annotationProcessor("org.projectlombok:lombok:1.18.42")
     testAnnotationProcessor("org.projectlombok:lombok:1.18.42")
+    testImplementation("org.junit.jupiter:junit-jupiter:6.0.2")
+    testImplementation("org.assertj:assertj-core:3.27.7")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher:6.0.2")
 
-    errorprone("com.google.errorprone:error_prone_core:2.46.0")
+    errorprone("com.google.errorprone:error_prone_core:2.47.0")
     errorprone("com.uber.nullaway:nullaway:0.13.1")
 }
 
@@ -158,7 +99,7 @@ spotless {
             licenseHeaderFile(projectHeaderFile)
         } else {
             logger.info(
-                "Skipping Spotless license header conventions because LICENSE_HEADER was not found at: ${projectHeaderFile.path}",
+                "LICENSE_HEADER was not found at ${projectHeaderFile.path}; skipping automatic Spotless license header configuration.",
             )
         }
     }
@@ -174,6 +115,9 @@ plugins.withId("maven-publish") {
     }
 
     extensions.configure<PublishingExtension>("publishing") {
+        val resolvedGithubOwner = publishingGithubOwner.get().takeIf(String::isNotBlank)
+        val resolvedGithubRepository = publishingGithubRepository.get()
+
         publications {
             val javaComponent = components.findByName("java")
             val existingPublication = findByName("mavenJava")
@@ -189,37 +133,78 @@ plugins.withId("maven-publish") {
                 publication.from(javaComponent)
             }
 
-            val githubRepoUrl = providers.provider {
-                "https://github.com/${publishingGithubOwner.get()}/${publishingGithubRepository.get()}"
+            val githubRepoUrl = resolvedGithubOwner?.let { owner ->
+                "https://github.com/$owner/$resolvedGithubRepository"
             }
-            val githubScmUrl = providers.provider {
-                "scm:git:${githubRepoUrl.get()}.git"
+            val githubScmUrl = githubRepoUrl?.let { "scm:git:$it.git" }
+            val githubDeveloperScmUrl = resolvedGithubOwner?.let { owner ->
+                "scm:git:ssh://git@github.com/$owner/$resolvedGithubRepository.git"
             }
-            val githubDeveloperScmUrl = providers.provider {
-                "scm:git:ssh://git@github.com/${publishingGithubOwner.get()}/${publishingGithubRepository.get()}.git"
+
+            val configuredDeveloperId = stringProperty(
+                PUBLISHING_DEVELOPER_ID,
+                PUBLISHING_DEVELOPER_ID_ENV,
+            )
+            val configuredDeveloperName = stringProperty(
+                PUBLISHING_DEVELOPER_NAME,
+                PUBLISHING_DEVELOPER_NAME_ENV,
+            )
+            val configuredDeveloperUrl = stringProperty(
+                PUBLISHING_DEVELOPER_URL,
+                PUBLISHING_DEVELOPER_URL_ENV,
+            )
+            val configuredDeveloperFields = listOf(
+                configuredDeveloperId,
+                configuredDeveloperName,
+                configuredDeveloperUrl,
+            )
+            if (configuredDeveloperFields.any { it != null } && configuredDeveloperFields.any { it == null }) {
+                throw GradleException(
+                    "Properties '${PUBLISHING_DEVELOPER_ID}', '${PUBLISHING_DEVELOPER_NAME}' and '${PUBLISHING_DEVELOPER_URL}' must be configured together",
+                )
+            }
+
+            val resolvedDeveloperId = configuredDeveloperId ?: resolvedGithubOwner
+            val resolvedDeveloperName = configuredDeveloperName ?: resolvedGithubOwner
+            val resolvedDeveloperUrl = configuredDeveloperUrl ?: resolvedGithubOwner?.let { owner ->
+                "https://github.com/$owner"
             }
 
             publication.pom {
-                name.set(publishingPomName)
-                description.set(publishingPomDescription)
-                url.set(githubRepoUrl)
+                name.convention(publishingPomName)
+                description.convention(publishingPomDescription)
+                if (githubRepoUrl != null) {
+                    url.convention(githubRepoUrl)
+                }
                 licenses {
                     license {
                         name.set("The MIT License")
                         url.set("https://opensource.org/licenses/MIT")
                     }
                 }
-                developers {
-                    developer {
-                        id.set(publishingDeveloperId)
-                        name.set(publishingDeveloperName)
-                        url.set(publishingDeveloperUrl)
+
+                if (resolvedDeveloperId != null && resolvedDeveloperName != null && resolvedDeveloperUrl != null) {
+                    developers {
+                        developer {
+                            id.set(resolvedDeveloperId)
+                            name.set(resolvedDeveloperName)
+                            url.set(resolvedDeveloperUrl)
+                        }
                     }
                 }
-                scm {
-                    url.set(githubRepoUrl)
-                    connection.set(githubScmUrl)
-                    developerConnection.set(githubDeveloperScmUrl)
+
+                if (githubRepoUrl != null || githubScmUrl != null || githubDeveloperScmUrl != null) {
+                    scm {
+                        if (githubRepoUrl != null) {
+                            url.convention(githubRepoUrl)
+                        }
+                        if (githubScmUrl != null) {
+                            connection.convention(githubScmUrl)
+                        }
+                        if (githubDeveloperScmUrl != null) {
+                            developerConnection.convention(githubDeveloperScmUrl)
+                        }
+                    }
                 }
             }
         }
@@ -230,13 +215,19 @@ plugins.withId("maven-publish") {
             }
 
             val existingGithubPackages = findByName("GitHubPackages")
-            if (existingGithubPackages !is MavenArtifactRepository) {
+            if (resolvedGithubOwner != null && existingGithubPackages !is MavenArtifactRepository) {
                 maven {
                     name = "GitHubPackages"
-                    url = uri("https://maven.pkg.github.com/${publishingGithubOwner.get()}/${publishingGithubRepository.get()}")
+                    url = uri("https://maven.pkg.github.com/$resolvedGithubOwner/${publishingGithubRepository.get()}")
                     credentials {
-                        username = findProperty("gpr.user") as String? ?: System.getenv("GITHUB_ACTOR")
-                        password = findProperty("gpr.key") as String? ?: System.getenv("GITHUB_TOKEN")
+                        username = stringProperty(
+                            GITHUB_PACKAGES_USER,
+                            GITHUB_ACTOR_ENV,
+                        )
+                        password = stringProperty(
+                            GITHUB_PACKAGES_KEY,
+                            GITHUB_TOKEN_ENV,
+                        )
                     }
                 }
             }
@@ -244,9 +235,6 @@ plugins.withId("maven-publish") {
     }
 }
 
-val checkstyleConfigDir: Provider<Directory> = layout.buildDirectory.dir("generated/checkstyle")
-val checkstyleConfigFile: Provider<File> = checkstyleConfigDir.map { it.file("checkstyle.xml").asFile }
-val checkstyleSuppressionsFile: Provider<File> = checkstyleConfigDir.map { it.file("suppressions.xml").asFile }
 val projectSuppressionsFile: File = rootProject.file("config/checkstyle/suppressions.xml")
 
 val writeCheckstyleConfig: TaskProvider<Task> = tasks.register("writeCheckstyleConfig") {
@@ -261,7 +249,7 @@ val writeCheckstyleConfig: TaskProvider<Task> = tasks.register("writeCheckstyleC
         outputDir.mkdirs()
 
         val checkstyleResource = requireNotNull(
-            PluginResources::class.java.classLoader.getResource("checkstyle/checkstyle.xml"),
+            PropertyParser::class.java.classLoader.getResource("checkstyle/checkstyle.xml"),
         ) {
             "Missing bundled Checkstyle configuration"
         }
@@ -272,7 +260,7 @@ val writeCheckstyleConfig: TaskProvider<Task> = tasks.register("writeCheckstyleC
             suppressionsFile.writeText(projectSuppressionsFile.readText())
         } else {
             val emptySuppressionsResource = requireNotNull(
-                PluginResources::class.java.classLoader.getResource("checkstyle/empty-suppressions.xml"),
+                PropertyParser::class.java.classLoader.getResource("checkstyle/empty-suppressions.xml"),
             ) {
                 "Missing bundled empty Checkstyle suppressions"
             }
@@ -300,12 +288,6 @@ tasks.withType<Checkstyle>().configureEach {
 
 jacoco {
     toolVersion = "0.8.14"
-}
-
-val toolchainSpec = java.toolchain
-val runtimeLauncher: Provider<JavaLauncher> = javaToolchains.launcherFor {
-    languageVersion.set(toolchainSpec.languageVersion)
-    vendor.set(toolchainSpec.vendor)
 }
 
 tasks.withType<JavaExec>().configureEach {
@@ -347,7 +329,7 @@ tasks.withType<JavaCompile>().configureEach {
 }
 
 tasks.named<JavaCompile>("compileTestJava").configure {
-    options.errorprone.isEnabled = false
+    options.errorprone.enabled.set(false)
 }
 
 tasks.withType<JacocoCoverageVerification>().configureEach {
@@ -402,7 +384,7 @@ if (project == rootProject) {
         onlyIf { gitExists.get() && !projectHookFile.asFile.exists() }
 
         doLast {
-            val resource = requireNotNull(PluginResources::class.java.classLoader.getResource("git-hooks/pre-commit")) {
+            val resource = requireNotNull(PropertyParser::class.java.classLoader.getResource("git-hooks/pre-commit")) {
                 "Missing bundled pre-commit hook resource"
             }
             val targetFile = preCommitHookFile.get().asFile

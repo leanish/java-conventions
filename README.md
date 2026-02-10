@@ -11,8 +11,9 @@ Shared Gradle conventions for JDK-based projects.
 - Sets JaCoCo tool version and enforces instruction coverage.
 - Configures Spotless for basic Java formatting (unused imports, trailing whitespace, newline at EOF).
 - Applies Spotless license header conventions when `LICENSE_HEADER` exists in the project root.
-- Adds common compile/test dependencies (Lombok, JSpecify, JetBrains annotations, Error Prone/NullAway).
-- Configures all `Test` tasks to use JUnit Platform and adds `org.junit.platform:junit-platform-launcher:6.0.2` as `testRuntimeOnly`.
+- Adds common compile/test dependencies (Lombok, JSpecify, JetBrains annotations, Error Prone/NullAway, JUnit Jupiter, AssertJ).
+- Configures all `Test` tasks to use JUnit Platform and adds JUnit Platform launcher as `testRuntimeOnly`.
+- Enables `sourcesJar` and `javadocJar` generation.
 - Adds `maven-publish` conventions by default (`mavenJava` publication + `mavenLocal`/GitHub Packages repositories).
 - Resolves `leanish.conventions.basePackage` from project config or infers it from `src/main/java` package declarations.
 - Adds root-only helper tasks (`installGitHooks`, `setupProject`) and makes `build` depend on `installGitHooks`.
@@ -92,12 +93,24 @@ leanish.conventions.repositories.mavenCentral.enabled=true
 
 # Publishing conventions
 leanish.conventions.publishing.enabled=true
-leanish.conventions.publishing.githubOwner=leanish
+leanish.conventions.publishing.githubOwner=acme
+leanish.conventions.publishing.developer.id=acme
+leanish.conventions.publishing.developer.name=Acme Team
+leanish.conventions.publishing.developer.url=https://github.com/acme
 
 # Project conventions (optional override)
 leanish.conventions.basePackage=io.github.leanish
 
 ```
+
+Environment variables are also supported, and they override `gradle.properties` / `-P` values:
+- `JAVA_CONVENTIONS_MAVEN_CENTRAL_ENABLED`
+- `JAVA_CONVENTIONS_PUBLISHING_ENABLED`
+- `JAVA_CONVENTIONS_PUBLISHING_GITHUB_OWNER`
+- `JAVA_CONVENTIONS_PUBLISHING_DEVELOPER_ID`
+- `JAVA_CONVENTIONS_PUBLISHING_DEVELOPER_NAME`
+- `JAVA_CONVENTIONS_PUBLISHING_DEVELOPER_URL`
+- `JAVA_CONVENTIONS_BASE_PACKAGE`
 
 `leanish.conventions.basePackage` is optional:
 - If configured, the plugin uses that value.
@@ -109,6 +122,16 @@ Publishing repository/name/description conventions are derived from project meta
 - GitHub repository defaults to `project.name`
 - POM name defaults to `project.name`
 - POM description defaults to `project.description` (or `project.name` when missing)
+
+Publishing owner/developer metadata is optional:
+- `leanish.conventions.publishing.githubOwner` resolves owner for GitHub URLs/repository.
+- Owner resolves by `GITHUB_REPOSITORY_OWNER`, then `JAVA_CONVENTIONS_PUBLISHING_GITHUB_OWNER`, then `leanish.conventions.publishing.githubOwner`, then `group` when it matches `io.github.<owner>`.
+- `leanish.conventions.publishing.developer.id|name|url` must be configured together when any is set.
+- If developer properties are all missing and owner is resolvable, developer metadata is inferred as:
+  - `id=<owner>`
+  - `name=<owner>`
+  - `url=https://github.com/<owner>`
+- GitHub Packages credentials resolve by environment first (`GITHUB_ACTOR`, `GITHUB_TOKEN`), then `gpr.user`, `gpr.key`.
 
 ## Publishing
 - For Gradle Plugin Portal, set `gradle.publish.key` and `gradle.publish.secret` in `~/.gradle/gradle.properties`,
@@ -176,6 +199,20 @@ tasks.withType<JavaCompile>().configureEach {
 }
 ```
 
+## Sources and Javadocs artifacts
+- The plugin enables `sourcesJar` and `javadocJar` by default.
+- Consumers can disable them in `build.gradle.kts`:
+
+```kotlin
+tasks.named("sourcesJar") {
+    enabled = false
+}
+
+tasks.named("javadocJar") {
+    enabled = false
+}
+```
+
 ## Coverage behavior
 - Enforces instruction coverage via `jacocoTestCoverageVerification`.
 - Default minimum is `0.85` unless overridden.
@@ -183,6 +220,7 @@ tasks.withType<JavaCompile>().configureEach {
 
 ## JUnit Platform
 - All `Test` tasks call `useJUnitPlatform()`.
+- The plugin adds `org.junit.jupiter:junit-jupiter:6.0.2` and `org.assertj:assertj-core:3.27.7` as `testImplementation`.
 - The plugin adds `org.junit.platform:junit-platform-launcher:6.0.2` as `testRuntimeOnly`.
 - If you need different test execution behavior for specific tasks, override those tasks in your build script.
 
@@ -194,10 +232,11 @@ When enabled, the plugin:
 - Applies `maven-publish`.
 - Creates/configures `mavenJava` publication from the Java component.
 - Configures POM defaults from project metadata:
-  - repository and SCM use `https://github.com/<githubOwner>/<project.name>`
+  - repository and SCM use `https://github.com/<githubOwner>/<project.name>` when owner is resolvable
   - POM `name` uses `project.name`
   - POM `description` uses `project.description` (or falls back to `project.name`)
-- Adds `mavenLocal()` and GitHub Packages (`GitHubPackages`) publishing repositories.
+- Adds `mavenLocal()` always.
+- Adds GitHub Packages (`GitHubPackages`) publishing repository only when owner is resolvable.
 
 ## License header conventions
 The plugin applies Spotless Java license headers only when `LICENSE_HEADER` exists in the project root.
@@ -221,7 +260,7 @@ It:
 - Checkstyle uses the configuration bundled in this plugin. If `config/checkstyle/suppressions.xml` exists, it is applied; otherwise no suppressions are used.
 - The plugin does not add a toolchain resolver; ensure the configured JDK is available locally or add a resolver in the consuming project.
 - The plugin adds `mavenCentral()` by default; disable it with `leanish.conventions.repositories.mavenCentral.enabled=false`.
-- Publishing conventions use GitHub owner `leanish` by default; change with `leanish.conventions.publishing.githubOwner`.
+- Publishing owner resolves by `GITHUB_REPOSITORY_OWNER`, then `JAVA_CONVENTIONS_PUBLISHING_GITHUB_OWNER`, then property (`leanish.conventions.publishing.githubOwner`), then `group` (`io.github.<owner>`).
 - Base package can be configured via `leanish.conventions.basePackage`; if omitted, it is inferred
   from `src/main/java` package declarations and logged.
 - NullAway annotated packages are derived from `leanish.conventions.basePackage`.
