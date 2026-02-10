@@ -20,7 +20,8 @@ Shared Gradle conventions for JDK-based projects.
 - Makes `check` depend on every `JacocoCoverageVerification` task.
 
 ## How to use
-Publish the plugin to the Gradle Plugin Portal (recommended).
+Use the Gradle Plugin Portal for released versions.
+For local development, publish this plugin to `mavenLocal()` and use the snapshot version.
 
 The plugin adds `mavenCentral()` by default to every project where it is applied.
 The canonical plugin id is `io.github.leanish.java-conventions`.
@@ -30,9 +31,11 @@ The canonical plugin id is `io.github.leanish.java-conventions`.
 
 ```kotlin
 plugins {
-    id("io.github.leanish.java-conventions") version "0.3.0"
+    id("io.github.leanish.java-conventions") version "0.3.0-SNAPSHOT"
 }
 ```
+
+Use the latest released version instead of `0.3.0-SNAPSHOT` once it is published.
 
 ### Multi-project build
 `settings.gradle.kts`:
@@ -40,11 +43,12 @@ plugins {
 ```kotlin
 pluginManagement {
     repositories {
+        mavenLocal()
         gradlePluginPortal()
         mavenCentral()
     }
     plugins {
-        id("io.github.leanish.java-conventions") version "0.3.0"
+        id("io.github.leanish.java-conventions") version "0.3.0-SNAPSHOT"
     }
 }
 ```
@@ -80,7 +84,7 @@ If you want root-only tasks (`installGitHooks`, `setupProject`) in a multi-proje
 
 ```kotlin
 plugins {
-    id("io.github.leanish.java-conventions") version "0.3.0"
+    id("io.github.leanish.java-conventions") version "0.3.0-SNAPSHOT"
 }
 ```
 
@@ -111,6 +115,7 @@ Environment variables are also supported, and they override `gradle.properties` 
 - `JAVA_CONVENTIONS_PUBLISHING_DEVELOPER_NAME`
 - `JAVA_CONVENTIONS_PUBLISHING_DEVELOPER_URL`
 - `JAVA_CONVENTIONS_BASE_PACKAGE`
+- `GITHUB_REPOSITORY_OWNER` (highest precedence for publishing owner inference)
 
 `leanish.conventions.basePackage` is optional:
 - If configured, the plugin uses that value.
@@ -131,7 +136,7 @@ Publishing owner/developer metadata is optional:
   - `id=<owner>`
   - `name=<owner>`
   - `url=https://github.com/<owner>`
-- GitHub Packages credentials resolve by environment first (`GITHUB_ACTOR`, `GITHUB_TOKEN`), then `gpr.user`, `gpr.key`.
+- GitHub Packages credentials resolve by environment first (`GITHUB_ACTOR`, `GITHUB_TOKEN`), then properties (`gpr.user`, `gpr.key`).
 
 ## Publishing
 - For Gradle Plugin Portal, set `gradle.publish.key` and `gradle.publish.secret` in `~/.gradle/gradle.properties`,
@@ -213,6 +218,17 @@ tasks.named("javadocJar") {
 }
 ```
 
+- If you also want to omit these artifacts from publications, skip the `sourcesElements` and `javadocElements` variants:
+
+```kotlin
+import org.gradle.api.component.AdhocComponentWithVariants
+
+components.named<AdhocComponentWithVariants>("java") {
+    withVariantsFromConfiguration(configurations["sourcesElements"]) { skip() }
+    withVariantsFromConfiguration(configurations["javadocElements"]) { skip() }
+}
+```
+
 ## Coverage behavior
 - Enforces instruction coverage via `jacocoTestCoverageVerification`.
 - Default minimum is `0.85` unless overridden.
@@ -259,10 +275,5 @@ It:
 ## Notes
 - Checkstyle uses the configuration bundled in this plugin. If `config/checkstyle/suppressions.xml` exists, it is applied; otherwise no suppressions are used.
 - The plugin does not add a toolchain resolver; ensure the configured JDK is available locally or add a resolver in the consuming project.
-- The plugin adds `mavenCentral()` by default; disable it with `leanish.conventions.repositories.mavenCentral.enabled=false`.
-- Publishing owner resolves by `GITHUB_REPOSITORY_OWNER`, then `JAVA_CONVENTIONS_PUBLISHING_GITHUB_OWNER`, then property (`leanish.conventions.publishing.githubOwner`), then `group` (`io.github.<owner>`).
-- Base package can be configured via `leanish.conventions.basePackage`; if omitted, it is inferred
-  from `src/main/java` package declarations and logged.
-- NullAway annotated packages are derived from `leanish.conventions.basePackage`.
 - Dependencies added by the plugin are additive; your project dependencies remain in effect.
 - The bundled pre-commit hook runs `./gradlew spotlessApply` and `./gradlew checkstyleMain checkstyleTest`, and may modify files before commit.

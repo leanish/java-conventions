@@ -1,6 +1,7 @@
 package io.github.leanish.gradleconventions
 
 import io.github.leanish.gradleconventions.ConventionProperties.BASE_PACKAGE
+import io.github.leanish.gradleconventions.ConventionProperties.GITHUB_REPOSITORY_OWNER_ENV
 import java.io.File
 import java.nio.file.Path
 import org.assertj.core.api.Assertions.assertThat
@@ -32,10 +33,11 @@ class JavaConventionsProvidersTest {
         project.group = "io.github.acme.lib"
 
         val providers = project.javaConventionsProviders()
+        val githubOwnerFromEnvironment = resolvedGithubOwnerFromEnvironment()
 
         assertThat(providers.mavenCentralEnabled.get()).isTrue()
         assertThat(providers.publishingConventionsEnabled.get()).isTrue()
-        assertThat(providers.publishingGithubOwner.get()).isEqualTo("acme")
+        assertThat(providers.publishingGithubOwner.get()).isEqualTo(githubOwnerFromEnvironment ?: "acme")
         assertThat(providers.publishingGithubRepository.get()).isEqualTo("defaults")
         assertThat(providers.publishingPomName.get()).isEqualTo("defaults")
         assertThat(providers.publishingPomDescription.get()).isEqualTo("defaults")
@@ -84,7 +86,11 @@ class JavaConventionsProvidersTest {
 
         val providers = project.javaConventionsProviders()
 
-        assertThat(providers.publishingGithubOwner.get()).isEmpty()
+        assertThat(providers.publishingGithubOwner.get()).isEqualTo(resolvedGithubOwnerFromEnvironment() ?: "")
+    }
+
+    private fun resolvedGithubOwnerFromEnvironment(): String? {
+        return System.getenv(GITHUB_REPOSITORY_OWNER_ENV)?.trim()?.takeIf(String::isNotEmpty)
     }
 
     private fun newJavaProject(projectDir: File, name: String): Project {

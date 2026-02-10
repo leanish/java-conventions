@@ -1,5 +1,6 @@
 package io.github.leanish.gradleconventions
 
+import io.github.leanish.gradleconventions.ConventionProperties.GITHUB_REPOSITORY_OWNER_ENV
 import java.io.File
 import java.nio.file.Path
 import org.assertj.core.api.Assertions.assertThat
@@ -196,6 +197,49 @@ class GradleConventionsPluginTest {
             .contains("hasSourcesJarTask=true")
             .contains("hasJavadocJarTask=true")
             .contains("nullAwayConfigured=true")
+    }
+
+    @Test
+    fun sourcesAndJavadocsArtifactsCanBeDisabledByConsumer() {
+        val projectDir = tempDir.resolve("disable-sources-javadocs").toFile()
+        projectDir.mkdirs()
+        writeRequiredConventionsProperties(projectDir)
+
+        writeFile(projectDir, "settings.gradle.kts", "rootProject.name = \"disable-sources-javadocs\"")
+        writeFile(
+            projectDir,
+            "build.gradle.kts",
+            $$"""
+            plugins {
+                id("io.github.leanish.java-conventions")
+            }
+
+            tasks.named("sourcesJar") {
+                enabled = false
+            }
+
+            tasks.named("javadocJar") {
+                enabled = false
+            }
+
+            tasks.register("dumpConventions") {
+                doLast {
+                    println("sourcesJarEnabled=${project.tasks.named("sourcesJar").get().enabled}")
+                    println("javadocJarEnabled=${project.tasks.named("javadocJar").get().enabled}")
+                }
+            }
+            """.trimIndent(),
+        )
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withArguments("dumpConventions")
+            .withPluginClasspath()
+            .build()
+
+        assertThat(result.output)
+            .contains("sourcesJarEnabled=false")
+            .contains("javadocJarEnabled=false")
     }
 
     @Test
@@ -546,6 +590,7 @@ class GradleConventionsPluginTest {
                 "tasks",
                 "--all",
             )
+            .withEnvironment(environmentWithoutGithubRepositoryOwner())
             .withPluginClasspath()
             .build()
 
@@ -558,6 +603,7 @@ class GradleConventionsPluginTest {
             .withArguments(
                 "generatePomFileForMavenJavaPublication",
             )
+            .withEnvironment(environmentWithoutGithubRepositoryOwner())
             .withPluginClasspath()
             .build()
 
@@ -1027,5 +1073,11 @@ class GradleConventionsPluginTest {
             "Missing bundled pre-commit hook resource"
         }
         return resource.readText()
+    }
+
+    private fun environmentWithoutGithubRepositoryOwner(): Map<String, String> {
+        return System.getenv().toMutableMap().apply {
+            remove(GITHUB_REPOSITORY_OWNER_ENV)
+        }
     }
 }
