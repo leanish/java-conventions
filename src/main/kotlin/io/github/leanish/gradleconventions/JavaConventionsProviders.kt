@@ -33,7 +33,6 @@ internal data class JavaConventionsProviders(
     val nullAwayAnnotatedPackages: Provider<String>,
     val checkstyleConfigDir: Provider<Directory>,
     val checkstyleConfigFile: Provider<File>,
-    val checkstyleSuppressionsFile: Provider<File>,
     val runtimeLauncher: Provider<JavaLauncher>,
 )
 
@@ -88,7 +87,6 @@ internal fun Project.javaConventionsProviders(): JavaConventionsProviders {
     }
     val checkstyleConfigDir = layout.buildDirectory.dir("generated/checkstyle")
     val checkstyleConfigFile = checkstyleConfigDir.map { it.file("checkstyle.xml").asFile }
-    val checkstyleSuppressionsFile = checkstyleConfigDir.map { it.file("suppressions.xml").asFile }
 
     val javaPluginExtension = extensions.getByType(JavaPluginExtension::class.java)
     val javaToolchainService = extensions.getByType(JavaToolchainService::class.java)
@@ -108,7 +106,6 @@ internal fun Project.javaConventionsProviders(): JavaConventionsProviders {
         nullAwayAnnotatedPackages = nullAwayAnnotatedPackages,
         checkstyleConfigDir = checkstyleConfigDir,
         checkstyleConfigFile = checkstyleConfigFile,
-        checkstyleSuppressionsFile = checkstyleSuppressionsFile,
         runtimeLauncher = runtimeLauncher,
     )
 }

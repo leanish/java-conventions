@@ -1,8 +1,12 @@
 package io.github.leanish.gradleconventions
 
+import io.github.leanish.gradleconventions.ConventionProperties.PUBLISHING_DEVELOPER_ID_ENV
+import io.github.leanish.gradleconventions.ConventionProperties.PUBLISHING_DEVELOPER_NAME_ENV
+import io.github.leanish.gradleconventions.ConventionProperties.PUBLISHING_DEVELOPER_URL_ENV
 import io.github.leanish.gradleconventions.ConventionProperties.GITHUB_REPOSITORY_OWNER_ENV
-import java.io.File
+import io.github.leanish.gradleconventions.ConventionProperties.PUBLISHING_GITHUB_OWNER_ENV
 import java.nio.file.Path
+import java.util.jar.JarFile
 import org.assertj.core.api.Assertions.assertThat
 import org.gradle.testkit.runner.GradleRunner
 import org.junit.jupiter.api.Test
@@ -116,6 +120,116 @@ class GradleConventionsPluginTest {
             .contains("jacocoPresent=true")
             .contains("compileRelease=17")
             .contains("jacocoMinimum=0.91")
+    }
+
+    @Test
+    fun excludeTagsSystemPropertyFiltersTaggedTestsAndDisablesCoverageVerification() {
+        val projectDir = tempDir.resolve("exclude-tags-filtering").toFile()
+        projectDir.mkdirs()
+        writeRequiredConventionsProperties(projectDir)
+
+        writeFile(projectDir, "settings.gradle.kts", "rootProject.name = \"exclude-tags-filtering\"")
+        writeFile(
+            projectDir,
+            "build.gradle.kts",
+            $$"""
+            import org.gradle.testing.jacoco.tasks.JacocoCoverageVerification
+
+            plugins {
+                id("io.github.leanish.java-conventions")
+            }
+
+            tasks.register("dumpCoverageState") {
+                doLast {
+                    val verificationTask = tasks
+                        .named("jacocoTestCoverageVerification", JacocoCoverageVerification::class.java)
+                        .get()
+                    println("jacocoVerificationEnabled=${verificationTask.enabled}")
+                }
+            }
+            """.trimIndent(),
+        )
+        writeFile(
+            projectDir,
+            "src/test/java/io/github/leanish/sample/TagFilteringTest.java",
+            """
+            package io.github.leanish.sample;
+
+            import org.junit.jupiter.api.Tag;
+            import org.junit.jupiter.api.Test;
+
+            class TagFilteringTest {
+                @Test
+                void unitTest() {
+                }
+
+                @Test
+                @Tag("integration")
+                void integrationTaggedTest() {
+                }
+            }
+            """.trimIndent(),
+        )
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withArguments(
+                "-DexcludeTags=integration",
+                "test",
+                "dumpCoverageState",
+            )
+            .withPluginClasspath()
+            .build()
+
+        val testReport = projectDir.resolve("build/test-results/test/TEST-io.github.leanish.sample.TagFilteringTest.xml")
+        assertThat(testReport).exists()
+        val testReportXml = testReport.readText()
+
+        assertThat(testReportXml)
+            .contains("name=\"unitTest()\"")
+            .doesNotContain("integrationTaggedTest")
+        assertThat(result.output)
+            .contains("jacocoVerificationEnabled=false")
+    }
+
+    @Test
+    fun compileTestJavaDisablesErrorProne() {
+        val projectDir = tempDir.resolve("compile-test-java-errorprone").toFile()
+        projectDir.mkdirs()
+        writeRequiredConventionsProperties(projectDir)
+
+        writeFile(projectDir, "settings.gradle.kts", "rootProject.name = \"compile-test-java-errorprone\"")
+        writeFile(
+            projectDir,
+            "build.gradle.kts",
+            $$"""
+            import net.ltgt.gradle.errorprone.errorprone
+            import org.gradle.api.tasks.compile.JavaCompile
+
+            plugins {
+                id("io.github.leanish.java-conventions")
+            }
+
+            tasks.register("dumpErrorProneState") {
+                doLast {
+                    val compileJava = tasks.named("compileJava", JavaCompile::class.java).get()
+                    val compileTestJava = tasks.named("compileTestJava", JavaCompile::class.java).get()
+                    println("compileJavaErrorProneEnabled=${compileJava.options.errorprone.enabled.get()}")
+                    println("compileTestJavaErrorProneEnabled=${compileTestJava.options.errorprone.enabled.get()}")
+                }
+            }
+            """.trimIndent(),
+        )
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withArguments("dumpErrorProneState")
+            .withPluginClasspath()
+            .build()
+
+        assertThat(result.output)
+            .contains("compileJavaErrorProneEnabled=true")
+            .contains("compileTestJavaErrorProneEnabled=false")
     }
 
     @Test
@@ -767,6 +881,99 @@ class GradleConventionsPluginTest {
     }
 
     @Test
+    fun fillsMissingPublishingDeveloperFieldsFromResolvedGithubOwner() {
+        val projectDir = tempDir.resolve("publishing-developer-partial").toFile()
+        projectDir.mkdirs()
+        writeFile(
+            projectDir,
+            "gradle.properties",
+            """
+            leanish.conventions.basePackage=io.github.leanish
+            leanish.conventions.publishing.githubOwner=acme
+            leanish.conventions.publishing.developer.id=partial-id
+            """.trimIndent(),
+        )
+
+        writeFile(projectDir, "settings.gradle.kts", "rootProject.name = \"publishing-developer-partial\"")
+        writeFile(
+            projectDir,
+            "build.gradle.kts",
+            """
+            plugins {
+                id("io.github.leanish.java-conventions")
+            }
+
+            group = "io.github.acme"
+            version = "1.0.0"
+            """.trimIndent(),
+        )
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withArguments(
+                "generatePomFileForMavenJavaPublication",
+            )
+            .withEnvironment(environmentWithoutPublishingOverrides())
+            .withPluginClasspath()
+            .build()
+
+        assertThat(result.output).contains("BUILD SUCCESSFUL")
+
+        val generatedPom = projectDir.resolve("build/publications/mavenJava/pom-default.xml").readText()
+        assertThat(generatedPom)
+            .contains("<id>partial-id</id>")
+            .contains("<name>acme</name>")
+            .contains("<url>https://github.com/acme</url>")
+    }
+
+    @Test
+    fun composesPublishingDeveloperFieldsFromEnvPropertyAndInference() {
+        val projectDir = tempDir.resolve("publishing-developer-composed").toFile()
+        projectDir.mkdirs()
+        writeFile(
+            projectDir,
+            "gradle.properties",
+            """
+            leanish.conventions.basePackage=io.github.leanish
+            leanish.conventions.publishing.githubOwner=acme
+            leanish.conventions.publishing.developer.id=property-id
+            """.trimIndent(),
+        )
+
+        writeFile(projectDir, "settings.gradle.kts", "rootProject.name = \"publishing-developer-composed\"")
+        writeFile(
+            projectDir,
+            "build.gradle.kts",
+            """
+            plugins {
+                id("io.github.leanish.java-conventions")
+            }
+
+            group = "io.github.acme"
+            version = "1.0.0"
+            """.trimIndent(),
+        )
+
+        val environment = environmentWithoutPublishingOverrides().toMutableMap().apply {
+            put(PUBLISHING_DEVELOPER_NAME_ENV, "Env Name")
+        }
+
+        GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withArguments("generatePomFileForMavenJavaPublication")
+            .withEnvironment(environment)
+            .withPluginClasspath()
+            .build()
+
+        val generatedPom = projectDir.resolve("build/publications/mavenJava/pom-default.xml").readText()
+        assertThat(generatedPom)
+            .contains("<id>property-id</id>")
+            .contains("<name>Env Name</name>")
+            .contains("<url>https://github.com/acme</url>")
+            .doesNotContain("must be configured together")
+    }
+
+    @Test
     fun githubPackagesCredentialsEnvironmentOverridesProperties() {
         val projectDir = tempDir.resolve("publishing-credentials-env-precedence").toFile()
         projectDir.mkdirs()
@@ -991,6 +1198,131 @@ class GradleConventionsPluginTest {
     }
 
     @Test
+    fun writeCheckstyleConfigUsesProjectFilesWhenPresent() {
+        val projectDir = tempDir.resolve("checkstyle-project-files").toFile()
+        projectDir.mkdirs()
+        writeRequiredConventionsProperties(projectDir)
+
+        writeFile(projectDir, "settings.gradle.kts", "rootProject.name = \"checkstyle-project-files\"")
+        writeFile(
+            projectDir,
+            "build.gradle.kts",
+            """
+            plugins {
+                id("io.github.leanish.java-conventions")
+            }
+            """.trimIndent(),
+        )
+
+        val customCheckstyle = "<module name=\"Checker\"><module name=\"TreeWalker\"/></module>"
+        val customSuppressions = "<suppressions><suppress files=\".*\"/></suppressions>"
+        writeFile(projectDir, "config/checkstyle/checkstyle.xml", customCheckstyle)
+        writeFile(projectDir, "config/checkstyle/suppressions.xml", customSuppressions)
+
+        GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withArguments("writeCheckstyleConfig")
+            .withPluginClasspath()
+            .build()
+
+        val generatedCheckstyle = projectDir.resolve("build/generated/checkstyle/checkstyle.xml").readText()
+        val generatedSuppressions = projectDir.resolve("build/generated/checkstyle/suppressions.xml").readText()
+
+        assertThat(generatedCheckstyle).isEqualTo(customCheckstyle)
+        assertThat(generatedSuppressions).isEqualTo(customSuppressions)
+    }
+
+    @Test
+    fun writeCheckstyleConfigFallsBackToBundledFilesWhenProjectFilesAreMissing() {
+        val projectDir = tempDir.resolve("checkstyle-bundled-fallback").toFile()
+        projectDir.mkdirs()
+        writeRequiredConventionsProperties(projectDir)
+
+        writeFile(projectDir, "settings.gradle.kts", "rootProject.name = \"checkstyle-bundled-fallback\"")
+        writeFile(
+            projectDir,
+            "build.gradle.kts",
+            """
+            plugins {
+                id("io.github.leanish.java-conventions")
+            }
+            """.trimIndent(),
+        )
+
+        GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withArguments("writeCheckstyleConfig")
+            .withPluginClasspath()
+            .build()
+
+        val generatedCheckstyle = projectDir.resolve("build/generated/checkstyle/checkstyle.xml").readText()
+        val generatedSuppressions = projectDir.resolve("build/generated/checkstyle/suppressions.xml").readText()
+
+        assertThat(generatedCheckstyle).contains("<module name=\"Checker\">")
+        assertThat(generatedSuppressions).contains("<suppressions>")
+    }
+
+    @Test
+    fun generatedCheckstyleFilesAreNotPackagedInJar() {
+        val projectDir = tempDir.resolve("checkstyle-not-packaged").toFile()
+        projectDir.mkdirs()
+        writeRequiredConventionsProperties(projectDir)
+
+        writeFile(projectDir, "settings.gradle.kts", "rootProject.name = \"checkstyle-not-packaged\"")
+        writeFile(
+            projectDir,
+            "build.gradle.kts",
+            """
+            plugins {
+                id("io.github.leanish.java-conventions")
+            }
+            """.trimIndent(),
+        )
+        writeFile(
+            projectDir,
+            "config/checkstyle/checkstyle.xml",
+            "<module name=\"Checker\"><module name=\"Regexp\"/></module>",
+        )
+        writeFile(
+            projectDir,
+            "config/checkstyle/suppressions.xml",
+            "<suppressions><suppress files=\"generated\"/></suppressions>",
+        )
+
+        GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withArguments("writeCheckstyleConfig", "jar")
+            .withPluginClasspath()
+            .build()
+
+        val generatedCheckstyle = projectDir.resolve("build/generated/checkstyle/checkstyle.xml")
+        val generatedSuppressions = projectDir.resolve("build/generated/checkstyle/suppressions.xml")
+        assertThat(generatedCheckstyle).exists()
+        assertThat(generatedSuppressions).exists()
+
+        val jarFiles = projectDir.resolve("build/libs")
+            .listFiles { _, name -> name.endsWith(".jar") }
+            ?.toList()
+            .orEmpty()
+        assertThat(jarFiles).hasSize(1)
+        val jarFile = jarFiles.single()
+
+        val jarEntries = mutableListOf<String>()
+        JarFile(jarFile).use { jar ->
+            val entries = jar.entries()
+            while (entries.hasMoreElements()) {
+                jarEntries.add(entries.nextElement().name)
+            }
+        }
+
+        assertThat(jarEntries)
+            .doesNotContain("generated/checkstyle/checkstyle.xml")
+            .doesNotContain("generated/checkstyle/suppressions.xml")
+            .doesNotContain("checkstyle.xml")
+            .doesNotContain("suppressions.xml")
+    }
+
+    @Test
     fun customPreCommitHookIsUsedWhenPresent() {
         val projectDir = tempDir.resolve("hooks").toFile()
         projectDir.mkdirs()
@@ -1054,20 +1386,6 @@ class GradleConventionsPluginTest {
             .isEqualTo(loadBundledPreCommitHook())
     }
 
-    private fun writeFile(projectDir: File, name: String, content: String) {
-        val file = projectDir.resolve(name)
-        file.parentFile?.mkdirs()
-        file.writeText(content)
-    }
-
-    private fun writeRequiredConventionsProperties(projectDir: File) {
-        writeFile(
-            projectDir,
-            "gradle.properties",
-            "leanish.conventions.basePackage=io.github.leanish",
-        )
-    }
-
     private fun loadBundledPreCommitHook(): String {
         val resource = requireNotNull(PropertyParser::class.java.classLoader.getResource("git-hooks/pre-commit")) {
             "Missing bundled pre-commit hook resource"
@@ -1078,6 +1396,16 @@ class GradleConventionsPluginTest {
     private fun environmentWithoutGithubRepositoryOwner(): Map<String, String> {
         return System.getenv().toMutableMap().apply {
             remove(GITHUB_REPOSITORY_OWNER_ENV)
+        }
+    }
+
+    private fun environmentWithoutPublishingOverrides(): Map<String, String> {
+        return System.getenv().toMutableMap().apply {
+            remove(GITHUB_REPOSITORY_OWNER_ENV)
+            remove(PUBLISHING_GITHUB_OWNER_ENV)
+            remove(PUBLISHING_DEVELOPER_ID_ENV)
+            remove(PUBLISHING_DEVELOPER_NAME_ENV)
+            remove(PUBLISHING_DEVELOPER_URL_ENV)
         }
     }
 }

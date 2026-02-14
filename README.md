@@ -7,7 +7,7 @@ Shared Gradle conventions for JDK-based projects.
 - Configures Java toolchain, runtime launcher, and bytecode level (defaults to JDK 25 from any available vendor).
 - The plugin itself uses Kotlin/JVM 21 (Gradle embeds Kotlin 2.2.x today).
 - Adds `mavenCentral()` by default (configurable).
-- Sets Checkstyle tool version and uses the bundled Checkstyle config (project suppressions are optional).
+- Sets Checkstyle tool version and uses project-level Checkstyle files when provided (bundled defaults otherwise).
 - Sets JaCoCo tool version and enforces instruction coverage.
 - Configures Spotless for basic Java formatting (unused imports, trailing whitespace, newline at EOF).
 - Applies Spotless license header conventions when `LICENSE_HEADER` exists in the project root.
@@ -131,11 +131,7 @@ Publishing repository/name/description conventions are derived from project meta
 Publishing owner/developer metadata is optional:
 - `leanish.conventions.publishing.githubOwner` resolves owner for GitHub URLs/repository.
 - Owner resolves by `GITHUB_REPOSITORY_OWNER`, then `JAVA_CONVENTIONS_PUBLISHING_GITHUB_OWNER`, then `leanish.conventions.publishing.githubOwner`, then `group` when it matches `io.github.<owner>`.
-- `leanish.conventions.publishing.developer.id|name|url` must be configured together when any is set.
-- If developer properties are all missing and owner is resolvable, developer metadata is inferred as:
-  - `id=<owner>`
-  - `name=<owner>`
-  - `url=https://github.com/<owner>`
+- Developer fields (`id`, `name`, `url`) are optional and independent; missing values are inferred from resolved owner when possible (`id=<owner>`, `name=<owner>`, `url=https://github.com/<owner>`), and the `developers` block is emitted only when all three resolve.
 - GitHub Packages credentials resolve by environment first (`GITHUB_ACTOR`, `GITHUB_TOKEN`), then properties (`gpr.user`, `gpr.key`).
 
 ## Publishing
@@ -254,6 +250,18 @@ When enabled, the plugin:
 - Adds `mavenLocal()` always.
 - Adds GitHub Packages (`GitHubPackages`) publishing repository only when owner is resolvable.
 
+### Overriding publishing
+Two supported patterns:
+
+1. Keep conventions enabled and reconfigure existing entries.
+   - Reconfigure `mavenJava` with `publications.named("mavenJava", MavenPublication::class.java)`.
+   - Reconfigure `GitHubPackages` with `repositories.named("GitHubPackages", MavenArtifactRepository::class.java)`.
+   - Do not use `create<MavenPublication>("mavenJava")` when conventions are enabled, because `mavenJava` already exists.
+
+2. Fully replace plugin publishing behavior.
+   - Set `leanish.conventions.publishing.enabled=false`.
+   - Configure `maven-publish` entirely in the consumer project (`publications { create(...) }`, custom repositories, full POM metadata).
+
 ## License header conventions
 The plugin applies Spotless Java license headers only when `LICENSE_HEADER` exists in the project root.
 
@@ -273,7 +281,9 @@ It:
 - Disables Error Prone for `compileTestJava`.
 
 ## Notes
-- Checkstyle uses the configuration bundled in this plugin. If `config/checkstyle/suppressions.xml` exists, it is applied; otherwise no suppressions are used.
+- Checkstyle uses `config/checkstyle/checkstyle.xml` and `config/checkstyle/suppressions.xml` when present in the consumer project.
+- If either file is missing, the plugin falls back to bundled defaults (`checkstyle.xml` and empty suppressions).
+- These files are materialized under `build/generated/checkstyle` for Checkstyle only and are not packaged into JARs/publications.
 - The plugin does not add a toolchain resolver; ensure the configured JDK is available locally or add a resolver in the consuming project.
 - Dependencies added by the plugin are additive; your project dependencies remain in effect.
 - The bundled pre-commit hook runs `./gradlew spotlessApply` and `./gradlew checkstyleMain checkstyleTest`, and may modify files before commit.

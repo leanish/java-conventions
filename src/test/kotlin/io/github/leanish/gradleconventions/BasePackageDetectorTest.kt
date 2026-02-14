@@ -1,6 +1,5 @@
 package io.github.leanish.gradleconventions
 
-import java.io.File
 import java.nio.file.Path
 import org.assertj.core.api.Assertions.assertThat
 import org.gradle.testfixtures.ProjectBuilder
@@ -143,11 +142,5 @@ class BasePackageDetectorTest {
             .build()
 
         assertThat(project.detectBasePackages()).containsExactly("io.github.acme")
-    }
-
-    private fun writeFile(projectDir: File, name: String, content: String) {
-        val file = projectDir.resolve(name)
-        file.parentFile?.mkdirs()
-        file.writeText(content)
     }
 }

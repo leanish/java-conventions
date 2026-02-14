@@ -16,6 +16,7 @@ import io.github.leanish.gradleconventions.ConventionProperties.PUBLISHING_DEVEL
 import io.github.leanish.gradleconventions.javaConventionsProviders
 import io.github.leanish.gradleconventions.stringProperty
 import io.github.leanish.gradleconventions.PropertyParser
+import io.github.leanish.gradleconventions.WriteCheckstyleConfigTask
 import java.io.File
 import org.gradle.api.GradleException
 import org.gradle.api.JavaVersion
@@ -50,7 +51,6 @@ val publishingPomDescription = conventionProviders.publishingPomDescription
 val nullAwayAnnotatedPackages = conventionProviders.nullAwayAnnotatedPackages
 val checkstyleConfigDir = conventionProviders.checkstyleConfigDir
 val checkstyleConfigFile = conventionProviders.checkstyleConfigFile
-val checkstyleSuppressionsFile = conventionProviders.checkstyleSuppressionsFile
 val runtimeLauncher = conventionProviders.runtimeLauncher
 
 val defaultJdkVersion = 25
@@ -153,17 +153,6 @@ plugins.withId("maven-publish") {
                 PUBLISHING_DEVELOPER_URL,
                 PUBLISHING_DEVELOPER_URL_ENV,
             )
-            val configuredDeveloperFields = listOf(
-                configuredDeveloperId,
-                configuredDeveloperName,
-                configuredDeveloperUrl,
-            )
-            if (configuredDeveloperFields.any { it != null } && configuredDeveloperFields.any { it == null }) {
-                throw GradleException(
-                    "Properties '${PUBLISHING_DEVELOPER_ID}', '${PUBLISHING_DEVELOPER_NAME}' and '${PUBLISHING_DEVELOPER_URL}' must be configured together",
-                )
-            }
-
             val resolvedDeveloperId = configuredDeveloperId ?: resolvedGithubOwner
             val resolvedDeveloperName = configuredDeveloperName ?: resolvedGithubOwner
             val resolvedDeveloperUrl = configuredDeveloperUrl ?: resolvedGithubOwner?.let { owner ->
@@ -235,37 +224,16 @@ plugins.withId("maven-publish") {
     }
 }
 
-val projectSuppressionsFile: File = rootProject.file("config/checkstyle/suppressions.xml")
-
-val writeCheckstyleConfig: TaskProvider<Task> = tasks.register("writeCheckstyleConfig") {
+private val writeCheckstyleConfig = tasks.register<WriteCheckstyleConfigTask>("writeCheckstyleConfig") {
     description = "Writes bundled Checkstyle configuration to the build directory"
-    outputs.dir(checkstyleConfigDir)
-    if (projectSuppressionsFile.exists()) {
-        inputs.file(projectSuppressionsFile)
+    outputDir.set(checkstyleConfigDir)
+    val consumerCheckstyleInputFile = rootProject.file("config/checkstyle/checkstyle.xml")
+    val consumerSuppressionsInputFile = rootProject.file("config/checkstyle/suppressions.xml")
+    if (consumerCheckstyleInputFile.exists()) {
+        consumerCheckstyleFile.set(consumerCheckstyleInputFile)
     }
-
-    doLast {
-        val outputDir = checkstyleConfigDir.get().asFile
-        outputDir.mkdirs()
-
-        val checkstyleResource = requireNotNull(
-            PropertyParser::class.java.classLoader.getResource("checkstyle/checkstyle.xml"),
-        ) {
-            "Missing bundled Checkstyle configuration"
-        }
-
-        checkstyleConfigFile.get().writeText(checkstyleResource.readText())
-        val suppressionsFile = checkstyleSuppressionsFile.get()
-        if (projectSuppressionsFile.exists()) {
-            suppressionsFile.writeText(projectSuppressionsFile.readText())
-        } else {
-            val emptySuppressionsResource = requireNotNull(
-                PropertyParser::class.java.classLoader.getResource("checkstyle/empty-suppressions.xml"),
-            ) {
-                "Missing bundled empty Checkstyle suppressions"
-            }
-            suppressionsFile.writeText(emptySuppressionsResource.readText())
-        }
+    if (consumerSuppressionsInputFile.exists()) {
+        consumerSuppressionsFile.set(consumerSuppressionsInputFile)
     }
 }
 
@@ -277,9 +245,7 @@ checkstyle {
 tasks.withType<Checkstyle>().configureEach {
     dependsOn(writeCheckstyleConfig)
     configDirectory.set(checkstyleConfigDir)
-    doFirst {
-        configFile = checkstyleConfigFile.get()
-    }
+    configFile = checkstyleConfigFile.get()
     reports {
         xml.required.set(true)
         html.required.set(true)
@@ -357,22 +323,28 @@ if (project == rootProject) {
             return@provider markerFile.resolve("hooks")
         }
 
-        val hooksPath = runCatching {
-            val process = ProcessBuilder("git", "rev-parse", "--git-path", "hooks")
-                .directory(layout.projectDirectory.asFile)
-                .redirectErrorStream(true)
-                .start()
-            val output = process.inputStream.bufferedReader().readText().trim()
-            val exitCode = process.waitFor()
-            if (exitCode == 0) output.ifBlank { null } else null
-        }.getOrNull()
+        if (markerFile.isFile) {
+            val hooksDirFromPointer = runCatching {
+                val pointerLine = markerFile.useLines { lines ->
+                    lines.firstOrNull()
+                }?.trim()
+                if (pointerLine != null && pointerLine.startsWith("gitdir:")) {
+                    val gitDirPath = pointerLine.removePrefix("gitdir:").trim()
+                    if (gitDirPath.isNotEmpty()) {
+                        val gitDir = File(gitDirPath)
+                        val resolvedGitDir = if (gitDir.isAbsolute) {
+                            gitDir
+                        } else {
+                            markerFile.parentFile.resolve(gitDirPath)
+                        }
+                        return@runCatching resolvedGitDir.resolve("hooks")
+                    }
+                }
+                null
+            }.getOrNull()
 
-        if (!hooksPath.isNullOrBlank()) {
-            val resolvedPath = File(hooksPath)
-            return@provider if (resolvedPath.isAbsolute) {
-                resolvedPath
-            } else {
-                layout.projectDirectory.file(hooksPath).asFile
+            if (hooksDirFromPointer != null) {
+                return@provider hooksDirFromPointer
             }
         }
 

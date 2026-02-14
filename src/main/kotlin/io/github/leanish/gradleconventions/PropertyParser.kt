@@ -43,23 +43,38 @@ internal fun Project.booleanProperty(
     envName: String? = null,
     defaultValue: Boolean,
 ): Provider<Boolean> {
-    return providers.provider {
-        val envValue = envName?.let(System::getenv)
-        PropertyParser.booleanProperty(
-            name = name,
-            value = envValue ?: findProperty(name)?.toString(),
-            defaultValue = defaultValue,
-        )
+    val propertyValue = providers.provider {
+        findProperty(name)?.toString()
     }
+    val configuredValue = envName?.let { providers.environmentVariable(it).orElse(propertyValue) }
+        ?: propertyValue
+
+    return configuredValue
+        .map { value ->
+            PropertyParser.booleanProperty(
+                name = name,
+                value = value,
+                defaultValue = defaultValue,
+            )
+        }
+        .orElse(defaultValue)
 }
 
 internal fun Project.stringProperty(
     name: String,
     vararg envNames: String,
 ): String? {
-    val envValue = envNames.firstNotNullOfOrNull(System::getenv)
+    val propertyValue = providers.provider {
+        findProperty(name)?.toString()
+    }
+    val envValue = envNames.fold<String, Provider<String>?>(null) { previousEnvValue, envName ->
+        val currentEnvValue = providers.environmentVariable(envName)
+        previousEnvValue?.orElse(currentEnvValue) ?: currentEnvValue
+    }
+    val configuredValue = envValue?.orElse(propertyValue) ?: propertyValue
+
     return PropertyParser.stringProperty(
         name = name,
-        value = envValue ?: findProperty(name)?.toString(),
+        value = configuredValue.orNull,
     )
 }

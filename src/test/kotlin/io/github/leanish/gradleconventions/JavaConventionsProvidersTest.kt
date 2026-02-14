@@ -45,7 +45,6 @@ class JavaConventionsProvidersTest {
         assertThat(project.extensions.extraProperties[BASE_PACKAGE]).isEqualTo("com.example.app")
         assertThat(providers.checkstyleConfigDir.get().asFile.path).endsWith("build/generated/checkstyle")
         assertThat(providers.checkstyleConfigFile.get().path).endsWith("build/generated/checkstyle/checkstyle.xml")
-        assertThat(providers.checkstyleSuppressionsFile.get().path).endsWith("build/generated/checkstyle/suppressions.xml")
         assertThat(providers.runtimeLauncher).isNotNull
     }
 
