@@ -34,8 +34,8 @@ dependencies {
     implementation("net.ltgt.gradle:gradle-errorprone-plugin:5.0.0")
     testImplementation(gradleTestKit())
     testImplementation("org.assertj:assertj-core:3.27.7")
-    testImplementation("org.junit.jupiter:junit-jupiter:6.0.2")
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher:6.0.2")
+    testImplementation("org.junit.jupiter:junit-jupiter:6.0.3")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher:6.0.3")
 }
 
 val coverageIncludes = listOf("io/github/leanish/gradleconventions/**")
