@@ -151,7 +151,7 @@ tasks.withType<JacocoCoverageVerification>().configureEach {
     violationRules {
         rules.forEach { rule ->
             rule.limits.forEach { limit ->
-                limit.minimum = "0.91".toBigDecimal()
+                limit.minimum = "0.83".toBigDecimal()
             }
         }
     }
