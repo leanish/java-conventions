@@ -3,7 +3,7 @@ plugins {
     `maven-publish`
     jacoco
     id("com.gradle.plugin-publish") version "2.1.0"
-    id("com.diffplug.spotless") version "8.3.0"
+    id("com.diffplug.spotless") version "8.4.0"
 }
 
 group = "io.github.leanish"
@@ -27,7 +27,7 @@ kotlin {
 }
 
 dependencies {
-    implementation("com.diffplug.spotless:spotless-plugin-gradle:8.3.0")
+    implementation("com.diffplug.spotless:spotless-plugin-gradle:8.4.0")
     implementation("net.ltgt.gradle:gradle-errorprone-plugin:5.1.0")
     testImplementation(gradleTestKit())
     testImplementation("org.assertj:assertj-core:3.27.7")
