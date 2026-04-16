@@ -1,9 +1,9 @@
 # Changelog
 
-## 0.5.4-SNAPSHOT
+## 0.5.4
 
 ### Changed
-- Started the next development version after `0.5.3`.
+- Prepared the `0.5.4` release after `0.5.3`.
 - Upgraded the Gradle wrapper from `9.4.0` to `9.4.1`.
 - Upgraded plugin build dependencies:
   - `com.gradle.plugin-publish` from `2.1.0` to `2.1.1`

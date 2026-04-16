@@ -21,8 +21,7 @@ Shared Gradle conventions for JDK-based projects.
 
 ## How to use
 Use the Gradle Plugin Portal for released versions.
-For local development of unreleased changes, publish this plugin to `mavenLocal()` and use the current project version (`0.5.4-SNAPSHOT`).
-The released examples below use `0.5.3`, the latest published version.
+The released examples below use `0.5.4`, the latest published version.
 
 The plugin adds `mavenCentral()` by default to every project where it is applied.
 The canonical plugin id is `io.github.leanish.java-conventions`.
@@ -32,7 +31,7 @@ The canonical plugin id is `io.github.leanish.java-conventions`.
 
 ```kotlin
 plugins {
-    id("io.github.leanish.java-conventions") version "0.5.3"
+    id("io.github.leanish.java-conventions") version "0.5.4"
 }
 ```
 
@@ -46,7 +45,7 @@ pluginManagement {
         mavenCentral()
     }
     plugins {
-        id("io.github.leanish.java-conventions") version "0.5.3"
+        id("io.github.leanish.java-conventions") version "0.5.4"
     }
 }
 ```
@@ -66,7 +65,7 @@ If the plugin version is not published to the Gradle Plugin Portal yet:
    ```bash
    ./gradlew publishToMavenLocal
    ```
-2. Ensure consumer `settings.gradle(.kts)` has `mavenLocal()` in `pluginManagement.repositories` (before remote repositories) while testing unreleased snapshots, for example:
+2. Ensure consumer `settings.gradle(.kts)` has `mavenLocal()` in `pluginManagement.repositories` (before remote repositories) while testing local builds, for example:
    ```kotlin
    pluginManagement {
        repositories {
@@ -83,7 +82,7 @@ If you want root-only tasks (`installGitHooks`, `setupProject`) in a multi-proje
 
 ```kotlin
 plugins {
-    id("io.github.leanish.java-conventions") version "0.5.3"
+    id("io.github.leanish.java-conventions") version "0.5.4"
 }
 ```
 
