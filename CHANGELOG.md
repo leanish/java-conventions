@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.5.4
+
+### Changed
+- Prepared the `0.5.4` release after `0.5.3`.
+- Upgraded the Gradle wrapper from `9.4.0` to `9.4.1`.
+- Upgraded plugin build dependencies:
+  - `com.gradle.plugin-publish` from `2.1.0` to `2.1.1`
+  - `com.diffplug.spotless` from `8.3.0` to `8.4.0`
+- Upgraded GitHub Actions Gradle setup from `gradle/actions/setup-gradle@v5` to `gradle/actions/setup-gradle@v6`.
+- Upgraded Checkstyle from `13.3.0` to `13.4.0`.
+- Upgraded consumer-injected dependencies:
+  - `org.projectlombok:lombok` from `1.18.42` to `1.18.44`
+  - `com.google.errorprone:error_prone_annotations` from `2.48.0` to `2.49.0`
+  - `com.google.errorprone:error_prone_core` from `2.48.0` to `2.49.0`
+  - `com.uber.nullaway:nullaway` from `0.13.1` to `0.13.3`
+
 ## 0.5.3
 
 ### Changed

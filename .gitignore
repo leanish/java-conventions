@@ -1,14 +1,14 @@
 # Gradle
-/.gradle/
-/.gradle-*/
-/build/
+.gradle/
+.gradle-*/
+build/
 
 # IDE
-/.idea/
+.idea/
 
 # OS
-**/.DS_Store
+.DS_Store
 
 # Other
-/.claude/
-/.kotlin/
+.claude/
+.kotlin/

@@ -82,18 +82,18 @@ dependencies {
     testCompileOnly("org.jspecify:jspecify:1.0.0")
     compileOnly("org.jetbrains:annotations:26.1.0")
     testCompileOnly("org.jetbrains:annotations:26.1.0")
-    compileOnly("com.google.errorprone:error_prone_annotations:2.48.0")
-    testCompileOnly("com.google.errorprone:error_prone_annotations:2.48.0")
-    compileOnly("org.projectlombok:lombok:1.18.42")
-    testCompileOnly("org.projectlombok:lombok:1.18.42")
-    annotationProcessor("org.projectlombok:lombok:1.18.42")
-    testAnnotationProcessor("org.projectlombok:lombok:1.18.42")
+    compileOnly("com.google.errorprone:error_prone_annotations:2.49.0")
+    testCompileOnly("com.google.errorprone:error_prone_annotations:2.49.0")
+    compileOnly("org.projectlombok:lombok:1.18.44")
+    testCompileOnly("org.projectlombok:lombok:1.18.44")
+    annotationProcessor("org.projectlombok:lombok:1.18.44")
+    testAnnotationProcessor("org.projectlombok:lombok:1.18.44")
     testImplementation("org.junit.jupiter:junit-jupiter:6.0.3")
     testImplementation("org.assertj:assertj-core:3.27.7")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher:6.0.3")
 
-    errorprone("com.google.errorprone:error_prone_core:2.48.0")
-    errorprone("com.uber.nullaway:nullaway:0.13.1")
+    errorprone("com.google.errorprone:error_prone_core:2.49.0")
+    errorprone("com.uber.nullaway:nullaway:0.13.3")
 }
 
 spotless {
@@ -251,7 +251,7 @@ private val writeCheckstyleConfig = tasks.register<WriteCheckstyleConfigTask>("w
 }
 
 checkstyle {
-    toolVersion = "13.3.0"
+    toolVersion = "13.4.0"
     maxWarnings = 0
 }
 
