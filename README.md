@@ -21,7 +21,8 @@ Shared Gradle conventions for JDK-based projects.
 
 ## How to use
 Use the Gradle Plugin Portal for released versions.
-For local development of unreleased changes, publish this plugin to `mavenLocal()` and use your target version (for example, `0.5.3`).
+For local development of unreleased changes, publish this plugin to `mavenLocal()` and use the current project version (`0.5.4-SNAPSHOT`).
+The released examples below use `0.5.3`, the latest published version.
 
 The plugin adds `mavenCentral()` by default to every project where it is applied.
 The canonical plugin id is `io.github.leanish.java-conventions`.
@@ -237,6 +238,15 @@ components.named<AdhocComponentWithVariants>("java") {
 - Default minimum is `0.85` unless overridden.
 - Set `-DexcludeTags=integration` (or any tags) to skip those tests and disable coverage verification.
 
+## Dependency conventions
+- Adds `org.jspecify:jspecify:1.0.0`, `org.jetbrains:annotations:26.1.0`, and
+  `com.google.errorprone:error_prone_annotations:2.49.0` as `compileOnly` and `testCompileOnly`.
+- Adds `org.projectlombok:lombok:1.18.44` as `compileOnly`, `testCompileOnly`,
+  `annotationProcessor`, and `testAnnotationProcessor`.
+- Adds Error Prone analysis dependencies:
+  - `com.google.errorprone:error_prone_core:2.49.0`
+  - `com.uber.nullaway:nullaway:0.13.3`
+
 ## JUnit Platform
 - All `Test` tasks call `useJUnitPlatform()`.
 - The plugin adds `org.junit.jupiter:junit-jupiter:6.0.3` and `org.assertj:assertj-core:3.27.7` as `testImplementation`.
@@ -293,6 +303,7 @@ It:
 > **Fail-fast validation:** The plugin validates the configured Java toolchain during configuration and fails early with a descriptive error when `languageVersion < 21`.
 
 ## Notes
+- Checkstyle uses tool version `13.4.0`.
 - Checkstyle uses `config/checkstyle/checkstyle.xml` and `config/checkstyle/suppressions.xml` when present in the consumer project.
 - If either file is missing, the plugin falls back to bundled defaults (`checkstyle.xml` and empty suppressions).
 - These files are materialized under `build/generated/checkstyle` for Checkstyle only and are not packaged into JARs/publications.

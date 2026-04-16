@@ -25,6 +25,7 @@ class GradleConventionsPluginTest {
             projectDir,
             "build.gradle.kts",
             $$"""
+            import org.gradle.api.plugins.quality.CheckstyleExtension
             import org.gradle.api.tasks.compile.JavaCompile
             import org.gradle.testing.jacoco.tasks.JacocoCoverageVerification
 
@@ -42,6 +43,9 @@ class GradleConventionsPluginTest {
                     println("jacocoPresent=${jacoco != null}")
                     val minimum = jacoco?.violationRules?.rules?.firstOrNull()?.limits?.firstOrNull()?.minimum
                     println("jacocoMinimum=$minimum")
+
+                    val checkstyle = project.extensions.getByType(CheckstyleExtension::class.java)
+                    println("checkstyleToolVersion=${checkstyle.toolVersion}")
                 }
             }
             """.trimIndent(),
@@ -58,6 +62,7 @@ class GradleConventionsPluginTest {
             .contains("jacocoPresent=true")
             .contains("compileRelease=25")
             .contains("jacocoMinimum=0.85")
+            .contains("checkstyleToolVersion=13.4.0")
     }
 
     @Test
@@ -283,6 +288,19 @@ class GradleConventionsPluginTest {
                     println("hasAssertjDependency=${assertjDependency != null}")
                     println("assertjVersion=${assertjDependency?.version}")
 
+                    val compileOnlyDependencies = configurations.getByName("compileOnly").dependencies
+                    val errorProneAnnotationsDependency = compileOnlyDependencies.firstOrNull {
+                        it.group == "com.google.errorprone" && it.name == "error_prone_annotations"
+                    }
+                    println("hasErrorProneAnnotationsDependency=${errorProneAnnotationsDependency != null}")
+                    println("errorProneAnnotationsVersion=${errorProneAnnotationsDependency?.version}")
+
+                    val lombokCompileOnlyDependency = compileOnlyDependencies.firstOrNull {
+                        it.group == "org.projectlombok" && it.name == "lombok"
+                    }
+                    println("hasLombokCompileOnlyDependency=${lombokCompileOnlyDependency != null}")
+                    println("lombokCompileOnlyVersion=${lombokCompileOnlyDependency?.version}")
+
                     val testCompileOnlyDependencies = configurations.getByName("testCompileOnly").dependencies
                     val lombokTestCompileOnlyDependency = testCompileOnlyDependencies.firstOrNull {
                         it.group == "org.projectlombok" && it.name == "lombok"
@@ -296,6 +314,19 @@ class GradleConventionsPluginTest {
                     }
                     println("hasLombokTestAnnotationProcessorDependency=${lombokTestAnnotationProcessorDependency != null}")
                     println("lombokTestAnnotationProcessorVersion=${lombokTestAnnotationProcessorDependency?.version}")
+
+                    val errorProneDependencies = configurations.getByName("errorprone").dependencies
+                    val errorProneCoreDependency = errorProneDependencies.firstOrNull {
+                        it.group == "com.google.errorprone" && it.name == "error_prone_core"
+                    }
+                    println("hasErrorProneCoreDependency=${errorProneCoreDependency != null}")
+                    println("errorProneCoreVersion=${errorProneCoreDependency?.version}")
+
+                    val nullAwayDependency = errorProneDependencies.firstOrNull {
+                        it.group == "com.uber.nullaway" && it.name == "nullaway"
+                    }
+                    println("hasNullAwayDependency=${nullAwayDependency != null}")
+                    println("nullAwayVersion=${nullAwayDependency?.version}")
 
                     println("hasSourcesJarTask=${project.tasks.findByName("sourcesJar") != null}")
                     println("hasJavadocJarTask=${project.tasks.findByName("javadocJar") != null}")
@@ -325,10 +356,18 @@ class GradleConventionsPluginTest {
             .contains("junitJupiterVersion=6.0.3")
             .contains("hasAssertjDependency=true")
             .contains("assertjVersion=3.27.7")
+            .contains("hasErrorProneAnnotationsDependency=true")
+            .contains("errorProneAnnotationsVersion=2.49.0")
+            .contains("hasLombokCompileOnlyDependency=true")
+            .contains("lombokCompileOnlyVersion=1.18.44")
             .contains("hasLombokTestCompileOnlyDependency=true")
-            .contains("lombokTestCompileOnlyVersion=1.18.42")
+            .contains("lombokTestCompileOnlyVersion=1.18.44")
             .contains("hasLombokTestAnnotationProcessorDependency=true")
-            .contains("lombokTestAnnotationProcessorVersion=1.18.42")
+            .contains("lombokTestAnnotationProcessorVersion=1.18.44")
+            .contains("hasErrorProneCoreDependency=true")
+            .contains("errorProneCoreVersion=2.49.0")
+            .contains("hasNullAwayDependency=true")
+            .contains("nullAwayVersion=0.13.3")
             .contains("hasSourcesJarTask=true")
             .contains("hasJavadocJarTask=true")
             .contains("nullAwayConfigured=true")
