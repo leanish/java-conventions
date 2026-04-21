@@ -77,29 +77,7 @@ internal fun Project.javaConventionsProviders(): JavaConventionsProviders {
     val publishingPomName = providers.provider { name }
     val publishingPomDescription = providers.provider { description?.takeIf(String::isNotBlank) ?: name }
     val nullAwayAnnotatedPackages = providers.provider {
-        val configuredBasePackage = stringProperty(
-            BASE_PACKAGE,
-            BASE_PACKAGE_ENV,
-        )
-        if (configuredBasePackage != null) {
-            return@provider configuredBasePackage
-        }
-
-        val detectedBasePackages = detectBasePackages()
-        if (detectedBasePackages.isEmpty()) {
-            throw GradleException(
-                "Property '$BASE_PACKAGE' must be configured or at least one Java package declaration must be discoverable under src/main/java",
-            )
-        }
-
-        val inferredBasePackages = detectedBasePackages.joinToString(",")
-        if (!extensions.extraProperties.has(BASE_PACKAGE)) {
-            extensions.extraProperties.set(BASE_PACKAGE, inferredBasePackages)
-            logger.lifecycle(
-                "Inferred '$BASE_PACKAGE=$inferredBasePackages' from source packages under src/main/java",
-            )
-        }
-        inferredBasePackages
+        resolveNullAwayAnnotatedPackages()
     }
     val checkstyleConfigDir = layout.buildDirectory.dir("generated/checkstyle")
     val checkstyleConfigFile = checkstyleConfigDir.map { it.file("checkstyle.xml").asFile }
@@ -126,4 +104,30 @@ internal fun Project.javaConventionsProviders(): JavaConventionsProviders {
         checkstyleConfigFile = checkstyleConfigFile,
         runtimeLauncher = runtimeLauncher,
     )
+}
+
+private fun Project.resolveNullAwayAnnotatedPackages(): String {
+    val configuredBasePackage = stringProperty(
+        BASE_PACKAGE,
+        BASE_PACKAGE_ENV,
+    )
+    if (configuredBasePackage != null) {
+        return configuredBasePackage
+    }
+
+    val detectedBasePackages = detectBasePackages()
+    if (detectedBasePackages.isEmpty()) {
+        throw GradleException(
+            "Property '$BASE_PACKAGE' must be configured or at least one Java package declaration must be discoverable under src/main/java",
+        )
+    }
+
+    val inferredBasePackages = detectedBasePackages.joinToString(",")
+    if (!extensions.extraProperties.has(BASE_PACKAGE)) {
+        extensions.extraProperties.set(BASE_PACKAGE, inferredBasePackages)
+        logger.lifecycle(
+            "Inferred '$BASE_PACKAGE=$inferredBasePackages' from source packages under src/main/java",
+        )
+    }
+    return inferredBasePackages
 }

@@ -13,7 +13,7 @@ import io.github.leanish.gradleconventions.ConventionProperties.PUBLISHING_DEVEL
 import io.github.leanish.gradleconventions.ConventionProperties.PUBLISHING_DEVELOPER_NAME_ENV
 import io.github.leanish.gradleconventions.ConventionProperties.PUBLISHING_DEVELOPER_URL
 import io.github.leanish.gradleconventions.ConventionProperties.PUBLISHING_DEVELOPER_URL_ENV
-import io.github.leanish.gradleconventions.PropertyParser
+import io.github.leanish.gradleconventions.GitHooks
 import io.github.leanish.gradleconventions.WriteCheckstyleConfigTask
 import io.github.leanish.gradleconventions.javaConventionsProviders
 import io.github.leanish.gradleconventions.stringProperty
@@ -215,7 +215,7 @@ plugins.withId("maven-publish") {
                     }
                     null -> maven {
                         name = "GitHubPackages"
-                        url = uri("https://maven.pkg.github.com/$resolvedGithubOwner/${publishingGithubRepository.get()}")
+                        url = uri("https://maven.pkg.github.com/$resolvedGithubOwner/$resolvedGithubRepository")
                         credentials {
                             username = stringProperty(
                                 GITHUB_PACKAGES_USER,
@@ -331,37 +331,10 @@ if (project == rootProject) {
     val preCommitHookFile = layout.buildDirectory.file("generated/git-hooks/pre-commit")
     val gitExists = providers.provider { gitMarker.asFile.exists() }
     val hooksDir = providers.provider {
-        val markerFile = gitMarker.asFile
-        if (markerFile.isDirectory) {
-            return@provider markerFile.resolve("hooks")
-        }
-
-        if (markerFile.isFile) {
-            val hooksDirFromPointer = runCatching {
-                val pointerLine = markerFile.useLines { lines ->
-                    lines.firstOrNull()
-                }?.trim()
-                if (pointerLine != null && pointerLine.startsWith("gitdir:")) {
-                    val gitDirPath = pointerLine.removePrefix("gitdir:").trim()
-                    if (gitDirPath.isNotEmpty()) {
-                        val gitDir = File(gitDirPath)
-                        val resolvedGitDir = if (gitDir.isAbsolute) {
-                            gitDir
-                        } else {
-                            markerFile.parentFile.resolve(gitDirPath)
-                        }
-                        return@runCatching resolvedGitDir.resolve("hooks")
-                    }
-                }
-                null
-            }.getOrNull()
-
-            if (hooksDirFromPointer != null) {
-                return@provider hooksDirFromPointer
-            }
-        }
-
-        layout.projectDirectory.dir(".git/hooks").asFile
+        GitHooks.directory(
+            gitMarker = gitMarker.asFile,
+            fallbackHooksDirectory = layout.projectDirectory.dir(".git/hooks").asFile,
+        )
     }
     val writePreCommitHook = tasks.register("writePreCommitHook") {
         description = "Writes the bundled pre-commit hook to the build directory"
@@ -369,12 +342,9 @@ if (project == rootProject) {
         onlyIf { gitExists.get() && !projectHookFile.asFile.exists() }
 
         doLast {
-            val resource = requireNotNull(PropertyParser::class.java.classLoader.getResource("git-hooks/pre-commit")) {
-                "Missing bundled pre-commit hook resource"
-            }
             val targetFile = preCommitHookFile.get().asFile
             targetFile.parentFile.mkdirs()
-            targetFile.writeText(resource.readText())
+            targetFile.writeText(GitHooks.bundledPreCommitHook())
         }
     }
 

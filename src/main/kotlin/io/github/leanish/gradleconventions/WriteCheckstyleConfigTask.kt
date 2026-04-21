@@ -15,6 +15,7 @@ import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
+import java.io.File
 import java.nio.charset.StandardCharsets.UTF_8
 
 /**
@@ -53,21 +54,25 @@ internal abstract class WriteCheckstyleConfigTask : DefaultTask() {
         val outputDirFile = outputDir.get().asFile
         outputDirFile.mkdirs()
 
-        val checkstyleConfigFile = outputDir.file("checkstyle.xml").get().asFile
-        val consumerCheckstyleInputFile = consumerCheckstyleFile.orNull?.asFile
-        if (consumerCheckstyleInputFile != null) {
-            checkstyleConfigFile.writeText(consumerCheckstyleInputFile.readText(UTF_8), UTF_8)
-        } else {
-            checkstyleConfigFile.writeText(loadRequiredResource("checkstyle/checkstyle.xml"), UTF_8)
-        }
+        writeGeneratedFile(
+            fileName = "checkstyle.xml",
+            consumerFile = consumerCheckstyleFile.orNull?.asFile,
+            bundledResourcePath = "checkstyle/checkstyle.xml",
+        )
+        writeGeneratedFile(
+            fileName = "suppressions.xml",
+            consumerFile = consumerSuppressionsFile.orNull?.asFile,
+            bundledResourcePath = "checkstyle/empty-suppressions.xml",
+        )
+    }
 
-        val suppressionsFile = outputDir.file("suppressions.xml").get().asFile
-        val consumerSuppressionsInputFile = consumerSuppressionsFile.orNull?.asFile
-        if (consumerSuppressionsInputFile != null) {
-            suppressionsFile.writeText(consumerSuppressionsInputFile.readText(UTF_8), UTF_8)
-        } else {
-            suppressionsFile.writeText(loadRequiredResource("checkstyle/empty-suppressions.xml"), UTF_8)
-        }
+    private fun writeGeneratedFile(
+        fileName: String,
+        consumerFile: File?,
+        bundledResourcePath: String,
+    ) {
+        val content = consumerFile?.readText(UTF_8) ?: loadRequiredResource(bundledResourcePath)
+        outputDir.file(fileName).get().asFile.writeText(content, UTF_8)
     }
 
     private fun loadRequiredResource(path: String): String {

@@ -201,10 +201,4 @@ class JavaConventionsProvidersTest {
             .set(JavaLanguageVersion.of(21))
         return project
     }
-
-    private fun writeFile(projectDir: File, name: String, content: String) {
-        val file = projectDir.resolve(name)
-        file.parentFile?.mkdirs()
-        file.writeText(content)
-    }
 }
