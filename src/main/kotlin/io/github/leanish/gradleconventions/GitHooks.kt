@@ -24,10 +24,7 @@ internal object GitHooks {
     }
 
     fun bundledPreCommitHook(): String {
-        val resource = requireNotNull(javaClass.classLoader.getResource("git-hooks/pre-commit")) {
-            "Missing bundled pre-commit hook resource"
-        }
-        return resource.readText()
+        return BundledResources.load("git-hooks/pre-commit")
     }
 
     private fun directoryFromPointer(gitMarker: File): File? {

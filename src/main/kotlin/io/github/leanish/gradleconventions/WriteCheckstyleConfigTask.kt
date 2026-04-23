@@ -71,14 +71,7 @@ internal abstract class WriteCheckstyleConfigTask : DefaultTask() {
         consumerFile: File?,
         bundledResourcePath: String,
     ) {
-        val content = consumerFile?.readText(UTF_8) ?: loadRequiredResource(bundledResourcePath)
+        val content = consumerFile?.readText(UTF_8) ?: BundledResources.load(bundledResourcePath)
         outputDir.file(fileName).get().asFile.writeText(content, UTF_8)
-    }
-
-    private fun loadRequiredResource(path: String): String {
-        val resource = requireNotNull(javaClass.classLoader.getResource(path)) {
-            "Missing bundled resource at '$path'"
-        }
-        return resource.readText(UTF_8)
     }
 }

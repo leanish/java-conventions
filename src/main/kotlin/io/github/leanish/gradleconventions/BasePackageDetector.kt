@@ -29,6 +29,8 @@ internal object BasePackageDetector {
     private fun topLevelPackages(detectedPackages: Set<String>): List<String> {
         val rootPackages = mutableListOf<String>()
         detectedPackages.sorted().forEach { packageName ->
+            // Treat only exact matches and dot-qualified descendants as nested so
+            // sibling prefixes like "com.example2" remain distinct from "com.example".
             if (rootPackages.none { rootPackage -> packageName.isSamePackageOrNestedUnder(rootPackage) }) {
                 rootPackages.add(packageName)
             }
