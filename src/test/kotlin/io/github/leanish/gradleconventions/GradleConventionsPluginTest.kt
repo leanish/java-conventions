@@ -1733,5 +1733,4 @@ class GradleConventionsPluginTest {
         }
         return resource.readText()
     }
-
 }

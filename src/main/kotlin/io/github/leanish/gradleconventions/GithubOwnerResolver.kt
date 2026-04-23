@@ -8,23 +8,22 @@ package io.github.leanish.gradleconventions
 import org.gradle.api.Project
 
 internal object GithubOwnerResolver {
+    private const val GITHUB_GROUP_PREFIX = "io.github."
+
     fun inferFromGroup(groupValue: Any?): String? {
         val groupText = groupValue?.toString()?.trim()
         if (groupText.isNullOrEmpty() || groupText == "unspecified") {
             return null
         }
 
-        val prefix = "io.github."
-        if (!groupText.startsWith(prefix)) {
+        if (!groupText.startsWith(GITHUB_GROUP_PREFIX)) {
             return null
         }
 
-        val suffix = groupText.removePrefix(prefix)
-        if (suffix.isEmpty()) {
-            return null
-        }
-
-        return suffix.substringBefore('.').takeIf(String::isNotBlank)
+        return groupText
+            .removePrefix(GITHUB_GROUP_PREFIX)
+            .substringBefore('.')
+            .takeIf(String::isNotBlank)
     }
 }
 

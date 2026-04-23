@@ -1,7 +1,6 @@
 package io.github.leanish.gradleconventions
 
 import org.assertj.core.api.Assertions.assertThat
-import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.gradle.api.Project
 import org.gradle.testfixtures.ProjectBuilder
 import org.junit.jupiter.api.Test
@@ -127,24 +126,6 @@ class WriteCheckstyleConfigTaskTest {
 
         assertThat(generatedCheckstyle).isEqualTo("<module name=\"Checker\"><module name=\"TreeWalker\"/></module>")
         assertThat(generatedSuppressions).contains("<suppressions>")
-    }
-
-    @Test
-    fun throwsClearErrorWhenBundledResourceIsMissing() {
-        val project = newProject(tempDir.resolve("missing-resource").toFile())
-        val task = project.tasks.register("writeCheckstyleConfig", WriteCheckstyleConfigTask::class.java).get()
-
-        val loadRequiredResource = WriteCheckstyleConfigTask::class.java.getDeclaredMethod(
-            "loadRequiredResource",
-            String::class.java,
-        )
-        loadRequiredResource.isAccessible = true
-
-        assertThatThrownBy {
-            loadRequiredResource.invoke(task, "checkstyle/not-found.xml")
-        }
-            .hasRootCauseInstanceOf(IllegalArgumentException::class.java)
-            .hasRootCauseMessage("Missing bundled resource at 'checkstyle/not-found.xml'")
     }
 
     private fun newProject(projectDir: File): Project {

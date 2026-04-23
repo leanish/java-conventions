@@ -23,15 +23,23 @@ internal object BasePackageDetector {
             detectedPackages = detectedPackages,
         )
 
+        return topLevelPackages(detectedPackages)
+    }
+
+    private fun topLevelPackages(detectedPackages: Set<String>): List<String> {
         val rootPackages = mutableListOf<String>()
         detectedPackages.sorted().forEach { packageName ->
-            // Keep only top-level roots: once "com.example" is accepted, skip "com.example.*"
-            // but still keep sibling prefixes like "com.example2" (covered by tests).
-            if (rootPackages.none { parent -> packageName == parent || packageName.startsWith("$parent.") }) {
+            // Treat only exact matches and dot-qualified descendants as nested so
+            // sibling prefixes like "com.example2" remain distinct from "com.example".
+            if (rootPackages.none { rootPackage -> packageName.isSamePackageOrNestedUnder(rootPackage) }) {
                 rootPackages.add(packageName)
             }
         }
         return rootPackages
+    }
+
+    private fun String.isSamePackageOrNestedUnder(rootPackage: String): Boolean {
+        return this == rootPackage || startsWith("$rootPackage.")
     }
 
     private fun detectPackagesRecursively(
@@ -65,7 +73,6 @@ internal object BasePackageDetector {
             }
         }
     }
-
 }
 
 internal fun Project.detectBasePackages(): List<String> {
