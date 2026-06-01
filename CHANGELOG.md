@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.5.5
+
+### Changed
+- Upgraded the Gradle wrapper from `9.4.1` to `9.5.1`.
+- Upgraded Spotless from `8.4.0` to `8.6.0`.
+- Upgraded Checkstyle from `13.4.0` to `13.5.0`.
+- Upgraded consumer-injected dependencies:
+  - `org.projectlombok:lombok` from `1.18.44` to `1.18.46`
+  - `org.junit.jupiter:junit-jupiter` from `6.0.3` to `6.1.0`
+  - `org.junit.platform:junit-platform-launcher` from `6.0.3` to `6.1.0`
+  - `com.uber.nullaway:nullaway` from `0.13.3` to `0.13.4`
+- Simplified internal helper wiring for bundled resources, Git hooks, and convention providers.
+
 ## 0.5.4
 
 ### Changed

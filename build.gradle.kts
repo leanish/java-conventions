@@ -3,11 +3,11 @@ plugins {
     `maven-publish`
     jacoco
     id("com.gradle.plugin-publish") version "2.1.1"
-    id("com.diffplug.spotless") version "8.4.0"
+    id("com.diffplug.spotless") version "8.6.0"
 }
 
 group = "io.github.leanish"
-version = "0.5.4"
+version = "0.5.5-SNAPSHOT"
 
 repositories {
     gradlePluginPortal()
@@ -27,12 +27,12 @@ kotlin {
 }
 
 dependencies {
-    implementation("com.diffplug.spotless:spotless-plugin-gradle:8.4.0")
+    implementation("com.diffplug.spotless:spotless-plugin-gradle:8.6.0")
     implementation("net.ltgt.gradle:gradle-errorprone-plugin:5.1.0")
     testImplementation(gradleTestKit())
     testImplementation("org.assertj:assertj-core:3.27.7")
-    testImplementation("org.junit.jupiter:junit-jupiter:6.0.3")
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher:6.0.3")
+    testImplementation("org.junit.jupiter:junit-jupiter:6.1.0")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher:6.1.0")
 }
 
 val defaultRuntimeJavaVersion = 25

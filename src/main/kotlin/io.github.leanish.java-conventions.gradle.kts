@@ -84,16 +84,16 @@ dependencies {
     testCompileOnly("org.jetbrains:annotations:26.1.0")
     compileOnly("com.google.errorprone:error_prone_annotations:2.49.0")
     testCompileOnly("com.google.errorprone:error_prone_annotations:2.49.0")
-    compileOnly("org.projectlombok:lombok:1.18.44")
-    testCompileOnly("org.projectlombok:lombok:1.18.44")
-    annotationProcessor("org.projectlombok:lombok:1.18.44")
-    testAnnotationProcessor("org.projectlombok:lombok:1.18.44")
-    testImplementation("org.junit.jupiter:junit-jupiter:6.0.3")
+    compileOnly("org.projectlombok:lombok:1.18.46")
+    testCompileOnly("org.projectlombok:lombok:1.18.46")
+    annotationProcessor("org.projectlombok:lombok:1.18.46")
+    testAnnotationProcessor("org.projectlombok:lombok:1.18.46")
+    testImplementation("org.junit.jupiter:junit-jupiter:6.1.0")
     testImplementation("org.assertj:assertj-core:3.27.7")
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher:6.0.3")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher:6.1.0")
 
     errorprone("com.google.errorprone:error_prone_core:2.49.0")
-    errorprone("com.uber.nullaway:nullaway:0.13.3")
+    errorprone("com.uber.nullaway:nullaway:0.13.4")
 }
 
 spotless {
@@ -251,7 +251,7 @@ private val writeCheckstyleConfig = tasks.register<WriteCheckstyleConfigTask>("w
 }
 
 checkstyle {
-    toolVersion = "13.4.0"
+    toolVersion = "13.5.0"
     maxWarnings = 0
 }
 
