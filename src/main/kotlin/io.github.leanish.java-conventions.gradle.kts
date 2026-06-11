@@ -82,8 +82,8 @@ dependencies {
     testCompileOnly("org.jspecify:jspecify:1.0.0")
     compileOnly("org.jetbrains:annotations:26.1.0")
     testCompileOnly("org.jetbrains:annotations:26.1.0")
-    compileOnly("com.google.errorprone:error_prone_annotations:2.49.0")
-    testCompileOnly("com.google.errorprone:error_prone_annotations:2.49.0")
+    compileOnly("com.google.errorprone:error_prone_annotations:2.50.0")
+    testCompileOnly("com.google.errorprone:error_prone_annotations:2.50.0")
     compileOnly("org.projectlombok:lombok:1.18.46")
     testCompileOnly("org.projectlombok:lombok:1.18.46")
     annotationProcessor("org.projectlombok:lombok:1.18.46")
@@ -92,8 +92,8 @@ dependencies {
     testImplementation("org.assertj:assertj-core:3.27.7")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher:6.1.0")
 
-    errorprone("com.google.errorprone:error_prone_core:2.49.0")
-    errorprone("com.uber.nullaway:nullaway:0.13.4")
+    errorprone("com.google.errorprone:error_prone_core:2.50.0")
+    errorprone("com.uber.nullaway:nullaway:0.13.6")
 }
 
 spotless {
