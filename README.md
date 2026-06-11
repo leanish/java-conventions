@@ -239,12 +239,12 @@ components.named<AdhocComponentWithVariants>("java") {
 
 ## Dependency conventions
 - Adds `org.jspecify:jspecify:1.0.0`, `org.jetbrains:annotations:26.1.0`, and
-  `com.google.errorprone:error_prone_annotations:2.49.0` as `compileOnly` and `testCompileOnly`.
+  `com.google.errorprone:error_prone_annotations:2.50.0` as `compileOnly` and `testCompileOnly`.
 - Adds `org.projectlombok:lombok:1.18.46` as `compileOnly`, `testCompileOnly`,
   `annotationProcessor`, and `testAnnotationProcessor`.
 - Adds Error Prone analysis dependencies:
-  - `com.google.errorprone:error_prone_core:2.49.0`
-  - `com.uber.nullaway:nullaway:0.13.4`
+  - `com.google.errorprone:error_prone_core:2.50.0`
+  - `com.uber.nullaway:nullaway:0.13.6`
 
 ## JUnit Platform
 - All `Test` tasks call `useJUnitPlatform()`.
