@@ -3,7 +3,7 @@ plugins {
     `maven-publish`
     jacoco
     id("com.gradle.plugin-publish") version "2.1.1"
-    id("com.diffplug.spotless") version "8.6.0"
+    id("com.diffplug.spotless") version "8.7.0"
 }
 
 group = "io.github.leanish"
