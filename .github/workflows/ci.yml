@@ -18,7 +18,7 @@ jobs:
 
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       # Kotlin plugin code targets JVM 17; JDK 17 is needed as the Kotlin compilation toolchain.
       - name: Set up JDK 17 (Kotlin compilation toolchain)
