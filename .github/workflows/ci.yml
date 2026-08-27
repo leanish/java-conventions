@@ -22,7 +22,7 @@ jobs:
 
       # Kotlin plugin code targets JVM 17; JDK 17 is needed as the Kotlin compilation toolchain.
       - name: Set up JDK 17 (Kotlin compilation toolchain)
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: 17
@@ -30,7 +30,7 @@ jobs:
       # Tests/Java toolchain tasks use JDK 25
       # JDK declaration order matters as the last one declared will be the default one (thus used to run Gradle itself)
       - name: Set up JDK 25 (Gradle runtime + Java toolchain/tests)
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: 25
