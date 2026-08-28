@@ -28,11 +28,11 @@ kotlin {
 
 dependencies {
     implementation("com.diffplug.spotless:spotless-plugin-gradle:8.6.0")
-    implementation("net.ltgt.gradle:gradle-errorprone-plugin:5.1.0")
+    implementation("net.ltgt.gradle:gradle-errorprone-plugin:5.1.1")
     testImplementation(gradleTestKit())
     testImplementation("org.assertj:assertj-core:3.27.7")
-    testImplementation("org.junit.jupiter:junit-jupiter:6.1.0")
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher:6.1.0")
+    testImplementation("org.junit.jupiter:junit-jupiter:6.1.3")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher:6.1.3")
 }
 
 val defaultRuntimeJavaVersion = 25
