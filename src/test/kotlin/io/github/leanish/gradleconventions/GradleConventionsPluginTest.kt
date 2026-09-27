@@ -1497,6 +1497,226 @@ class GradleConventionsPluginTest {
     }
 
     @Test
+    fun pitestDefaultsAreApplied() {
+        val projectDir = tempDir.resolve("pitest-defaults").toFile()
+        projectDir.mkdirs()
+        writeRequiredConventionsProperties(projectDir)
+
+        writeFile(projectDir, "settings.gradle.kts", "rootProject.name = \"pitest-defaults\"")
+        writeFile(
+            projectDir,
+            "build.gradle.kts",
+            $$"""
+            import info.solidsoft.gradle.pitest.PitestPluginExtension
+
+            plugins {
+                id("io.github.leanish.java-conventions")
+            }
+
+            tasks.register("dumpPitestConventions") {
+                doLast {
+                    val pitest = project.extensions.getByType(PitestPluginExtension::class.java)
+                    println("pitestTaskPresent=${project.tasks.findByName("pitest") != null}")
+                    println("pitestVersion=${pitest.pitestVersion.get()}")
+                    println("pitestJunit5PluginVersion=${pitest.junit5PluginVersion.get()}")
+                    println("pitestTargetClasses=${pitest.targetClasses.get()}")
+                    println("pitestTargetTests=${pitest.targetTests.get()}")
+                    println("pitestExcludedGroups=${pitest.excludedGroups.get()}")
+                    println("pitestThreads=${pitest.threads.get()}")
+                    println("pitestOutputFormats=${pitest.outputFormats.get().sorted()}")
+                    println("pitestTimestampedReports=${pitest.timestampedReports.get()}")
+                    println("pitestMutationThresholdPresent=${pitest.mutationThreshold.isPresent}")
+                    println("checkDependsOnPitest=${project.tasks.getByName("check").taskDependencies.getDependencies(null).any { it.name == "pitest" }}")
+                }
+            }
+            """.trimIndent(),
+        )
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withArguments("dumpPitestConventions")
+            .withPluginClasspath()
+            .build()
+
+        assertThat(result.output)
+            .contains("pitestTaskPresent=true")
+            .contains("pitestVersion=1.30.0")
+            .contains("pitestJunit5PluginVersion=1.2.3")
+            .contains("pitestTargetClasses=[io.github.leanish.*]")
+            .contains("pitestTargetTests=[io.github.leanish.*]")
+            .contains("pitestExcludedGroups=[]")
+            .contains("pitestThreads=${Runtime.getRuntime().availableProcessors()}")
+            .contains("pitestOutputFormats=[HTML, XML]")
+            .contains("pitestTimestampedReports=false")
+            .contains("pitestMutationThresholdPresent=false")
+            .contains("checkDependsOnPitest=false")
+    }
+
+    @Test
+    fun pitestOverridesAreApplied() {
+        val projectDir = tempDir.resolve("pitest-overrides").toFile()
+        projectDir.mkdirs()
+        writeRequiredConventionsProperties(projectDir)
+
+        writeFile(projectDir, "settings.gradle.kts", "rootProject.name = \"pitest-overrides\"")
+        writeFile(
+            projectDir,
+            "build.gradle.kts",
+            $$"""
+            plugins {
+                id("io.github.leanish.java-conventions")
+            }
+
+            pitest {
+                targetClasses = listOf("io.github.leanish.core.*")
+                threads = 2
+                mutationThreshold = 90
+            }
+
+            tasks.register("dumpPitestConventions") {
+                doLast {
+                    println("pitestTargetClasses=${pitest.targetClasses.get()}")
+                    println("pitestTargetTests=${pitest.targetTests.get()}")
+                    println("pitestThreads=${pitest.threads.get()}")
+                    println("pitestMutationThreshold=${pitest.mutationThreshold.get()}")
+                }
+            }
+            """.trimIndent(),
+        )
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withArguments("dumpPitestConventions")
+            .withPluginClasspath()
+            .build()
+
+        assertThat(result.output)
+            .contains("pitestTargetClasses=[io.github.leanish.core.*]")
+            .contains("pitestTargetTests=[io.github.leanish.*]")
+            .contains("pitestThreads=2")
+            .contains("pitestMutationThreshold=90")
+    }
+
+    @Test
+    fun consumerCanKeepApplyingPitestPluginWithVersion() {
+        val projectDir = tempDir.resolve("pitest-explicit-plugin").toFile()
+        projectDir.mkdirs()
+        writeRequiredConventionsProperties(projectDir)
+
+        writeFile(projectDir, "settings.gradle.kts", "rootProject.name = \"pitest-explicit-plugin\"")
+        writeFile(
+            projectDir,
+            "build.gradle.kts",
+            $$"""
+            plugins {
+                id("io.github.leanish.java-conventions")
+                id("info.solidsoft.pitest") version "1.19.0"
+            }
+
+            pitest {
+                mutationThreshold = 95
+            }
+
+            tasks.register("dumpPitestConventions") {
+                doLast {
+                    println("pitestVersion=${pitest.pitestVersion.get()}")
+                    println("pitestTargetClasses=${pitest.targetClasses.get()}")
+                    println("pitestMutationThreshold=${pitest.mutationThreshold.get()}")
+                }
+            }
+            """.trimIndent(),
+        )
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withArguments("dumpPitestConventions")
+            .withPluginClasspath()
+            .build()
+
+        assertThat(result.output)
+            .contains("pitestVersion=1.30.0")
+            .contains("pitestTargetClasses=[io.github.leanish.*]")
+            .contains("pitestMutationThreshold=95")
+    }
+
+    @Test
+    fun pitestRunsMutationAnalysisAndHonorsExcludeTags() {
+        val projectDir = tempDir.resolve("pitest-run").toFile()
+        projectDir.mkdirs()
+        writeRequiredConventionsProperties(projectDir)
+
+        writeFile(projectDir, "settings.gradle.kts", "rootProject.name = \"pitest-run\"")
+        writeFile(
+            projectDir,
+            "build.gradle.kts",
+            """
+            plugins {
+                id("io.github.leanish.java-conventions")
+            }
+            """.trimIndent(),
+        )
+        writeFile(
+            projectDir,
+            "src/main/java/io/github/leanish/sample/Signs.java",
+            """
+            package io.github.leanish.sample;
+
+            public final class Signs {
+                public boolean isPositive(int value) {
+                    return value > 0;
+                }
+            }
+            """.trimIndent(),
+        )
+        writeFile(
+            projectDir,
+            "src/test/java/io/github/leanish/sample/SignsTest.java",
+            """
+            package io.github.leanish.sample;
+
+            import static org.assertj.core.api.Assertions.assertThat;
+
+            import org.junit.jupiter.api.Tag;
+            import org.junit.jupiter.api.Test;
+
+            class SignsTest {
+                @Test
+                void detectsPositiveValues() {
+                    Signs signs = new Signs();
+                    assertThat(signs.isPositive(1)).isTrue();
+                    assertThat(signs.isPositive(0)).isFalse();
+                    assertThat(signs.isPositive(-1)).isFalse();
+                }
+
+                @Test
+                @Tag("integration")
+                void integrationTaggedTest() {
+                    throw new IllegalStateException("integration-tagged tests must be excluded");
+                }
+            }
+            """.trimIndent(),
+        )
+
+        GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withArguments(
+                "-DexcludeTags=integration",
+                "pitest",
+            )
+            .withPluginClasspath()
+            .build()
+
+        val mutationsReport = projectDir.resolve("build/reports/pitest/mutations.xml")
+        assertThat(mutationsReport).exists()
+        assertThat(projectDir.resolve("build/reports/pitest/index.html")).exists()
+        assertThat(mutationsReport.readText())
+            .contains("<mutatedClass>io.github.leanish.sample.Signs</mutatedClass>")
+            .contains("status='KILLED'")
+            .doesNotContain("status='SURVIVED'")
+            .doesNotContain("status='NO_COVERAGE'")
+    }
+
+    @Test
     fun checkstyleMainRunsOnCurrentGradleBaselineWhenPluginIsApplied() {
         val projectDir = tempDir.resolve("checkstyle-gradle-baseline").toFile()
         projectDir.mkdirs()

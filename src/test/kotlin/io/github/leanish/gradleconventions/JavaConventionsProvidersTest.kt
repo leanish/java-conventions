@@ -72,6 +72,7 @@ class JavaConventionsProvidersTest {
         assertThat(providers.publishingPomName.get()).isEqualTo("defaults")
         assertThat(providers.publishingPomDescription.get()).isEqualTo("defaults")
         assertThat(providers.nullAwayAnnotatedPackages.get()).isEqualTo("com.example.app")
+        assertThat(providers.pitestTargetClasses.get()).containsExactly("com.example.app.*")
         assertThat(project.extensions.extraProperties[BASE_PACKAGE]).isEqualTo("com.example.app")
         assertThat(providers.checkstyleConfigDir.get().asFile.path).endsWith("build/generated/checkstyle")
         assertThat(providers.checkstyleConfigFile.get().path).endsWith("build/generated/checkstyle/checkstyle.xml")
@@ -86,6 +87,16 @@ class JavaConventionsProvidersTest {
         val providers = project.javaConventionsProviders()
 
         assertThat(providers.nullAwayAnnotatedPackages.get()).isEqualTo("com.configured")
+    }
+
+    @Test
+    fun pitestTargetClassesCoverEveryConfiguredBasePackage() {
+        val project = newJavaProject(tempDir.resolve("pitest-targets").toFile(), "pitest-targets")
+        project.extensions.extraProperties.set(BASE_PACKAGE, "com.first, com.second,")
+
+        val providers = project.javaConventionsProviders()
+
+        assertThat(providers.pitestTargetClasses.get()).containsExactly("com.first.*", "com.second.*")
     }
 
     @Test

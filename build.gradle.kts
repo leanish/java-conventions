@@ -7,7 +7,7 @@ plugins {
 }
 
 group = "io.github.leanish"
-version = "0.5.5"
+version = "0.6.0-SNAPSHOT"
 
 repositories {
     gradlePluginPortal()
@@ -29,6 +29,7 @@ kotlin {
 dependencies {
     implementation("com.diffplug.spotless:spotless-plugin-gradle:8.6.0")
     implementation("net.ltgt.gradle:gradle-errorprone-plugin:5.1.0")
+    implementation("info.solidsoft.gradle.pitest:gradle-pitest-plugin:1.19.0")
     testImplementation(gradleTestKit())
     testImplementation("org.assertj:assertj-core:3.27.7")
     testImplementation("org.junit.jupiter:junit-jupiter:6.1.0")
@@ -119,6 +120,8 @@ gradlePlugin {
             "jacoco",
             "errorprone",
             "nullaway",
+            "pitest",
+            "mutation-testing",
             "license",
             "git-hooks",
             "publishing",

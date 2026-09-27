@@ -25,6 +25,7 @@ plugins {
     jacoco
     id("com.diffplug.spotless")
     id("net.ltgt.errorprone")
+    id("info.solidsoft.pitest")
 }
 
 val excludedTags: List<String> = providers.systemProperty("excludeTags")
@@ -41,6 +42,7 @@ val publishingGithubRepository = conventionProviders.publishingGithubRepository
 val publishingPomName = conventionProviders.publishingPomName
 val publishingPomDescription = conventionProviders.publishingPomDescription
 val nullAwayAnnotatedPackages = conventionProviders.nullAwayAnnotatedPackages
+val pitestTargetClasses = conventionProviders.pitestTargetClasses
 val checkstyleConfigDir = conventionProviders.checkstyleConfigDir
 val checkstyleConfigFile = conventionProviders.checkstyleConfigFile
 val runtimeLauncher = conventionProviders.runtimeLauncher
@@ -267,6 +269,17 @@ tasks.withType<Checkstyle>().configureEach {
 
 jacoco {
     toolVersion = "0.8.14"
+}
+
+pitest {
+    pitestVersion.set("1.30.0")
+    junit5PluginVersion.set("1.2.3")
+    targetClasses.set(pitestTargetClasses)
+    targetTests.set(pitestTargetClasses)
+    excludedGroups.set(excludedTags)
+    threads.set(Runtime.getRuntime().availableProcessors())
+    outputFormats.set(listOf("HTML", "XML"))
+    timestampedReports.set(false)
 }
 
 tasks.withType<JavaExec>().configureEach {

@@ -3,12 +3,13 @@
 Shared Gradle conventions for JDK-based projects.
 
 ## What it provides
-- Applies common plugins: `java`, `checkstyle`, `jacoco`, `spotless`, `errorprone`.
+- Applies common plugins: `java`, `checkstyle`, `jacoco`, `spotless`, `errorprone`, `pitest`.
 - Configures Java toolchain, runtime launcher, and bytecode level (defaults to JDK 25 from any available vendor).
 - The plugin itself targets Kotlin/JVM 17.
 - Adds `mavenCentral()` by default and can optionally add `mavenLocal()` (both configurable).
 - Sets Checkstyle tool version and uses project-level Checkstyle files when provided (bundled defaults otherwise).
 - Sets JaCoCo tool version and enforces instruction coverage.
+- Configures PIT mutation testing (`pitest` task) for the resolved base package; it is not part of `check`.
 - Configures Spotless for basic Java formatting (unused imports, trailing whitespace, newline at EOF).
 - Applies Spotless license header conventions when `LICENSE_HEADER` exists in the project root.
 - Adds common compile/test dependencies (Lombok, JSpecify, JetBrains annotations, Error Prone/NullAway, JUnit Jupiter, AssertJ).
@@ -21,7 +22,7 @@ Shared Gradle conventions for JDK-based projects.
 
 ## How to use
 Use the Gradle Plugin Portal for released versions.
-The released examples below use `0.5.5`, the latest published version.
+The examples below target the upcoming `0.6.0` release; `0.5.5` is the latest published version.
 
 The plugin adds `mavenCentral()` by default to every project where it is applied.
 The canonical plugin id is `io.github.leanish.java-conventions`.
@@ -31,7 +32,7 @@ The canonical plugin id is `io.github.leanish.java-conventions`.
 
 ```kotlin
 plugins {
-    id("io.github.leanish.java-conventions") version "0.5.5"
+    id("io.github.leanish.java-conventions") version "0.6.0"
 }
 ```
 
@@ -45,7 +46,7 @@ pluginManagement {
         mavenCentral()
     }
     plugins {
-        id("io.github.leanish.java-conventions") version "0.5.5"
+        id("io.github.leanish.java-conventions") version "0.6.0"
     }
 }
 ```
@@ -65,6 +66,7 @@ If the plugin version is not published to the Gradle Plugin Portal yet:
    ```bash
    ./gradlew publishToMavenLocal
    ```
+   This publishes the `version` from `build.gradle.kts` (currently `0.6.0-SNAPSHOT`); request that exact version from the consumer.
 2. Ensure consumer `settings.gradle(.kts)` has `mavenLocal()` in `pluginManagement.repositories` (before remote repositories) while testing local builds, for example:
    ```kotlin
    pluginManagement {
@@ -82,7 +84,7 @@ If you want root-only tasks (`installGitHooks`, `setupProject`) in a multi-proje
 
 ```kotlin
 plugins {
-    id("io.github.leanish.java-conventions") version "0.5.5"
+    id("io.github.leanish.java-conventions") version "0.6.0"
 }
 ```
 
@@ -236,6 +238,29 @@ components.named<AdhocComponentWithVariants>("java") {
 - Enforces instruction coverage via `jacocoTestCoverageVerification`.
 - Default minimum is `0.85` unless overridden.
 - Set `-DexcludeTags=integration` (or any tags) to skip those tests and disable coverage verification.
+  The same tags are excluded from mutation testing.
+
+## Mutation testing
+- Applies `info.solidsoft.pitest` (gradle-pitest-plugin `1.19.0`) with PIT `1.30.0` and its JUnit 5 plugin `1.2.3`.
+- `./gradlew pitest` writes HTML and XML reports to `build/reports/pitest` (not timestamped).
+- `targetClasses` and `targetTests` default to `<package>.*` for every package in the resolved `leanish.conventions.basePackage`,
+  so narrowing `targetClasses` keeps running every test under the base package.
+- `threads` defaults to the number of available processors.
+- PIT runs on the same toolchain launcher as `Test` tasks. JVM arguments of `Test` tasks are not copied;
+  set `pitest { jvmArgs = listOf(...) }` when the tests need them.
+- In multi-project builds, every project that applies the plugin gets its own `pitest` task, which by default mutates only that
+  project's classes. Projects without mutable code fail `pitest` (PIT's `failWhenNoMutations`); set
+  `pitest { failWhenNoMutations = false }` there. Cross-project mutation and aggregated reports need extra gradle-pitest-plugin
+  setup (`additionalMutableCodePaths`, the `info.solidsoft.pitest.aggregator` plugin).
+- `pitest` is not wired into `check` and no mutation threshold is set by default, because a run takes
+  noticeably longer than the tests. Opt in per project, and run `./gradlew pitest` as its own CI step to enforce it:
+
+```kotlin
+pitest {
+    targetClasses = listOf("com.example.core.*")
+    mutationThreshold = 90
+}
+```
 
 ## Dependency conventions
 - Adds `org.jspecify:jspecify:1.0.0`, `org.jetbrains:annotations:26.1.0`, and
