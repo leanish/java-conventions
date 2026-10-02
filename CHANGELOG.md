@@ -8,6 +8,29 @@
   one thread per available processor, and non-timestamped HTML and XML reports.
   `pitest` is not part of `check` and has no default mutation threshold.
 
+### Changed
+- Upgraded the Gradle wrapper from `9.5.1` to `9.8.0`.
+- Upgraded plugin build dependencies:
+  - `com.gradle.plugin-publish` from `2.1.1` to `2.2.1`
+  - `com.diffplug.spotless` from `8.6.0` to `8.10.3`
+  - `net.ltgt.gradle:gradle-errorprone-plugin` from `5.1.0` to `5.1.1`
+- Upgraded GitHub Actions setup from `actions/checkout@v6` to `actions/checkout@v7`
+  and from `actions/setup-java@v5` to `actions/setup-java@v6`.
+- Upgraded Checkstyle from `13.5.0` to `14.3.0`. It still needs a JDK 21+ toolchain, but it reports some
+  violations earlier versions missed (for example, `InnerTypeLast` inside enums), and custom configurations written
+  for 13.x may need adjusting; `checkstyle { toolVersion = "13.5.0" }` keeps the previous version.
+- Upgraded JaCoCo from `0.8.14` to `0.8.15`.
+- Upgraded consumer-injected dependencies:
+  - `org.jspecify:jspecify` from `1.0.0` to `1.0.1`
+  - `org.projectlombok:lombok` from `1.18.46` to `1.18.48` (no longer ships the long-deprecated
+    `lombok.experimental.Wither` and `lombok.Delegate`, and renames the `@SuperBuilder` configuration keys)
+  - `org.junit.jupiter:junit-jupiter` from `6.1.0` to `6.1.3`
+  - `org.junit.platform:junit-platform-launcher` from `6.1.0` to `6.1.3`
+  - `com.google.errorprone:error_prone_annotations` from `2.49.0` to `2.50.0`
+  - `com.google.errorprone:error_prone_core` from `2.49.0` to `2.50.0`
+  - `com.uber.nullaway:nullaway` from `0.13.4` to `0.14.2` (removes the `LegacyAnnotationLocations` flag,
+    so type-use annotations must be placed correctly, and reports some new diagnostics)
+
 ## 0.5.5
 
 ### Changed

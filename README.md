@@ -179,13 +179,13 @@ tasks.withType<JavaCompile>().configureEach {
 ```
 
 ### Reset and replace
-Clear defaults, then define your own:
+Clear defaults, then define your own (google-java-format `1.37.0` needs Gradle running on JDK 21+):
 
 ```kotlin
 spotless {
     java {
         clearSteps()
-        googleJavaFormat("1.23.0")
+        googleJavaFormat("1.37.0")
         endWithNewline()
     }
 }
@@ -263,18 +263,18 @@ pitest {
 ```
 
 ## Dependency conventions
-- Adds `org.jspecify:jspecify:1.0.0`, `org.jetbrains:annotations:26.1.0`, and
+- Adds `org.jspecify:jspecify:1.0.1`, `org.jetbrains:annotations:26.1.0`, and
   `com.google.errorprone:error_prone_annotations:2.50.0` as `compileOnly` and `testCompileOnly`.
-- Adds `org.projectlombok:lombok:1.18.46` as `compileOnly`, `testCompileOnly`,
+- Adds `org.projectlombok:lombok:1.18.48` as `compileOnly`, `testCompileOnly`,
   `annotationProcessor`, and `testAnnotationProcessor`.
 - Adds Error Prone analysis dependencies:
   - `com.google.errorprone:error_prone_core:2.50.0`
-  - `com.uber.nullaway:nullaway:0.13.6`
+  - `com.uber.nullaway:nullaway:0.14.2`
 
 ## JUnit Platform
 - All `Test` tasks call `useJUnitPlatform()`.
-- The plugin adds `org.junit.jupiter:junit-jupiter:6.1.0` and `org.assertj:assertj-core:3.27.7` as `testImplementation`.
-- The plugin adds `org.junit.platform:junit-platform-launcher:6.1.0` as `testRuntimeOnly`.
+- The plugin adds `org.junit.jupiter:junit-jupiter:6.1.3` and `org.assertj:assertj-core:3.27.7` as `testImplementation`.
+- The plugin adds `org.junit.platform:junit-platform-launcher:6.1.3` as `testRuntimeOnly`.
 - If you need different test execution behavior for specific tasks, override those tasks in your build script.
 
 ## Maven Publish conventions
@@ -327,11 +327,11 @@ It:
 > **Fail-fast validation:** The plugin validates the configured Java toolchain during configuration and fails early with a descriptive error when `languageVersion < 21`.
 
 ## Notes
-- Checkstyle uses tool version `13.5.0`.
+- Checkstyle uses tool version `14.3.0`.
 - Checkstyle uses `config/checkstyle/checkstyle.xml` and `config/checkstyle/suppressions.xml` when present in the consumer project.
 - If either file is missing, the plugin falls back to bundled defaults (`checkstyle.xml` and empty suppressions).
 - These files are materialized under `build/generated/checkstyle` for Checkstyle only and are not packaged into JARs/publications.
-- **Checkstyle runtime requirement:** Checkstyle 13.x requires the **Java toolchain used by the plugin's runtime launcher** to be JDK 21 or newer. The default toolchain is JDK 25, which satisfies this. If you override the project Java toolchain to a version lower than JDK 21, Checkstyle tasks will fail even when the Gradle daemon itself runs on a newer JDK.
+- **Checkstyle runtime requirement:** Checkstyle 14.x requires the **Java toolchain used by the plugin's runtime launcher** to be JDK 21 or newer. The default toolchain is JDK 25, which satisfies this. If you override the project Java toolchain to a version lower than JDK 21, Checkstyle tasks will fail even when the Gradle daemon itself runs on a newer JDK.
 - The plugin does not add a toolchain resolver; ensure the configured JDK is available locally or add a resolver in the consuming project.
 - Dependencies added by the plugin are additive; your project dependencies remain in effect.
 - The bundled pre-commit hook runs `./gradlew spotlessApply` and `./gradlew checkstyleMain checkstyleTest`, and may modify files before commit.
