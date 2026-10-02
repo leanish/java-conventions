@@ -63,7 +63,7 @@ afterEvaluate {
         throw GradleException(
             "Java toolchain languageVersion must be >= $minimumSupportedToolchainVersion. " +
                 "Configured: $configuredToolchainVersion. " +
-                "Checkstyle 13.x and Error Prone require toolchain JDK 21+.",
+                "Checkstyle 14.x and Error Prone require toolchain JDK 21+.",
         )
     }
 }
@@ -78,22 +78,22 @@ repositories {
 }
 
 dependencies {
-    compileOnly("org.jspecify:jspecify:1.0.0")
-    testCompileOnly("org.jspecify:jspecify:1.0.0")
+    compileOnly("org.jspecify:jspecify:1.0.1")
+    testCompileOnly("org.jspecify:jspecify:1.0.1")
     compileOnly("org.jetbrains:annotations:26.1.0")
     testCompileOnly("org.jetbrains:annotations:26.1.0")
     compileOnly("com.google.errorprone:error_prone_annotations:2.50.0")
     testCompileOnly("com.google.errorprone:error_prone_annotations:2.50.0")
-    compileOnly("org.projectlombok:lombok:1.18.46")
-    testCompileOnly("org.projectlombok:lombok:1.18.46")
-    annotationProcessor("org.projectlombok:lombok:1.18.46")
-    testAnnotationProcessor("org.projectlombok:lombok:1.18.46")
-    testImplementation("org.junit.jupiter:junit-jupiter:6.1.0")
+    compileOnly("org.projectlombok:lombok:1.18.48")
+    testCompileOnly("org.projectlombok:lombok:1.18.48")
+    annotationProcessor("org.projectlombok:lombok:1.18.48")
+    testAnnotationProcessor("org.projectlombok:lombok:1.18.48")
+    testImplementation("org.junit.jupiter:junit-jupiter:6.1.3")
     testImplementation("org.assertj:assertj-core:3.27.7")
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher:6.1.0")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher:6.1.3")
 
     errorprone("com.google.errorprone:error_prone_core:2.50.0")
-    errorprone("com.uber.nullaway:nullaway:0.13.6")
+    errorprone("com.uber.nullaway:nullaway:0.14.2")
 }
 
 spotless {
@@ -251,7 +251,7 @@ private val writeCheckstyleConfig = tasks.register<WriteCheckstyleConfigTask>("w
 }
 
 checkstyle {
-    toolVersion = "13.5.0"
+    toolVersion = "14.3.0"
     maxWarnings = 0
 }
 
@@ -266,7 +266,7 @@ tasks.withType<Checkstyle>().configureEach {
 }
 
 jacoco {
-    toolVersion = "0.8.14"
+    toolVersion = "0.8.15"
 }
 
 tasks.withType<JavaExec>().configureEach {
