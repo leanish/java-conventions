@@ -37,6 +37,7 @@ internal data class JavaConventionsProviders(
     val publishingPomName: Provider<String>,
     val publishingPomDescription: Provider<String>,
     val nullAwayAnnotatedPackages: Provider<String>,
+    val pitestTargetClasses: Provider<List<String>>,
     val checkstyleConfigDir: Provider<Directory>,
     val checkstyleConfigFile: Provider<File>,
     val runtimeLauncher: Provider<JavaLauncher>,
@@ -79,6 +80,12 @@ internal fun Project.javaConventionsProviders(): JavaConventionsProviders {
     val nullAwayAnnotatedPackages = providers.provider {
         resolveNullAwayAnnotatedPackages()
     }
+    val pitestTargetClasses = nullAwayAnnotatedPackages.map { basePackages ->
+        basePackages.split(',')
+            .map(String::trim)
+            .filter(String::isNotEmpty)
+            .map { basePackage -> "$basePackage.*" }
+    }
     val checkstyleConfigDir = layout.buildDirectory.dir("generated/checkstyle")
     val checkstyleConfigFile = checkstyleConfigDir.map { it.file("checkstyle.xml").asFile }
 
@@ -100,6 +107,7 @@ internal fun Project.javaConventionsProviders(): JavaConventionsProviders {
         publishingPomName = publishingPomName,
         publishingPomDescription = publishingPomDescription,
         nullAwayAnnotatedPackages = nullAwayAnnotatedPackages,
+        pitestTargetClasses = pitestTargetClasses,
         checkstyleConfigDir = checkstyleConfigDir,
         checkstyleConfigFile = checkstyleConfigFile,
         runtimeLauncher = runtimeLauncher,

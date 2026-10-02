@@ -29,6 +29,7 @@ kotlin {
 dependencies {
     implementation("com.diffplug.spotless:spotless-plugin-gradle:8.10.3")
     implementation("net.ltgt.gradle:gradle-errorprone-plugin:5.1.1")
+    implementation("info.solidsoft.gradle.pitest:gradle-pitest-plugin:1.19.0")
     testImplementation(gradleTestKit())
     testImplementation("org.assertj:assertj-core:3.27.7")
     testImplementation("org.junit.jupiter:junit-jupiter:6.1.3")
@@ -119,6 +120,8 @@ gradlePlugin {
             "jacoco",
             "errorprone",
             "nullaway",
+            "pitest",
+            "mutation-testing",
             "license",
             "git-hooks",
             "publishing",

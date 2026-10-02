@@ -2,6 +2,12 @@
 
 ## 0.6.0
 
+### Added
+- Applies `info.solidsoft.pitest` `1.19.0` and configures PIT `1.30.0` mutation testing with the JUnit 5 plugin `1.2.3`:
+  `targetClasses` and `targetTests` from the resolved `leanish.conventions.basePackage`, `-DexcludeTags` as excluded groups,
+  one thread per available processor, and non-timestamped HTML and XML reports.
+  `pitest` is not part of `check` and has no default mutation threshold.
+
 ### Changed
 - Upgraded the Gradle wrapper from `9.5.1` to `9.8.0`.
 - Upgraded plugin build dependencies:
