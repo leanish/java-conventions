@@ -66,7 +66,7 @@ If the plugin version is not published to the Gradle Plugin Portal yet:
    ```bash
    ./gradlew publishToMavenLocal
    ```
-   This publishes the `version` from `build.gradle.kts` (currently `0.6.0`); request that exact version from the consumer.
+   This publishes the `version` from `build.gradle.kts`; request that exact version from the consumer.
 2. Ensure consumer `settings.gradle(.kts)` has `mavenLocal()` in `pluginManagement.repositories` (before remote repositories) while testing local builds, for example:
    ```kotlin
    pluginManagement {
