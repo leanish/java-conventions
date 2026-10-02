@@ -2,12 +2,12 @@ plugins {
     `kotlin-dsl`
     `maven-publish`
     jacoco
-    id("com.gradle.plugin-publish") version "2.1.1"
-    id("com.diffplug.spotless") version "8.6.0"
+    id("com.gradle.plugin-publish") version "2.2.1"
+    id("com.diffplug.spotless") version "8.10.3"
 }
 
 group = "io.github.leanish"
-version = "0.5.5"
+version = "0.6.0-SNAPSHOT"
 
 repositories {
     gradlePluginPortal()
@@ -27,12 +27,12 @@ kotlin {
 }
 
 dependencies {
-    implementation("com.diffplug.spotless:spotless-plugin-gradle:8.6.0")
-    implementation("net.ltgt.gradle:gradle-errorprone-plugin:5.1.0")
+    implementation("com.diffplug.spotless:spotless-plugin-gradle:8.10.3")
+    implementation("net.ltgt.gradle:gradle-errorprone-plugin:5.1.1")
     testImplementation(gradleTestKit())
     testImplementation("org.assertj:assertj-core:3.27.7")
-    testImplementation("org.junit.jupiter:junit-jupiter:6.1.0")
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher:6.1.0")
+    testImplementation("org.junit.jupiter:junit-jupiter:6.1.3")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher:6.1.3")
 }
 
 val defaultRuntimeJavaVersion = 25
@@ -57,7 +57,7 @@ tasks.withType<Test>().configureEach {
 }
 
 jacoco {
-    toolVersion = "0.8.14"
+    toolVersion = "0.8.15"
 }
 
 tasks.named<JacocoReport>("jacocoTestReport") {
