@@ -22,7 +22,7 @@ Shared Gradle conventions for JDK-based projects.
 
 ## How to use
 Use the Gradle Plugin Portal for released versions.
-The examples below target the upcoming `0.6.0` release; `0.5.5` is the latest published version.
+The released examples below use `0.6.0`, the latest published version.
 
 The plugin adds `mavenCentral()` by default to every project where it is applied.
 The canonical plugin id is `io.github.leanish.java-conventions`.
@@ -66,7 +66,7 @@ If the plugin version is not published to the Gradle Plugin Portal yet:
    ```bash
    ./gradlew publishToMavenLocal
    ```
-   This publishes the `version` from `build.gradle.kts` (currently `0.6.0-SNAPSHOT`); request that exact version from the consumer.
+   This publishes the `version` from `build.gradle.kts` (currently `0.6.0`); request that exact version from the consumer.
 2. Ensure consumer `settings.gradle(.kts)` has `mavenLocal()` in `pluginManagement.repositories` (before remote repositories) while testing local builds, for example:
    ```kotlin
    pluginManagement {
