@@ -12,6 +12,8 @@ import io.github.leanish.gradleconventions.ConventionProperties.MAVEN_CENTRAL_EN
 import io.github.leanish.gradleconventions.ConventionProperties.MAVEN_CENTRAL_ENABLED_ENV
 import io.github.leanish.gradleconventions.ConventionProperties.MAVEN_LOCAL_ENABLED
 import io.github.leanish.gradleconventions.ConventionProperties.MAVEN_LOCAL_ENABLED_ENV
+import io.github.leanish.gradleconventions.ConventionProperties.PITEST_ENABLED
+import io.github.leanish.gradleconventions.ConventionProperties.PITEST_ENABLED_ENV
 import io.github.leanish.gradleconventions.ConventionProperties.PUBLISHING_ENABLED
 import io.github.leanish.gradleconventions.ConventionProperties.PUBLISHING_ENABLED_ENV
 import io.github.leanish.gradleconventions.ConventionProperties.PUBLISHING_GITHUB_OWNER
@@ -37,6 +39,7 @@ internal data class JavaConventionsProviders(
     val publishingPomName: Provider<String>,
     val publishingPomDescription: Provider<String>,
     val nullAwayAnnotatedPackages: Provider<String>,
+    val pitestEnabled: Provider<Boolean>,
     val pitestTargetClasses: Provider<List<String>>,
     val checkstyleConfigDir: Provider<Directory>,
     val checkstyleConfigFile: Provider<File>,
@@ -80,6 +83,11 @@ internal fun Project.javaConventionsProviders(): JavaConventionsProviders {
     val nullAwayAnnotatedPackages = providers.provider {
         resolveNullAwayAnnotatedPackages()
     }
+    val pitestEnabled = booleanProperty(
+        name = PITEST_ENABLED,
+        envName = PITEST_ENABLED_ENV,
+        defaultValue = true,
+    )
     val pitestTargetClasses = nullAwayAnnotatedPackages.map { basePackages ->
         basePackages.split(',')
             .map(String::trim)
@@ -107,6 +115,7 @@ internal fun Project.javaConventionsProviders(): JavaConventionsProviders {
         publishingPomName = publishingPomName,
         publishingPomDescription = publishingPomDescription,
         nullAwayAnnotatedPackages = nullAwayAnnotatedPackages,
+        pitestEnabled = pitestEnabled,
         pitestTargetClasses = pitestTargetClasses,
         checkstyleConfigDir = checkstyleConfigDir,
         checkstyleConfigFile = checkstyleConfigFile,

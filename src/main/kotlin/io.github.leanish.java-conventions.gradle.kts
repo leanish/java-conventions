@@ -3,6 +3,7 @@
  * Licensed under the MIT License.
  * See LICENSE file in the project root for full license information.
  */
+import info.solidsoft.gradle.pitest.PitestPluginExtension
 import io.github.leanish.gradleconventions.ConventionProperties.GITHUB_ACTOR_ENV
 import io.github.leanish.gradleconventions.ConventionProperties.GITHUB_PACKAGES_KEY
 import io.github.leanish.gradleconventions.ConventionProperties.GITHUB_PACKAGES_USER
@@ -25,7 +26,6 @@ plugins {
     jacoco
     id("com.diffplug.spotless")
     id("net.ltgt.errorprone")
-    id("info.solidsoft.pitest")
 }
 
 val excludedTags: List<String> = providers.systemProperty("excludeTags")
@@ -42,6 +42,7 @@ val publishingGithubRepository = conventionProviders.publishingGithubRepository
 val publishingPomName = conventionProviders.publishingPomName
 val publishingPomDescription = conventionProviders.publishingPomDescription
 val nullAwayAnnotatedPackages = conventionProviders.nullAwayAnnotatedPackages
+val pitestEnabled = conventionProviders.pitestEnabled
 val pitestTargetClasses = conventionProviders.pitestTargetClasses
 val checkstyleConfigDir = conventionProviders.checkstyleConfigDir
 val checkstyleConfigFile = conventionProviders.checkstyleConfigFile
@@ -271,15 +272,26 @@ jacoco {
     toolVersion = "0.8.15"
 }
 
-pitest {
-    pitestVersion.set("1.30.0")
-    junit5PluginVersion.set("1.2.3")
-    targetClasses.set(pitestTargetClasses)
-    targetTests.set(pitestTargetClasses)
-    excludedGroups.set(excludedTags)
-    threads.set(Runtime.getRuntime().availableProcessors())
-    outputFormats.set(listOf("HTML", "XML"))
-    timestampedReports.set(false)
+if (pitestEnabled.get()) {
+    pluginManager.apply("info.solidsoft.pitest")
+}
+
+plugins.withId("info.solidsoft.pitest") {
+    if (!pitestEnabled.get()) {
+        return@withId
+    }
+
+    extensions.configure<PitestPluginExtension> {
+        pitestVersion.set("1.30.0")
+        junit5PluginVersion.set("1.2.3")
+        targetClasses.set(pitestTargetClasses)
+        targetTests.set(pitestTargetClasses)
+        excludedGroups.set(excludedTags)
+        threads.set(Runtime.getRuntime().availableProcessors())
+        outputFormats.set(listOf("HTML", "XML"))
+        timestampedReports.set(false)
+        mutationThreshold.set(95)
+    }
 }
 
 tasks.withType<JavaExec>().configureEach {

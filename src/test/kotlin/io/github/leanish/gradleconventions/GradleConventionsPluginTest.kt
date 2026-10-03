@@ -7,6 +7,9 @@ import org.assertj.core.api.Assertions.assertThat
 import org.gradle.testkit.runner.GradleRunner
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
+import java.io.File
 import java.nio.file.Path
 import java.util.jar.JarFile
 
@@ -1525,7 +1528,7 @@ class GradleConventionsPluginTest {
                     println("pitestThreads=${pitest.threads.get()}")
                     println("pitestOutputFormats=${pitest.outputFormats.get().sorted()}")
                     println("pitestTimestampedReports=${pitest.timestampedReports.get()}")
-                    println("pitestMutationThresholdPresent=${pitest.mutationThreshold.isPresent}")
+                    println("pitestMutationThreshold=${pitest.mutationThreshold.get()}")
                     println("checkDependsOnPitest=${project.tasks.getByName("check").taskDependencies.getDependencies(null).any { it.name == "pitest" }}")
                 }
             }
@@ -1548,7 +1551,7 @@ class GradleConventionsPluginTest {
             .contains("pitestThreads=${Runtime.getRuntime().availableProcessors()}")
             .contains("pitestOutputFormats=[HTML, XML]")
             .contains("pitestTimestampedReports=false")
-            .contains("pitestMutationThresholdPresent=false")
+            .contains("pitestMutationThreshold=95")
             .contains("checkDependsOnPitest=false")
     }
 
@@ -1640,6 +1643,101 @@ class GradleConventionsPluginTest {
     }
 
     @Test
+    fun pitestCanBeDisabledWithProperty() {
+        val projectDir = tempDir.resolve("pitest-disabled").toFile()
+        projectDir.mkdirs()
+        writeRequiredConventionsProperties(projectDir)
+        writePitestPresenceBuild(projectDir)
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withArguments(
+                "-Pleanish.conventions.pitest.enabled=false",
+                "dumpPitestPresence",
+            )
+            .withEnvironment(environmentWithoutConventionsOverrides())
+            .withPluginClasspath()
+            .build()
+
+        assertThat(result.output)
+            .contains("pitestPluginApplied=false")
+            .contains("pitestTaskPresent=false")
+    }
+
+    @Test
+    fun pitestEnabledEnvironmentOverridesProperty() {
+        val projectDir = tempDir.resolve("pitest-disabled-env").toFile()
+        projectDir.mkdirs()
+        writeRequiredConventionsProperties(projectDir)
+        writePitestPresenceBuild(projectDir)
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withArguments(
+                "-Pleanish.conventions.pitest.enabled=true",
+                "dumpPitestPresence",
+            )
+            .withEnvironment(environmentWithoutConventionsOverrides(
+                mapOf(
+                    "JAVA_CONVENTIONS_PITEST_ENABLED" to "false",
+                ),
+            ))
+            .withPluginClasspath()
+            .build()
+
+        assertThat(result.output)
+            .contains("pitestPluginApplied=false")
+            .contains("pitestTaskPresent=false")
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = [true, false])
+    fun disabledPitestConventionsLeaveExplicitlyAppliedPluginUnconfigured(pitestPluginFirst: Boolean) {
+        val projectDir = tempDir.resolve("pitest-disabled-explicit-$pitestPluginFirst").toFile()
+        projectDir.mkdirs()
+        writeRequiredConventionsProperties(projectDir)
+
+        val pluginRequests = listOf(
+            "id(\"info.solidsoft.pitest\") version \"1.19.0\"",
+            "id(\"io.github.leanish.java-conventions\")",
+        ).let { requests -> if (pitestPluginFirst) requests else requests.reversed() }
+        writeFile(projectDir, "settings.gradle.kts", "rootProject.name = \"pitest-disabled-explicit\"")
+        writeFile(
+            projectDir,
+            "build.gradle.kts",
+            $$"""
+            plugins {
+                $${pluginRequests[0]}
+                $${pluginRequests[1]}
+            }
+
+            tasks.register("dumpPitestConventions") {
+                doLast {
+                    println("pitestTaskPresent=${project.tasks.findByName("pitest") != null}")
+                    println("pitestVersion=${pitest.pitestVersion.orNull}")
+                    println("pitestMutationThresholdPresent=${pitest.mutationThreshold.isPresent}")
+                }
+            }
+            """.trimIndent(),
+        )
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withArguments(
+                "-Pleanish.conventions.pitest.enabled=false",
+                "dumpPitestConventions",
+            )
+            .withEnvironment(environmentWithoutConventionsOverrides())
+            .withPluginClasspath()
+            .build()
+
+        assertThat(result.output)
+            .contains("pitestTaskPresent=true")
+            .doesNotContain("pitestVersion=1.30.0")
+            .contains("pitestMutationThresholdPresent=false")
+    }
+
+    @Test
     fun pitestRunsMutationAnalysisAndHonorsExcludeTags() {
         val projectDir = tempDir.resolve("pitest-run").toFile()
         projectDir.mkdirs()
@@ -1714,6 +1812,87 @@ class GradleConventionsPluginTest {
             .contains("status='KILLED'")
             .doesNotContain("status='SURVIVED'")
             .doesNotContain("status='NO_COVERAGE'")
+    }
+
+    @Test
+    fun pitestFailsBelowDefaultMutationThresholdUnlessOverridden() {
+        val projectDir = tempDir.resolve("pitest-threshold").toFile()
+        projectDir.mkdirs()
+        writeRequiredConventionsProperties(projectDir)
+
+        writeFile(projectDir, "settings.gradle.kts", "rootProject.name = \"pitest-threshold\"")
+        writeFile(
+            projectDir,
+            "build.gradle.kts",
+            """
+            plugins {
+                id("io.github.leanish.java-conventions")
+            }
+            """.trimIndent(),
+        )
+        writeFile(
+            projectDir,
+            "src/main/java/io/github/leanish/sample/Signs.java",
+            """
+            package io.github.leanish.sample;
+
+            public final class Signs {
+                public boolean isPositive(int value) {
+                    return value > 0;
+                }
+            }
+            """.trimIndent(),
+        )
+        writeFile(
+            projectDir,
+            "src/test/java/io/github/leanish/sample/SignsTest.java",
+            """
+            package io.github.leanish.sample;
+
+            import static org.assertj.core.api.Assertions.assertThat;
+
+            import org.junit.jupiter.api.Test;
+
+            class SignsTest {
+                @Test
+                void detectsAPositiveValue() {
+                    assertThat(new Signs().isPositive(1)).isTrue();
+                }
+            }
+            """.trimIndent(),
+        )
+
+        val failure = GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withArguments("pitest")
+            .withPluginClasspath()
+            .buildAndFail()
+
+        assertThat(failure.output)
+            .contains("is below threshold of 95")
+
+        writeFile(
+            projectDir,
+            "build.gradle.kts",
+            """
+            plugins {
+                id("io.github.leanish.java-conventions")
+            }
+
+            pitest {
+                mutationThreshold = 0
+            }
+            """.trimIndent(),
+        )
+
+        GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withArguments("pitest")
+            .withPluginClasspath()
+            .build()
+
+        assertThat(projectDir.resolve("build/reports/pitest/mutations.xml").readText())
+            .contains("status='SURVIVED'")
     }
 
     @Test
@@ -1945,6 +2124,28 @@ class GradleConventionsPluginTest {
         val installedHook = gitHooksDir.resolve("pre-commit")
         assertThat(installedHook.readText())
             .isEqualTo(loadBundledPreCommitHook())
+    }
+
+    private fun writePitestPresenceBuild(projectDir: File) {
+        writeFile(projectDir, "settings.gradle.kts", "rootProject.name = \"${projectDir.name}\"")
+        writeFile(
+            projectDir,
+            "build.gradle.kts",
+            $$"""
+            plugins {
+                id("io.github.leanish.java-conventions")
+            }
+
+            tasks.register("dumpPitestPresence") {
+                val pitestPluginApplied = plugins.hasPlugin("info.solidsoft.pitest")
+                val pitestTaskPresent = tasks.names.contains("pitest")
+                doLast {
+                    println("pitestPluginApplied=$pitestPluginApplied")
+                    println("pitestTaskPresent=$pitestTaskPresent")
+                }
+            }
+            """.trimIndent(),
+        )
     }
 
     private fun loadBundledPreCommitHook(): String {
