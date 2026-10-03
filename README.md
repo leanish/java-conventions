@@ -19,10 +19,11 @@ Shared Gradle conventions for JDK-based projects.
 - Resolves `leanish.conventions.basePackage` from project config or infers it from `src/main/java` package declarations.
 - Adds root-only helper tasks (`installGitHooks`, `setupProject`) and makes `build` depend on `installGitHooks`.
 - Makes `check` depend on every `JacocoCoverageVerification` task.
+- Declares configuration cache support on the Gradle Plugin Portal (isolated projects are not declared).
 
 ## How to use
 Use the Gradle Plugin Portal for released versions.
-The released examples below use `0.6.1`, the latest published version.
+The released examples below use `0.6.2`, the latest published version.
 
 The plugin adds `mavenCentral()` by default to every project where it is applied.
 The canonical plugin id is `io.github.leanish.java-conventions`.
@@ -32,7 +33,7 @@ The canonical plugin id is `io.github.leanish.java-conventions`.
 
 ```kotlin
 plugins {
-    id("io.github.leanish.java-conventions") version "0.6.1"
+    id("io.github.leanish.java-conventions") version "0.6.2"
 }
 ```
 
@@ -46,7 +47,7 @@ pluginManagement {
         mavenCentral()
     }
     plugins {
-        id("io.github.leanish.java-conventions") version "0.6.1"
+        id("io.github.leanish.java-conventions") version "0.6.2"
     }
 }
 ```
@@ -84,7 +85,7 @@ If you want root-only tasks (`installGitHooks`, `setupProject`) in a multi-proje
 
 ```kotlin
 plugins {
-    id("io.github.leanish.java-conventions") version "0.6.1"
+    id("io.github.leanish.java-conventions") version "0.6.2"
 }
 ```
 
@@ -263,6 +264,12 @@ components.named<AdhocComponentWithVariants>("java") {
 - `leanish.conventions.pitest.enabled=false` (or `JAVA_CONVENTIONS_PITEST_ENABLED=false`) skips applying and configuring
   PIT: no `pitest` task, so a `pitest { }` block in the build script no longer compiles. A project that applies
   `info.solidsoft.pitest` itself while the switch is off gets the plugin's own defaults.
+- Known warning: gradle-pitest-plugin `1.19.0` calls `Configuration.setVisible(boolean)`, which Gradle 9.1+ deprecates. On
+  Gradle 9.8.0, builds that apply it end with "Deprecated Gradle features were used in this build, making it incompatible
+  with Gradle 10." (`--warning-mode all` shows the call, scheduled for removal in Gradle 11). It is only a warning under the
+  default warning mode, but `--warning-mode fail` turns it into a build failure. The fix is merged upstream
+  ([szpak/gradle-pitest-plugin#398](https://github.com/szpak/gradle-pitest-plugin/pull/398)) and these conventions will move
+  to the first plugin release that includes it. Turning PIT off removes the warning.
 
 ```kotlin
 pitest {

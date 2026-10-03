@@ -1,3 +1,5 @@
+import org.gradle.plugin.compatibility.compatibility
+
 plugins {
     `kotlin-dsl`
     `maven-publish`
@@ -7,7 +9,7 @@ plugins {
 }
 
 group = "io.github.leanish"
-version = "0.6.1"
+version = "0.6.2-SNAPSHOT"
 
 repositories {
     gradlePluginPortal()
@@ -132,6 +134,12 @@ gradlePlugin {
             displayName = "Leanish Java Conventions"
             description = "Shared Gradle conventions for Java projects."
             tags.set(pluginTags)
+            // Backed by ConfigurationCacheCompatibilityTest; isolated projects stay undeclared until tested.
+            compatibility {
+                features {
+                    configurationCache = true
+                }
+            }
         }
     }
 }

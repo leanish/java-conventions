@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.6.2
+
+### Added
+- Declares configuration cache support on the Gradle Plugin Portal (isolated projects are not declared).
+
+### Documentation
+- Documented the Gradle deprecation warning that gradle-pitest-plugin `1.19.0` triggers (`Configuration.setVisible`): it is
+  non-fatal under the default warning mode (`--warning-mode fail` fails the build) and fixed upstream, pending a plugin release.
+
 ## 0.6.1
 
 ### Added
