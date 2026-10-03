@@ -76,6 +76,38 @@ class ConfigurationCacheCompatibilityTest {
     }
 
     @Test
+    fun invalidatesConfigurationCacheWhenPitestEnvironmentOverrideChanges() {
+        val projectDir = tempDir.resolve("cache-pitest-changed").toFile()
+        projectDir.mkdirs()
+        writeRequiredConventionsProperties(projectDir)
+        writeDumpPitestPresenceBuild(projectDir)
+
+        val firstRun = runGradle(
+            projectDir = projectDir,
+            arguments = listOf("dumpPitestPresence", "--configuration-cache"),
+            environmentOverrides = mapOf(
+                "JAVA_CONVENTIONS_PITEST_ENABLED" to "false",
+            ),
+        )
+        assertThat(firstRun.output)
+            .contains("pitestPluginApplied=false")
+            .contains("Configuration cache entry stored.")
+
+        val secondRun = runGradle(
+            projectDir = projectDir,
+            arguments = listOf("dumpPitestPresence", "--configuration-cache"),
+            environmentOverrides = mapOf(
+                "JAVA_CONVENTIONS_PITEST_ENABLED" to "true",
+            ),
+        )
+        assertThat(secondRun.output)
+            .contains("pitestPluginApplied=true")
+            .contains("configuration cache cannot be reused")
+            .contains("Configuration cache entry stored.")
+            .doesNotContain("Reusing configuration cache.")
+    }
+
+    @Test
     fun invalidatesConfigurationCacheWhenStringEnvironmentOverrideChanges() {
         val projectDir = tempDir.resolve("cache-owner-changed").toFile()
         projectDir.mkdirs()
@@ -185,6 +217,27 @@ class ConfigurationCacheCompatibilityTest {
                 inputs.property("hasMavenCentral", hasMavenCentral)
                 doLast {
                     println("hasMavenCentral=${'$'}{inputs.properties["hasMavenCentral"]}")
+                }
+            }
+            """.trimIndent(),
+        )
+    }
+
+    private fun writeDumpPitestPresenceBuild(projectDir: File) {
+        writeFile(projectDir, "settings.gradle.kts", "rootProject.name = \"${projectDir.name}\"")
+        writeFile(
+            projectDir,
+            "build.gradle.kts",
+            """
+            plugins {
+                id("io.github.leanish.java-conventions")
+            }
+
+            tasks.register("dumpPitestPresence") {
+                val pitestPluginApplied = plugins.hasPlugin("info.solidsoft.pitest")
+                inputs.property("pitestPluginApplied", pitestPluginApplied)
+                doLast {
+                    println("pitestPluginApplied=${'$'}{inputs.properties["pitestPluginApplied"]}")
                 }
             }
             """.trimIndent(),

@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.6.1
+
+### Added
+- Added `leanish.conventions.pitest.enabled` (and `JAVA_CONVENTIONS_PITEST_ENABLED`), `true` by default; `false` skips
+  applying and configuring PIT.
+
+### Changed
+- PIT now defaults to a `95` mutation threshold, so `./gradlew pitest` fails below 95 % unless the project overrides
+  `mutationThreshold` (`0` reports without failing). `pitest` is still not part of `check`.
+
 ## 0.6.0
 
 ### Added

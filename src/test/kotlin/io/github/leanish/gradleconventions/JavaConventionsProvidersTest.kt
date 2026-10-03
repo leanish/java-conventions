@@ -6,6 +6,8 @@ import io.github.leanish.gradleconventions.ConventionProperties.MAVEN_CENTRAL_EN
 import io.github.leanish.gradleconventions.ConventionProperties.MAVEN_CENTRAL_ENABLED_ENV
 import io.github.leanish.gradleconventions.ConventionProperties.MAVEN_LOCAL_ENABLED
 import io.github.leanish.gradleconventions.ConventionProperties.MAVEN_LOCAL_ENABLED_ENV
+import io.github.leanish.gradleconventions.ConventionProperties.PITEST_ENABLED
+import io.github.leanish.gradleconventions.ConventionProperties.PITEST_ENABLED_ENV
 import io.github.leanish.gradleconventions.ConventionProperties.PUBLISHING_ENABLED
 import io.github.leanish.gradleconventions.ConventionProperties.PUBLISHING_ENABLED_ENV
 import io.github.leanish.gradleconventions.ConventionProperties.PUBLISHING_GITHUB_PACKAGES_ENABLED
@@ -61,6 +63,11 @@ class JavaConventionsProvidersTest {
             envName = PUBLISHING_GITHUB_PACKAGES_ENABLED_ENV,
             defaultValue = true,
         )
+        val pitestEnabledFromEnvironment = expectedBooleanFromEnvironment(
+            name = PITEST_ENABLED,
+            envName = PITEST_ENABLED_ENV,
+            defaultValue = true,
+        )
         val githubOwnerFromEnvironment = resolvedGithubOwnerFromEnvironment()
 
         assertThat(providers.mavenLocalEnabled.get()).isEqualTo(mavenLocalEnabledFromEnvironment)
@@ -72,6 +79,7 @@ class JavaConventionsProvidersTest {
         assertThat(providers.publishingPomName.get()).isEqualTo("defaults")
         assertThat(providers.publishingPomDescription.get()).isEqualTo("defaults")
         assertThat(providers.nullAwayAnnotatedPackages.get()).isEqualTo("com.example.app")
+        assertThat(providers.pitestEnabled.get()).isEqualTo(pitestEnabledFromEnvironment)
         assertThat(providers.pitestTargetClasses.get()).containsExactly("com.example.app.*")
         assertThat(project.extensions.extraProperties[BASE_PACKAGE]).isEqualTo("com.example.app")
         assertThat(providers.checkstyleConfigDir.get().asFile.path).endsWith("build/generated/checkstyle")
@@ -151,6 +159,22 @@ class JavaConventionsProvidersTest {
             .isEqualTo(publishingGithubPackagesEnabledFromPropertyAndEnvironment)
         assertThat(providers.publishingConventionsEnabled.get())
             .isEqualTo(publishingConventionsEnabledFromEnvironment)
+    }
+
+    @Test
+    fun pitestEnabledCanBeDisabledWithProperty() {
+        val project = newJavaProject(tempDir.resolve("pitest-disabled").toFile(), "pitest-disabled")
+        project.extensions.extraProperties.set("leanish.conventions.pitest.enabled", "false")
+
+        val providers = project.javaConventionsProviders()
+        val pitestEnabledFromPropertyAndEnvironment = expectedBooleanWithPropertyFallback(
+            name = PITEST_ENABLED,
+            envName = PITEST_ENABLED_ENV,
+            propertyValue = "false",
+            defaultValue = true,
+        )
+
+        assertThat(providers.pitestEnabled.get()).isEqualTo(pitestEnabledFromPropertyAndEnvironment)
     }
 
     @Test

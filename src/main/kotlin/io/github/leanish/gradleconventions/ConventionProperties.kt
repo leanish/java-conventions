@@ -12,6 +12,9 @@ object ConventionProperties {
     const val MAVEN_CENTRAL_ENABLED_ENV = "JAVA_CONVENTIONS_MAVEN_CENTRAL_ENABLED"
     const val MAVEN_CENTRAL_ENABLED = "leanish.conventions.repositories.mavenCentral.enabled"
 
+    const val PITEST_ENABLED_ENV = "JAVA_CONVENTIONS_PITEST_ENABLED"
+    const val PITEST_ENABLED = "leanish.conventions.pitest.enabled"
+
     const val PUBLISHING_ENABLED_ENV = "JAVA_CONVENTIONS_PUBLISHING_ENABLED"
     const val PUBLISHING_ENABLED = "leanish.conventions.publishing.enabled"
 

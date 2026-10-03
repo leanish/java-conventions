@@ -3,13 +3,13 @@
 Shared Gradle conventions for JDK-based projects.
 
 ## What it provides
-- Applies common plugins: `java`, `checkstyle`, `jacoco`, `spotless`, `errorprone`, `pitest`.
+- Applies common plugins: `java`, `checkstyle`, `jacoco`, `spotless`, `errorprone`, and `pitest` (unless disabled).
 - Configures Java toolchain, runtime launcher, and bytecode level (defaults to JDK 25 from any available vendor).
 - The plugin itself targets Kotlin/JVM 17.
 - Adds `mavenCentral()` by default and can optionally add `mavenLocal()` (both configurable).
 - Sets Checkstyle tool version and uses project-level Checkstyle files when provided (bundled defaults otherwise).
 - Sets JaCoCo tool version and enforces instruction coverage.
-- Configures PIT mutation testing (`pitest` task) for the resolved base package; it is not part of `check`.
+- Configures PIT mutation testing (`pitest` task, 95 % mutation threshold) for the resolved base package; it is not part of `check`.
 - Configures Spotless for basic Java formatting (unused imports, trailing whitespace, newline at EOF).
 - Applies Spotless license header conventions when `LICENSE_HEADER` exists in the project root.
 - Adds common compile/test dependencies (Lombok, JSpecify, JetBrains annotations, Error Prone/NullAway, JUnit Jupiter, AssertJ).
@@ -22,7 +22,7 @@ Shared Gradle conventions for JDK-based projects.
 
 ## How to use
 Use the Gradle Plugin Portal for released versions.
-The released examples below use `0.6.0`, the latest published version.
+The released examples below use `0.6.1`, the latest published version.
 
 The plugin adds `mavenCentral()` by default to every project where it is applied.
 The canonical plugin id is `io.github.leanish.java-conventions`.
@@ -32,7 +32,7 @@ The canonical plugin id is `io.github.leanish.java-conventions`.
 
 ```kotlin
 plugins {
-    id("io.github.leanish.java-conventions") version "0.6.0"
+    id("io.github.leanish.java-conventions") version "0.6.1"
 }
 ```
 
@@ -46,7 +46,7 @@ pluginManagement {
         mavenCentral()
     }
     plugins {
-        id("io.github.leanish.java-conventions") version "0.6.0"
+        id("io.github.leanish.java-conventions") version "0.6.1"
     }
 }
 ```
@@ -84,7 +84,7 @@ If you want root-only tasks (`installGitHooks`, `setupProject`) in a multi-proje
 
 ```kotlin
 plugins {
-    id("io.github.leanish.java-conventions") version "0.6.0"
+    id("io.github.leanish.java-conventions") version "0.6.1"
 }
 ```
 
@@ -107,11 +107,15 @@ leanish.conventions.publishing.developer.url=https://github.com/acme
 # Project conventions (optional override)
 leanish.conventions.basePackage=io.github.leanish
 
+# Mutation testing conventions
+leanish.conventions.pitest.enabled=true
+
 ```
 
 Environment variables are also supported, and they override `gradle.properties` / `-P` values:
 - `JAVA_CONVENTIONS_MAVEN_LOCAL_ENABLED`
 - `JAVA_CONVENTIONS_MAVEN_CENTRAL_ENABLED`
+- `JAVA_CONVENTIONS_PITEST_ENABLED`
 - `JAVA_CONVENTIONS_PUBLISHING_ENABLED`
 - `JAVA_CONVENTIONS_PUBLISHING_GITHUB_PACKAGES_ENABLED`
 - `JAVA_CONVENTIONS_PUBLISHING_GITHUB_OWNER`
@@ -252,8 +256,13 @@ components.named<AdhocComponentWithVariants>("java") {
   project's classes. Projects without mutable code fail `pitest` (PIT's `failWhenNoMutations`); set
   `pitest { failWhenNoMutations = false }` there. Cross-project mutation and aggregated reports need extra gradle-pitest-plugin
   setup (`additionalMutableCodePaths`, the `info.solidsoft.pitest.aggregator` plugin).
-- `pitest` is not wired into `check` and no mutation threshold is set by default, because a run takes
-  noticeably longer than the tests. Opt in per project, and run `./gradlew pitest` as its own CI step to enforce it:
+- `mutationThreshold` defaults to `95`: `./gradlew pitest` fails when the mutation score (as PIT rounds it) is below 95 %.
+  Override it per project, or set it to `0` to report without failing. `-DexcludeTags` leaves the threshold active.
+- `pitest` is not wired into `check`, because a run takes noticeably longer than the tests. Run `./gradlew pitest` in a
+  separate CI job; make that job optional for advisory feedback, or required to enforce the threshold.
+- `leanish.conventions.pitest.enabled=false` (or `JAVA_CONVENTIONS_PITEST_ENABLED=false`) skips applying and configuring
+  PIT: no `pitest` task, so a `pitest { }` block in the build script no longer compiles. A project that applies
+  `info.solidsoft.pitest` itself while the switch is off gets the plugin's own defaults.
 
 ```kotlin
 pitest {
