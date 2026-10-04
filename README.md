@@ -246,7 +246,8 @@ components.named<AdhocComponentWithVariants>("java") {
   The same tags are excluded from mutation testing.
 
 ## Mutation testing
-- Applies `info.solidsoft.pitest` (gradle-pitest-plugin `1.19.0`) with PIT `1.30.0` and its JUnit 5 plugin `1.2.3`.
+- Applies `info.solidsoft.pitest` (gradle-pitest-plugin) with PIT and its JUnit 5 plugin, at the versions in
+  [`gradle/libs.versions.toml`](gradle/libs.versions.toml).
 - `./gradlew pitest` writes HTML and XML reports to `build/reports/pitest` (not timestamped).
 - `targetClasses` and `targetTests` default to `<package>.*` for every package in the resolved `leanish.conventions.basePackage`,
   so narrowing `targetClasses` keeps running every test under the base package.
@@ -279,20 +280,24 @@ pitest {
 ```
 
 ## Dependency conventions
-- Adds `org.jspecify:jspecify:1.0.1`, `org.jetbrains:annotations:26.1.0`, and
-  `com.google.errorprone:error_prone_annotations:2.50.0` as `compileOnly` and `testCompileOnly`.
-- Adds `org.projectlombok:lombok:1.18.48` as `compileOnly`, `testCompileOnly`,
+Exact versions of everything the plugin injects or applies (dependencies, Checkstyle, JaCoCo, PIT, and the Spotless,
+Error Prone and PIT Gradle plugins) live in [`gradle/libs.versions.toml`](gradle/libs.versions.toml); the copy at a
+release tag is what that release uses.
+
+- Adds `org.jspecify:jspecify`, `org.jetbrains:annotations`, and
+  `com.google.errorprone:error_prone_annotations` as `compileOnly` and `testCompileOnly`.
+- Adds `org.projectlombok:lombok` as `compileOnly`, `testCompileOnly`,
   `annotationProcessor`, and `testAnnotationProcessor`.
 - Sets a Guava `33.7.2-jre` version floor for Checkstyle and Error Prone to fix `CVE-2026-102554`.
   Consumer Checkstyle `toolVersion` overrides remain supported.
 - Adds Error Prone analysis dependencies:
-  - `com.google.errorprone:error_prone_core:2.50.0`
-  - `com.uber.nullaway:nullaway:0.14.2`
+  - `com.google.errorprone:error_prone_core`
+  - `com.uber.nullaway:nullaway`
 
 ## JUnit Platform
 - All `Test` tasks call `useJUnitPlatform()`.
-- The plugin adds `org.junit.jupiter:junit-jupiter:6.1.3` and `org.assertj:assertj-core:3.27.7` as `testImplementation`.
-- The plugin adds `org.junit.platform:junit-platform-launcher:6.1.3` as `testRuntimeOnly`.
+- The plugin adds `org.junit.jupiter:junit-jupiter` and `org.assertj:assertj-core` as `testImplementation`.
+- The plugin adds `org.junit.platform:junit-platform-launcher` as `testRuntimeOnly`.
 - If you need different test execution behavior for specific tasks, override those tasks in your build script.
 
 ## Maven Publish conventions
@@ -352,7 +357,7 @@ It:
 > **Fail-fast validation:** The plugin validates the configured Java toolchain during configuration and fails early with a descriptive error when `languageVersion < 21`.
 
 ## Notes
-- Checkstyle uses tool version `14.3.0`.
+- Checkstyle uses the tool version from [`gradle/libs.versions.toml`](gradle/libs.versions.toml) (`checkstyle`).
 - Checkstyle uses `config/checkstyle/checkstyle.xml` and `config/checkstyle/suppressions.xml` when present in the consumer project.
 - If either file is missing, the plugin falls back to bundled defaults (`checkstyle.xml` and empty suppressions).
 - These files are materialized under `build/generated/checkstyle` for Checkstyle only and are not packaged into JARs/publications.

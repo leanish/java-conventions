@@ -66,7 +66,7 @@ class GradleConventionsPluginTest {
             .contains("jacocoPresent=true")
             .contains("compileRelease=25")
             .contains("jacocoMinimum=0.85")
-            .contains("checkstyleToolVersion=14.3.0")
+            .contains("checkstyleToolVersion=${ConventionVersions.CHECKSTYLE}")
     }
 
     @ParameterizedTest
@@ -403,23 +403,23 @@ class GradleConventionsPluginTest {
             .contains("hasMavenLocal=false")
             .contains("hasMavenCentral=true")
             .contains("hasLauncherDependency=true")
-            .contains("launcherVersion=6.1.3")
+            .contains("launcherVersion=${ConventionVersions.JUNIT}")
             .contains("hasJunitJupiterDependency=true")
-            .contains("junitJupiterVersion=6.1.3")
+            .contains("junitJupiterVersion=${ConventionVersions.JUNIT}")
             .contains("hasAssertjDependency=true")
-            .contains("assertjVersion=3.27.7")
+            .contains("assertjVersion=${ConventionVersions.ASSERTJ}")
             .contains("hasErrorProneAnnotationsDependency=true")
-            .contains("errorProneAnnotationsVersion=2.50.0")
+            .contains("errorProneAnnotationsVersion=${ConventionVersions.ERROR_PRONE}")
             .contains("hasLombokCompileOnlyDependency=true")
-            .contains("lombokCompileOnlyVersion=1.18.48")
+            .contains("lombokCompileOnlyVersion=${ConventionVersions.LOMBOK}")
             .contains("hasLombokTestCompileOnlyDependency=true")
-            .contains("lombokTestCompileOnlyVersion=1.18.48")
+            .contains("lombokTestCompileOnlyVersion=${ConventionVersions.LOMBOK}")
             .contains("hasLombokTestAnnotationProcessorDependency=true")
-            .contains("lombokTestAnnotationProcessorVersion=1.18.48")
+            .contains("lombokTestAnnotationProcessorVersion=${ConventionVersions.LOMBOK}")
             .contains("hasErrorProneCoreDependency=true")
-            .contains("errorProneCoreVersion=2.50.0")
+            .contains("errorProneCoreVersion=${ConventionVersions.ERROR_PRONE}")
             .contains("hasNullAwayDependency=true")
-            .contains("nullAwayVersion=0.14.2")
+            .contains("nullAwayVersion=${ConventionVersions.NULLAWAY}")
             .contains("hasSourcesJarTask=true")
             .contains("hasJavadocJarTask=true")
             .contains("nullAwayConfigured=true")
@@ -1592,8 +1592,8 @@ class GradleConventionsPluginTest {
 
         assertThat(result.output)
             .contains("pitestTaskPresent=true")
-            .contains("pitestVersion=1.30.0")
-            .contains("pitestJunit5PluginVersion=1.2.3")
+            .contains("pitestVersion=${ConventionVersions.PITEST}")
+            .contains("pitestJunit5PluginVersion=${ConventionVersions.PITEST_JUNIT5_PLUGIN}")
             .contains("pitestTargetClasses=[io.github.leanish.*]")
             .contains("pitestTargetTests=[io.github.leanish.*]")
             .contains("pitestExcludedGroups=[]")
@@ -1662,7 +1662,7 @@ class GradleConventionsPluginTest {
             $$"""
             plugins {
                 id("io.github.leanish.java-conventions")
-                id("info.solidsoft.pitest") version "1.19.0"
+                id("info.solidsoft.pitest") version "$${ConventionVersions.PITEST_GRADLE_PLUGIN}"
             }
 
             pitest {
@@ -1686,7 +1686,7 @@ class GradleConventionsPluginTest {
             .build()
 
         assertThat(result.output)
-            .contains("pitestVersion=1.30.0")
+            .contains("pitestVersion=${ConventionVersions.PITEST}")
             .contains("pitestTargetClasses=[io.github.leanish.*]")
             .contains("pitestMutationThreshold=95")
     }
@@ -1747,7 +1747,7 @@ class GradleConventionsPluginTest {
         writeRequiredConventionsProperties(projectDir)
 
         val pluginRequests = listOf(
-            "id(\"info.solidsoft.pitest\") version \"1.19.0\"",
+            "id(\"info.solidsoft.pitest\") version \"${ConventionVersions.PITEST_GRADLE_PLUGIN}\"",
             "id(\"io.github.leanish.java-conventions\")",
         ).let { requests -> if (pitestPluginFirst) requests else requests.reversed() }
         writeFile(projectDir, "settings.gradle.kts", "rootProject.name = \"pitest-disabled-explicit\"")
@@ -1782,7 +1782,7 @@ class GradleConventionsPluginTest {
 
         assertThat(result.output)
             .contains("pitestTaskPresent=true")
-            .doesNotContain("pitestVersion=1.30.0")
+            .doesNotContain("pitestVersion=${ConventionVersions.PITEST}")
             .contains("pitestMutationThresholdPresent=false")
     }
 

@@ -1,11 +1,11 @@
 import org.gradle.plugin.compatibility.compatibility
 
 plugins {
-    id("org.gradle.kotlin.kotlin-dsl") version "6.7.11"
+    alias(libs.plugins.kotlin.dsl)
     `maven-publish`
     jacoco
-    id("com.gradle.plugin-publish") version "2.2.1"
-    id("com.diffplug.spotless") version "8.10.3"
+    alias(libs.plugins.plugin.publish)
+    alias(libs.plugins.spotless)
 }
 
 group = "io.github.leanish"
@@ -29,13 +29,68 @@ kotlin {
 }
 
 dependencies {
-    implementation("com.diffplug.spotless:spotless-plugin-gradle:8.10.3")
-    implementation("net.ltgt.gradle:gradle-errorprone-plugin:5.1.1")
-    implementation("info.solidsoft.gradle.pitest:gradle-pitest-plugin:1.19.0")
+    implementation(libs.spotless.gradle.plugin)
+    implementation(libs.errorprone.gradle.plugin)
+    implementation(libs.pitest.gradle.plugin)
     testImplementation(gradleTestKit())
-    testImplementation("org.assertj:assertj-core:3.27.7")
-    testImplementation("org.junit.jupiter:junit-jupiter:6.1.3")
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher:6.1.3")
+    testImplementation(libs.assertj.core)
+    testImplementation(libs.junit.jupiter)
+    testRuntimeOnly(libs.junit.platform.launcher)
+}
+
+/** Writes the catalog versions the precompiled script injects into consumer builds as Kotlin constants. */
+abstract class GenerateConventionVersions : DefaultTask() {
+    @get:Input
+    abstract val versions: MapProperty<String, String>
+
+    @get:OutputDirectory
+    abstract val outputDirectory: DirectoryProperty
+
+    @TaskAction
+    fun generate() {
+        val outputDir = outputDirectory.get().asFile
+        outputDir.deleteRecursively()
+        val file = outputDir.resolve("io/github/leanish/gradleconventions/ConventionVersions.kt")
+        file.parentFile.mkdirs()
+        file.writeText(
+            buildString {
+                appendLine("package io.github.leanish.gradleconventions")
+                appendLine()
+                appendLine("// Generated from gradle/libs.versions.toml by the generateConventionVersions task; do not edit.")
+                appendLine("internal object ConventionVersions {")
+                versions.get().toSortedMap().forEach { (name, version) ->
+                    appendLine("    const val $name = \"$version\"")
+                }
+                appendLine("}")
+            },
+        )
+    }
+}
+
+val generateConventionVersions = tasks.register<GenerateConventionVersions>("generateConventionVersions") {
+    versions.set(
+        mapOf(
+            "ASSERTJ" to libs.versions.assertj,
+            "CHECKSTYLE" to libs.versions.checkstyle,
+            "ERROR_PRONE" to libs.versions.errorprone.asProvider(),
+            "GUAVA" to libs.versions.guava,
+            "JACOCO" to libs.versions.jacoco,
+            "JETBRAINS_ANNOTATIONS" to libs.versions.jetbrains.annotations,
+            "JSPECIFY" to libs.versions.jspecify,
+            "JUNIT" to libs.versions.junit,
+            "LOMBOK" to libs.versions.lombok,
+            "NULLAWAY" to libs.versions.nullaway,
+            "PITEST" to libs.versions.pitest.asProvider(),
+            "PITEST_JUNIT5_PLUGIN" to libs.versions.pitest.junit5.plugin,
+            // Not injected; lets the tests request the same gradle-pitest-plugin version the conventions apply.
+            "PITEST_GRADLE_PLUGIN" to libs.versions.pitest.gradle.plugin,
+        ).mapValues { (_, version) -> version.get() },
+    )
+    outputDirectory.set(layout.buildDirectory.dir("generated/sources/conventionVersions/kotlin"))
+}
+
+kotlin.sourceSets.main {
+    kotlin.srcDir(generateConventionVersions)
 }
 
 val defaultRuntimeJavaVersion = 25
@@ -60,7 +115,7 @@ tasks.withType<Test>().configureEach {
 }
 
 jacoco {
-    toolVersion = "0.8.15"
+    toolVersion = libs.versions.jacoco.get()
 }
 
 tasks.named<JacocoReport>("jacocoTestReport") {
