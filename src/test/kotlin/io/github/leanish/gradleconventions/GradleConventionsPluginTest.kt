@@ -5,6 +5,7 @@ import io.github.leanish.gradleconventions.ConventionProperties.PUBLISHING_DEVEL
 import io.github.leanish.gradleconventions.ConventionProperties.PUBLISHING_DEVELOPER_URL_ENV
 import org.assertj.core.api.Assertions.assertThat
 import org.gradle.testkit.runner.GradleRunner
+import org.gradle.testkit.runner.TaskOutcome
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import org.junit.jupiter.params.ParameterizedTest
@@ -2172,6 +2173,137 @@ class GradleConventionsPluginTest {
         val installedHook = gitHooksDir.resolve("pre-commit")
         assertThat(installedHook.readText())
             .isEqualTo(loadBundledPreCommitHook())
+    }
+
+    @Test
+    fun spotlessOrdersImportsTheWayTheBundledCheckstyleConfigExpects() {
+        val projectDir = tempDir.resolve("spotless-import-order").toFile()
+        projectDir.mkdirs()
+        writeRequiredConventionsProperties(projectDir)
+        writeFile(projectDir, "settings.gradle.kts", "rootProject.name = \"spotless-import-order\"")
+        writeFile(
+            projectDir,
+            "build.gradle.kts",
+            """
+            plugins {
+                id("io.github.leanish.java-conventions")
+            }
+            """.trimIndent(),
+        )
+        val source = projectDir.resolve("src/main/java/io/github/leanish/sample/Sample.java")
+        writeFile(
+            projectDir,
+            "src/main/java/io/github/leanish/sample/Sample.java",
+            """
+            package io.github.leanish.sample;
+
+            import lombok.Value;
+            import com.google.errorprone.annotations.CheckReturnValue;
+            import java.util.List;
+            import static java.util.concurrent.TimeUnit.SECONDS;
+            import org.jspecify.annotations.Nullable;
+            import javax.annotation.processing.Generated;
+            import static java.util.concurrent.TimeUnit.MINUTES;
+
+            /** Sample type. */
+            @Value
+            @Generated("test")
+            public class Sample {
+                private final @Nullable String name;
+
+                /** Returns the timeouts in seconds. */
+                @CheckReturnValue
+                public List<Long> timeouts() {
+                    return List.of(SECONDS.toSeconds(1), MINUTES.toSeconds(1));
+                }
+            }
+            """.trimIndent() + "\n",
+        )
+
+        GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withArguments("spotlessApply")
+            .withPluginClasspath()
+            .build()
+        val ordered = source.readText()
+
+        assertThat(ordered).contains(
+            """
+            import static java.util.concurrent.TimeUnit.MINUTES;
+            import static java.util.concurrent.TimeUnit.SECONDS;
+
+            import java.util.List;
+
+            import javax.annotation.processing.Generated;
+
+            import org.jspecify.annotations.Nullable;
+
+            import com.google.errorprone.annotations.CheckReturnValue;
+
+            import lombok.Value;
+            """.trimIndent(),
+        )
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withArguments("spotlessApply", "spotlessCheck", "checkstyleMain")
+            .withPluginClasspath()
+            .build()
+
+        assertThat(source.readText()).isEqualTo(ordered)
+        assertThat(result.task(":spotlessCheck")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
+        assertThat(result.task(":checkstyleMain")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
+    }
+
+    @Test
+    fun projectCheckstyleConfigKeepsItsOwnImportOrder() {
+        val projectDir = tempDir.resolve("spotless-import-order-project-config").toFile()
+        projectDir.mkdirs()
+        writeRequiredConventionsProperties(projectDir)
+        writeFile(projectDir, "settings.gradle.kts", "rootProject.name = \"spotless-import-order-project-config\"")
+        writeFile(
+            projectDir,
+            "build.gradle.kts",
+            """
+            plugins {
+                id("io.github.leanish.java-conventions")
+            }
+            """.trimIndent(),
+        )
+        writeFile(
+            projectDir,
+            "config/checkstyle/checkstyle.xml",
+            """
+            <?xml version="1.0"?>
+            <!DOCTYPE module PUBLIC "-//Checkstyle//DTD Checkstyle Configuration 1.3//EN"
+                "https://checkstyle.org/dtds/configuration_1_3.dtd">
+            <module name="Checker">
+                <module name="TreeWalker"/>
+            </module>
+            """.trimIndent(),
+        )
+        val unordered = """
+            package io.github.leanish.sample;
+
+            import lombok.Value;
+            import java.util.List;
+
+            @Value
+            public class Sample {
+                private final List<String> names;
+            }
+            """.trimIndent() + "\n"
+        writeFile(projectDir, "src/main/java/io/github/leanish/sample/Sample.java", unordered)
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withArguments("spotlessApply", "spotlessCheck")
+            .withPluginClasspath()
+            .build()
+
+        assertThat(projectDir.resolve("src/main/java/io/github/leanish/sample/Sample.java").readText())
+            .isEqualTo(unordered)
+        assertThat(result.task(":spotlessCheck")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
     }
 
     private fun writePitestPresenceBuild(projectDir: File) {
