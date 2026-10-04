@@ -29,12 +29,23 @@ class ConventionVersionsTest {
     }
 
     @Test
-    fun pluginScriptTakesInjectedVersionsFromTheCatalog() {
-        val script = File("src/main/kotlin/io.github.leanish.java-conventions.gradle.kts").readText()
-
+    fun mainSourcesTakeInjectedVersionsFromTheCatalog() {
         // A dependency notation or tool version written as a literal would bypass the catalog (and Dependabot).
-        assertThat(Regex("\"[\\w.-]+:[\\w.-]+:\\d").findAll(script).map { it.value }.toList()).isEmpty()
-        assertThat(Regex("(toolVersion\\s*=|Version\\.set\\()\\s*\"").findAll(script).map { it.value }.toList()).isEmpty()
+        val literalVersions = listOf(
+            Regex("\"[\\w.-]+:[\\w.-]+:\\d"),
+            Regex("(toolVersion\\s*=|Version\\.set\\()\\s*\""),
+        )
+        val sources = File("src/main/kotlin").walkTopDown()
+            .filter { it.isFile && (it.extension == "kt" || it.name.endsWith(".gradle.kts")) }
+            .toList()
+
+        assertThat(sources).isNotEmpty()
+        assertThat(
+            sources.flatMap { source ->
+                val text = source.readText()
+                literalVersions.flatMap { pattern -> pattern.findAll(text).map { "${source.name}: ${it.value}" } }
+            },
+        ).isEmpty()
     }
 
     private fun readCatalogVersions(): Map<String, String> {
