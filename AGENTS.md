@@ -82,6 +82,9 @@ For each release:
 - Publish with `./gradlew publishPlugins` (with required credentials configured).
 - Create/push git tag for the release version (`vX.Y.Z`).
 - Ensure the published behavior matches README and tests at release commit.
+- Right after publishing, open a PR that only starts the next development version (`X.Y.(Z+1)-SNAPSHOT`):
+  `main` always carries the next `-SNAPSHOT`, and other PRs never change `version` (the release can still pick a
+  higher number if a feature or breaking change lands first).
 
 ## Change Style
 
