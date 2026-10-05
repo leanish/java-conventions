@@ -1,7 +1,7 @@
 import org.gradle.plugin.compatibility.compatibility
 
 plugins {
-    `kotlin-dsl`
+    id("org.gradle.kotlin.kotlin-dsl") version "6.7.11"
     `maven-publish`
     jacoco
     id("com.gradle.plugin-publish") version "2.2.1"

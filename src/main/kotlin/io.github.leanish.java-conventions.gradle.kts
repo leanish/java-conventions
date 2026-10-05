@@ -19,6 +19,7 @@ import io.github.leanish.gradleconventions.WriteCheckstyleConfigTask
 import io.github.leanish.gradleconventions.javaConventionsProviders
 import io.github.leanish.gradleconventions.stringProperty
 import net.ltgt.gradle.errorprone.errorprone
+import org.gradle.api.plugins.quality.CheckstyleExtension
 
 plugins {
     java
@@ -80,7 +81,20 @@ repositories {
     }
 }
 
+val checkstyleExtension = extensions.getByType<CheckstyleExtension>()
+
 dependencies {
+    checkstyle("com.google.guava:guava:33.7.2-jre") {
+        because("CVE-2026-102554: prevents excessive allocation during Guava deserialization")
+    }
+    // Adding a dependency disables Checkstyle's default dependency; retain toolVersion overrides.
+    checkstyle(providers.provider {
+        "com.puppycrawl.tools:checkstyle:${checkstyleExtension.toolVersion}"
+    })
+    errorprone("com.google.guava:guava:33.7.2-jre") {
+        because("CVE-2026-102554: prevents excessive allocation during Guava deserialization")
+    }
+
     compileOnly("org.jspecify:jspecify:1.0.1")
     testCompileOnly("org.jspecify:jspecify:1.0.1")
     compileOnly("org.jetbrains:annotations:26.1.0")
