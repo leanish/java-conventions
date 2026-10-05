@@ -60,23 +60,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Every allowed advisory expires: past its date the review fails until someone looks again.
-      - name: Check that allowed advisories haven't expired
-        env:
-          # GHSA-r937-wjx7-w2jp: Kotlin build-cache deserialization in kotlin-gradle-plugin 2.4.10, the compiler Gradle 9.8.0
-          # embeds for `kotlin-dsl` (build time only, nothing we publish). Fixed in Kotlin 2.4.20, which no stable Gradle
-          # embeds yet; remove it (here and below) once the wrapper moves to one that does.
-          KOTLIN_BUILD_CACHE_EXPIRES: "2026-11-15"
-        run: |
-          if [[ "$(date -u +%F)" > "$KOTLIN_BUILD_CACHE_EXPIRES" ]]; then
-            echo "::error::the allowance for GHSA-r937-wjx7-w2jp expired on $KOTLIN_BUILD_CACHE_EXPIRES"
-            exit 1
-          fi
-
       - name: Review added and changed dependencies
         uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
         with:
           fail-on-severity: low
           fail-on-scopes: runtime, development, unknown
           retry-on-snapshot-warnings: true
-          allow-ghsas: GHSA-r937-wjx7-w2jp
