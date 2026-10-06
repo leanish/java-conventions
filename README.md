@@ -376,3 +376,7 @@ It:
   plugin injects into consumer builds, with the same Guava floor, so a dependency scan of this repository covers the
   versions consumers get. Nothing compiles against them; `checkConventionMirrors` (part of `check`) fails when an injected
   version has no mirror.
+- `.github/workflows/supply-chain.yml` runs the [leanish/supply-chain](https://github.com/leanish/supply-chain) gate: on a
+  PR it fails what the change makes worse (new advisories, young versions, unpinned new actions), it scans `main` on every
+  push and daily, and it rescans open PRs daily. `.github/dependency-floors.json` records the Guava floor, which the gate
+  checks against what the build declares and resolves.
