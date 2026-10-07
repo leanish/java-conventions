@@ -15,7 +15,7 @@ permissions:
 jobs:
   dependency-graph:
     name: Dependency graph
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
 
     steps:
       - name: Checkout sources
@@ -42,7 +42,7 @@ jobs:
   submit:
     name: Submit dependency graph
     needs: dependency-graph
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     permissions:
       # The dependency submission API needs write access; this job runs no build code.
       contents: write
@@ -57,7 +57,7 @@ jobs:
     name: Dependency review
     needs: submit
     if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
 
     steps:
       - name: Review added and changed dependencies
