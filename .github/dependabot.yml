@@ -3,35 +3,12 @@ updates:
   - package-ecosystem: "gradle"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "daily"
     groups:
-      # First matching group wins: routine updates land together, majors of artifacts released together land together,
-      # and any other major comes on its own.
-      minor-and-patch:
+      patch-updates:
         update-types:
-          - "minor"
           - "patch"
-      error-prone:
-        patterns:
-          - "com.google.errorprone:*"
-        update-types:
-          - "major"
-      junit:
-        patterns:
-          - "org.junit*"
-        update-types:
-          - "major"
-      spotless:
-        patterns:
-          - "com.diffplug.spotless*"
-        update-types:
-          - "major"
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "weekly"
-    groups:
-      minor-and-patch:
-        update-types:
-          - "minor"
-          - "patch"
+      interval: "daily"
