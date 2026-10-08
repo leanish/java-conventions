@@ -10,7 +10,7 @@ Shared Gradle conventions for JDK-based projects.
 - Sets Checkstyle tool version and uses project-level Checkstyle files when provided (bundled defaults otherwise).
 - Sets JaCoCo tool version and enforces instruction coverage.
 - Configures PIT mutation testing (`pitest` task, 95 % mutation threshold) for the resolved base package; it is not part of `check`.
-- Configures Spotless for basic Java formatting (unused imports, trailing whitespace, newline at EOF).
+- Configures Spotless for basic Java formatting (unused imports, import order, trailing whitespace, newline at EOF).
 - Applies Spotless license header conventions when `LICENSE_HEADER` exists in the project root.
 - Adds common compile/test dependencies (Lombok, JSpecify, JetBrains annotations, Error Prone/NullAway, JUnit Jupiter, AssertJ).
 - Configures all `Test` tasks to use JUnit Platform and adds JUnit Platform launcher as `testRuntimeOnly`.
@@ -321,6 +321,13 @@ Two supported patterns:
 2. Fully replace plugin publishing behavior.
    - Set `leanish.conventions.publishing.enabled=false`.
    - Configure `maven-publish` entirely in the consumer project (`publications { create(...) }`, custom repositories, full POM metadata).
+
+## Import order
+With the bundled Checkstyle configuration, Spotless orders imports the way its `ImportOrder` rule expects: static imports
+first, then `java`, `javax`, `org`, `com` and everything else (for example `lombok`), one blank line between groups and
+alphabetical within each. `spotlessApply` (and the pre-commit hook) fixes the order, so the IDE's import layout doesn't
+matter. When the project has its own `config/checkstyle/checkstyle.xml`, the plugin adds no import-order step; add
+`importOrder(...)` to `spotless { java { } }` to match that config.
 
 ## License header conventions
 The plugin applies Spotless Java license headers only when `LICENSE_HEADER` exists in the project root.

@@ -116,6 +116,11 @@ dependencies {
 spotless {
     java {
         removeUnusedImports()
+        // Same order as the bundled Checkstyle ImportOrder rule (static imports, then java, javax, org, com, everything
+        // else), so spotlessApply fixes what Checkstyle would reject. A project's own Checkstyle config keeps its order.
+        if (!rootProject.file("config/checkstyle/checkstyle.xml").exists()) {
+            importOrder("\\#", "java", "javax", "org", "com", "")
+        }
         trimTrailingWhitespace()
         endWithNewline()
 

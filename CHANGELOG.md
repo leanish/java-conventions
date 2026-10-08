@@ -2,6 +2,11 @@
 
 ## 0.6.3
 
+### Changed
+- Spotless now orders imports like the bundled Checkstyle `ImportOrder` rule (static imports, then `java`, `javax`,
+  `org`, `com` and everything else), so `spotlessApply` and the pre-commit hook fix import order instead of leaving it to
+  the IDE. Projects with their own `config/checkstyle/checkstyle.xml` get no import-order step. Existing files with a
+  different order now fail `spotlessCheck` until `spotlessApply` runs once.
 ## 0.6.2
 
 ### Added
