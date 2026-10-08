@@ -4,10 +4,6 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
-    cooldown:
-      # Supply-chain precaution: wait 7 days before proposing a new release (matches the npm `min-release-age` used
-      # locally). Version updates only: security updates are not delayed.
-      default-days: 7
     groups:
       # First matching group wins: routine updates land together, majors of artifacts released together land together,
       # and any other major comes on its own.
@@ -34,10 +30,6 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
-    cooldown:
-      # Supply-chain precaution: wait 7 days before proposing a new release (matches the npm `min-release-age` used
-      # locally). Version updates only: security updates are not delayed.
-      default-days: 7
     groups:
       minor-and-patch:
         update-types:
