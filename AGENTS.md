@@ -75,13 +75,17 @@ Before finishing work, run:
 
 For each release:
 
-- Bump version in `build.gradle.kts`.
-- Update all README version references and examples.
+- Drop `-SNAPSHOT` from `version` in `build.gradle.kts`: that is all the release PR changes (the README and the
+  CHANGELOG already name the version).
 - Run `./gradlew check`.
 - Run `./gradlew publishToMavenLocal` and smoke-test consumption by plugin id + version.
 - Publish with `./gradlew publishPlugins` (with required credentials configured).
 - Create/push git tag for the release version (`vX.Y.Z`).
 - Ensure the published behavior matches README and tests at release commit.
+- Right after publishing, open a PR that only starts the next development version: `version` becomes
+  `X.Y.(Z+1)-SNAPSHOT`, and the README examples and a new CHANGELOG heading move to `X.Y.(Z+1)` with it. `main` always
+  carries the next `-SNAPSHOT`, and other PRs never change `version` or the documented version (the release can still
+  pick a higher number if a feature or breaking change lands first; then its PR renames them too).
 
 ## Change Style
 
