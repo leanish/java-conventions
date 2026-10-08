@@ -1,7 +1,8 @@
-name: Dependency graph
+name: Dependency review
 
-# Publishes the resolved Gradle dependency graph to GitHub on pull requests and main updates. The build receives
-# a read-only token; a separate job without build code submits the graph.
+# Reviews every dependency a PR adds or changes against the GitHub Advisory Database (vulnerabilities and
+# malware), from the resolved Gradle graph. Building the graph runs the build, so it gets a read-only token;
+# a separate job without any build code submits it.
 on:
   pull_request:
   push:
