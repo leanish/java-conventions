@@ -283,6 +283,8 @@ pitest {
   `com.google.errorprone:error_prone_annotations:2.50.0` as `compileOnly` and `testCompileOnly`.
 - Adds `org.projectlombok:lombok:1.18.48` as `compileOnly`, `testCompileOnly`,
   `annotationProcessor`, and `testAnnotationProcessor`.
+- Sets a Guava `33.7.2-jre` version floor for Checkstyle and Error Prone to fix `CVE-2026-102554`.
+  Consumer Checkstyle `toolVersion` overrides remain supported.
 - Adds Error Prone analysis dependencies:
   - `com.google.errorprone:error_prone_core:2.50.0`
   - `com.uber.nullaway:nullaway:0.14.2`

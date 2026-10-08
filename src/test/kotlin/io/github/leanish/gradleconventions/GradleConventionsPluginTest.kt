@@ -68,6 +68,54 @@ class GradleConventionsPluginTest {
             .contains("checkstyleToolVersion=14.3.0")
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = ["14.3.0", "14.2.0"])
+    fun qualityToolGraphsUsePatchedGuava(checkstyleVersion: String) {
+        val projectDir = tempDir.resolve("patched-guava").toFile()
+        projectDir.mkdirs()
+        writeRequiredConventionsProperties(projectDir)
+        writeFile(projectDir, "settings.gradle.kts", "rootProject.name = \"patched-guava\"")
+        writeFile(
+            projectDir,
+            "build.gradle.kts",
+            """
+            plugins {
+                id("io.github.leanish.java-conventions")
+            }
+
+            checkstyle {
+                toolVersion = "$checkstyleVersion"
+            }
+
+            tasks.register("dumpQualityToolGraphs") {
+                doLast {
+                    for (name in listOf("checkstyle", "errorprone")) {
+                        val configurationName = if (name == "errorprone") "annotationProcessor" else name
+                        val artifacts = configurations.getByName(configurationName).resolvedConfiguration.resolvedArtifacts
+                        val guava = artifacts.single { it.moduleVersion.id.group == "com.google.guava" && it.name == "guava" }
+                        println("${'$'}{name}Guava=${'$'}{guava.moduleVersion.id.version}")
+                        if (name == "checkstyle") {
+                            val tool = artifacts.single { it.moduleVersion.id.group == "com.puppycrawl.tools" && it.name == "checkstyle" }
+                            println("checkstyleVersion=${'$'}{tool.moduleVersion.id.version}")
+                        }
+                    }
+                }
+            }
+            """.trimIndent(),
+        )
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withArguments("dumpQualityToolGraphs")
+            .withPluginClasspath()
+            .build()
+
+        assertThat(result.output)
+            .contains("checkstyleGuava=33.7.2-jre")
+            .contains("errorproneGuava=33.7.2-jre")
+            .contains("checkstyleVersion=$checkstyleVersion")
+    }
+
     @Test
     fun overridesAreApplied() {
         val projectDir = tempDir.resolve("overrides").toFile()
