@@ -38,6 +38,8 @@ junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher
 lombok = { module = "org.projectlombok:lombok", version.ref = "lombok" }
 nullaway = { module = "com.uber.nullaway:nullaway", version.ref = "nullaway" }
 pitest = { module = "org.pitest:pitest", version.ref = "pitest" }
+# What the PIT Gradle plugin resolves in consumer builds; mirrored by this build's conventionPitest
+pitest-command-line = { module = "org.pitest:pitest-command-line", version.ref = "pitest" }
 pitest-junit5-plugin = { module = "org.pitest:pitest-junit5-plugin", version.ref = "pitest-junit5-plugin" }
 errorprone-gradle-plugin = { module = "net.ltgt.gradle:gradle-errorprone-plugin", version.ref = "errorprone-gradle-plugin" }
 pitest-gradle-plugin = { module = "info.solidsoft.gradle.pitest:gradle-pitest-plugin", version.ref = "pitest-gradle-plugin" }

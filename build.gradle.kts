@@ -93,6 +93,87 @@ kotlin.sourceSets.main {
     kotlin.srcDir(generateConventionVersions)
 }
 
+// What the conventions inject into consumer builds, resolved here too, so this repository's supply-chain gate scans the
+// exact versions consumers get. Each mirrors the consumer configuration it's named after, with the same floors; nothing
+// compiles against them. JaCoCo needs no mirror: this build applies it with the same tool version.
+fun conventionMirror(name: String, consumerConfigurations: String): Configuration =
+    configurations.create(name) {
+        description = "What the conventions add to consumer builds' $consumerConfigurations, for the supply-chain gate."
+        isCanBeConsumed = false
+        isCanBeResolved = true
+    }
+
+val conventionCheckstyle = conventionMirror("conventionCheckstyle", "checkstyle")
+val conventionErrorprone = conventionMirror("conventionErrorprone", "errorprone")
+val conventionCompileOnly = conventionMirror("conventionCompileOnly", "compileOnly and testCompileOnly")
+val conventionAnnotationProcessor = conventionMirror("conventionAnnotationProcessor", "annotationProcessor and testAnnotationProcessor")
+val conventionTest = conventionMirror("conventionTest", "testImplementation and testRuntimeOnly")
+val conventionPitest = conventionMirror("conventionPitest", "pitest")
+val conventionMirrors = listOf(
+    conventionCheckstyle,
+    conventionErrorprone,
+    conventionCompileOnly,
+    conventionAnnotationProcessor,
+    conventionTest,
+    conventionPitest,
+)
+
+// Same floor, and same reason, as the plugin sets in consumer builds.
+val guavaFloorReason = "CVE-2026-102554: prevents excessive allocation during Guava deserialization"
+
+dependencies {
+    conventionCheckstyle(libs.checkstyle)
+    conventionCheckstyle(libs.guava) {
+        because(guavaFloorReason)
+    }
+    conventionErrorprone(libs.errorprone.core)
+    conventionErrorprone(libs.nullaway)
+    conventionErrorprone(libs.guava) {
+        because(guavaFloorReason)
+    }
+    conventionCompileOnly(libs.jspecify)
+    conventionCompileOnly(libs.jetbrains.annotations)
+    conventionCompileOnly(libs.errorprone.annotations)
+    conventionCompileOnly(libs.lombok)
+    conventionAnnotationProcessor(libs.lombok)
+    conventionTest(libs.junit.jupiter)
+    conventionTest(libs.assertj.core)
+    conventionTest(libs.junit.platform.launcher)
+    conventionPitest(libs.pitest.command.line)
+    conventionPitest(libs.pitest.junit5.plugin)
+}
+
+/** Fails when a version the conventions inject has no dependency in a convention mirror configuration. */
+abstract class CheckConventionMirrors : DefaultTask() {
+    @get:Input
+    abstract val injected: MapProperty<String, String>
+
+    @get:Input
+    abstract val mirrored: SetProperty<String>
+
+    @TaskAction
+    fun check() {
+        val missing = injected.get().filterValues { it !in mirrored.get() }
+        if (missing.isNotEmpty()) {
+            throw GradleException("Injected versions without a convention mirror configuration: $missing")
+        }
+    }
+}
+
+val checkConventionMirrors = tasks.register<CheckConventionMirrors>("checkConventionMirrors") {
+    injected.set(
+        generateConventionVersions.flatMap { it.versions }.map { versions ->
+            // Not injected (tests only), and covered by this build's own JaCoCo.
+            versions - "PITEST_GRADLE_PLUGIN" - "JACOCO"
+        },
+    )
+    mirrored.set(conventionMirrors.flatMap { mirror -> mirror.dependencies.mapNotNull { it.version } })
+}
+
+tasks.named("check") {
+    dependsOn(checkConventionMirrors)
+}
+
 val defaultRuntimeJavaVersion = 25
 val runtimeJavaVersion = providers.gradleProperty("javaConventions.runtimeJdkVersion")
     .map(String::toInt)

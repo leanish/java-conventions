@@ -372,3 +372,7 @@ It:
 - The legacy matrix uses `-PjavaConventions.runtimeJdkVersion=<version>` to set the plugin project's own `Test`/`JavaExec` runtime launcher.
 - `javaConventions.runtimeJdkVersion` is a plugin-project testing override only; it is not a consumer convention property.
 - `.github/workflows/publishing-github.yml` requires both `ci.yml` and `testing-legacy-jdk.yml` jobs to pass before publishing.
+- The build resolves `convention*` configurations (`conventionCheckstyle`, `conventionErrorprone`, …) that mirror what the
+  plugin injects into consumer builds, with the same Guava floor, so a dependency scan of this repository covers the
+  versions consumers get. Nothing compiles against them; `checkConventionMirrors` (part of `check`) fails when an injected
+  version has no mirror.
