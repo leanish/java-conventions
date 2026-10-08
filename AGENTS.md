@@ -63,6 +63,9 @@ Any behavior change requires tests in `src/test/kotlin/io/github/leanish/gradlec
 - For regressions, add a failing-case test first, then fix behavior.
 - Validate externally visible outcomes (task presence/wiring, generated POM/config, applied conventions).
 - Keep tests deterministic and avoid assertions on incidental ordering.
+- `ConsumerBuildTest.kt` runs real builds of a sample consumer (compile with Error Prone/NullAway and Lombok,
+  Checkstyle, Spotless, tests, JaCoCo, jars). Keep it passing when bumping an injected tool or dependency, and extend
+  it when a change affects what a consumer build compiles or checks.
 
 Before finishing work, run:
 
