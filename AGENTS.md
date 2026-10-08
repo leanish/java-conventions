@@ -17,7 +17,9 @@ This includes:
 - Plugin id and version usage (`io.github.leanish.java-conventions`).
 - Applied plugins and task wiring.
 - Defaults for toolchains, repositories, quality tools, and publishing.
-- Added dependencies and their scopes.
+- Added dependencies and their scopes. Their versions (and every applied tool or plugin version) live in
+  `gradle/libs.versions.toml`; the plugin reads them through the generated `ConventionVersions` object, never as
+  literals in `src/main` (`ConventionVersionsTest` enforces it).
 - Convention properties and defaults under `leanish.conventions.*`.
 - Task behavior that impacts developer workflow (`installGitHooks`, `setupProject`, `build` and `check` dependencies).
 - Tag-based test filtering and coverage behavior (`-DexcludeTags=...`).
@@ -75,6 +77,8 @@ Before finishing work, run:
 
 For each release:
 
+- Before the release PR, make sure `CHANGELOG.md` lists the `gradle/libs.versions.toml` changes since the last tag
+  (Dependabot PRs don't add entries), with migration notes where a bump changes what consumers see.
 - Drop `-SNAPSHOT` from `version` in `build.gradle.kts`: that is all the release PR changes (the README and the
   CHANGELOG already name the version).
 - Run `./gradlew check`.

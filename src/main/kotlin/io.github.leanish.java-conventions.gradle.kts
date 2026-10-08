@@ -14,6 +14,7 @@ import io.github.leanish.gradleconventions.ConventionProperties.PUBLISHING_DEVEL
 import io.github.leanish.gradleconventions.ConventionProperties.PUBLISHING_DEVELOPER_NAME_ENV
 import io.github.leanish.gradleconventions.ConventionProperties.PUBLISHING_DEVELOPER_URL
 import io.github.leanish.gradleconventions.ConventionProperties.PUBLISHING_DEVELOPER_URL_ENV
+import io.github.leanish.gradleconventions.ConventionVersions
 import io.github.leanish.gradleconventions.GitHooks
 import io.github.leanish.gradleconventions.WriteCheckstyleConfigTask
 import io.github.leanish.gradleconventions.javaConventionsProviders
@@ -84,33 +85,33 @@ repositories {
 val checkstyleExtension = extensions.getByType<CheckstyleExtension>()
 
 dependencies {
-    checkstyle("com.google.guava:guava:33.7.2-jre") {
+    checkstyle("com.google.guava:guava:${ConventionVersions.GUAVA}") {
         because("CVE-2026-102554: prevents excessive allocation during Guava deserialization")
     }
     // Adding a dependency disables Checkstyle's default dependency; retain toolVersion overrides.
     checkstyle(providers.provider {
         "com.puppycrawl.tools:checkstyle:${checkstyleExtension.toolVersion}"
     })
-    errorprone("com.google.guava:guava:33.7.2-jre") {
+    errorprone("com.google.guava:guava:${ConventionVersions.GUAVA}") {
         because("CVE-2026-102554: prevents excessive allocation during Guava deserialization")
     }
 
-    compileOnly("org.jspecify:jspecify:1.0.1")
-    testCompileOnly("org.jspecify:jspecify:1.0.1")
-    compileOnly("org.jetbrains:annotations:26.1.0")
-    testCompileOnly("org.jetbrains:annotations:26.1.0")
-    compileOnly("com.google.errorprone:error_prone_annotations:2.50.0")
-    testCompileOnly("com.google.errorprone:error_prone_annotations:2.50.0")
-    compileOnly("org.projectlombok:lombok:1.18.48")
-    testCompileOnly("org.projectlombok:lombok:1.18.48")
-    annotationProcessor("org.projectlombok:lombok:1.18.48")
-    testAnnotationProcessor("org.projectlombok:lombok:1.18.48")
-    testImplementation("org.junit.jupiter:junit-jupiter:6.1.3")
-    testImplementation("org.assertj:assertj-core:3.27.7")
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher:6.1.3")
+    compileOnly("org.jspecify:jspecify:${ConventionVersions.JSPECIFY}")
+    testCompileOnly("org.jspecify:jspecify:${ConventionVersions.JSPECIFY}")
+    compileOnly("org.jetbrains:annotations:${ConventionVersions.JETBRAINS_ANNOTATIONS}")
+    testCompileOnly("org.jetbrains:annotations:${ConventionVersions.JETBRAINS_ANNOTATIONS}")
+    compileOnly("com.google.errorprone:error_prone_annotations:${ConventionVersions.ERROR_PRONE}")
+    testCompileOnly("com.google.errorprone:error_prone_annotations:${ConventionVersions.ERROR_PRONE}")
+    compileOnly("org.projectlombok:lombok:${ConventionVersions.LOMBOK}")
+    testCompileOnly("org.projectlombok:lombok:${ConventionVersions.LOMBOK}")
+    annotationProcessor("org.projectlombok:lombok:${ConventionVersions.LOMBOK}")
+    testAnnotationProcessor("org.projectlombok:lombok:${ConventionVersions.LOMBOK}")
+    testImplementation("org.junit.jupiter:junit-jupiter:${ConventionVersions.JUNIT}")
+    testImplementation("org.assertj:assertj-core:${ConventionVersions.ASSERTJ}")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher:${ConventionVersions.JUNIT}")
 
-    errorprone("com.google.errorprone:error_prone_core:2.50.0")
-    errorprone("com.uber.nullaway:nullaway:0.14.2")
+    errorprone("com.google.errorprone:error_prone_core:${ConventionVersions.ERROR_PRONE}")
+    errorprone("com.uber.nullaway:nullaway:${ConventionVersions.NULLAWAY}")
 }
 
 spotless {
@@ -273,7 +274,7 @@ private val writeCheckstyleConfig = tasks.register<WriteCheckstyleConfigTask>("w
 }
 
 checkstyle {
-    toolVersion = "14.3.0"
+    toolVersion = ConventionVersions.CHECKSTYLE
     maxWarnings = 0
 }
 
@@ -288,7 +289,7 @@ tasks.withType<Checkstyle>().configureEach {
 }
 
 jacoco {
-    toolVersion = "0.8.15"
+    toolVersion = ConventionVersions.JACOCO
 }
 
 if (pitestEnabled.get()) {
@@ -301,8 +302,8 @@ plugins.withId("info.solidsoft.pitest") {
     }
 
     extensions.configure<PitestPluginExtension> {
-        pitestVersion.set("1.30.0")
-        junit5PluginVersion.set("1.2.3")
+        pitestVersion.set(ConventionVersions.PITEST)
+        junit5PluginVersion.set(ConventionVersions.PITEST_JUNIT5_PLUGIN)
         targetClasses.set(pitestTargetClasses)
         targetTests.set(pitestTargetClasses)
         excludedGroups.set(excludedTags)
