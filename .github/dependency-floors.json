@@ -1,0 +1,15 @@
+{
+  "floors": [
+    {
+      "ecosystem": "Maven",
+      "package": "com.google.guava:guava",
+      "version": "33.7.2-jre",
+      "declaredIn": "build.gradle.kts",
+      "selector": [":conventionCheckstyle", ":conventionErrorprone"],
+      "purpose": "security",
+      "advisories": ["CVE-2026-102554"],
+      "reason": "Checkstyle and Error Prone pull an affected Guava; the conventions inject this floor into consumers' checkstyle and errorprone configurations, mirrored here so the gate checks it",
+      "added": "2026-10-05"
+    }
+  ]
+}
