@@ -21,7 +21,7 @@ errorprone-gradle-plugin = "5.1.1"
 pitest-gradle-plugin = "1.19.0"
 spotless = "8.10.3"
 # This plugin's own build
-kotlin-dsl = "6.7.11"
+kotlin-dsl = "6.7.12"
 plugin-publish = "2.2.1"
 
 [libraries]
