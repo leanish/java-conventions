@@ -258,7 +258,6 @@ gradlePlugin {
             "jacoco",
             "errorprone",
             "nullaway",
-            "pitest",
             "mutation-testing",
             "license",
             "git-hooks",

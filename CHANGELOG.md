@@ -7,6 +7,25 @@
   `org`, `com` and everything else), so `spotlessApply` and the pre-commit hook fix import order instead of leaving it to
   the IDE. Projects with their own `config/checkstyle/checkstyle.xml` get no import-order step. Existing files with a
   different order now fail `spotlessCheck` until `spotlessApply` runs once.
+- Upgraded Spotless from `8.10.3` to `8.10.4` in the plugin build and consumer builds.
+- Upgraded the Gradle wrapper from `9.8.0` to `9.8.1` and pinned the distribution SHA-256 checksum.
+- Explicitly pinned the Kotlin DSL plugin to `6.7.13`, replacing the version bundled with Gradle.
+- Centralized applied plugin and consumer-injected dependency versions in `gradle/libs.versions.toml`, with generated
+  constants and checks that keep the catalog and consumer conventions aligned.
+- Kept the generic `mutation-testing` tag in publication metadata and removed the separate `pitest` tag.
+
+### Fixed
+- Added a Guava `33.7.2-jre` version floor to consumer Checkstyle and Error Prone classpaths for `CVE-2026-102554`.
+  Consumer overrides of Checkstyle's `toolVersion` remain supported.
+
+### Build and verification
+- Added real consumer builds that exercise compilation with Error Prone, NullAway and Lombok, Checkstyle, Spotless,
+  tests, JaCoCo verification and published JAR variants, including expected failures for invalid code and low coverage.
+- Added resolvable configurations mirroring consumer-injected dependencies so the repository's supply-chain gate scans
+  those versions too, and wired mirror completeness checks into `check`.
+- Adopted the supply-chain gate, replacing Dependabot version updates and dependency-review enforcement; pinned the
+  gate to `leanish/leanish-development` `v0.6.0`, updated dependency submission to `v6.4.0`, and moved CI to Ubuntu 26.04.
+
 ## 0.6.2
 
 ### Added
