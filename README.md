@@ -23,7 +23,8 @@ Shared Gradle conventions for JDK-based projects.
 
 ## How to use
 Use the Gradle Plugin Portal for released versions.
-The released examples below use `0.6.3`, the latest published version.
+The examples below target `0.6.3`. Until it is published, use the latest version available on the
+[Gradle Plugin Portal](https://plugins.gradle.org/plugin/io.github.leanish.java-conventions).
 
 The plugin adds `mavenCentral()` by default to every project where it is applied.
 The canonical plugin id is `io.github.leanish.java-conventions`.
@@ -367,7 +368,7 @@ It:
 - The bundled pre-commit hook runs `./gradlew spotlessApply` and `./gradlew checkstyleMain checkstyleTest`, and may modify files before commit.
 
 ## Plugin project CI (maintainers)
-- Checked-in Linux jobs run on `ubuntu-26.04`; the JDK and Gradle baselines are unchanged.
+- Checked-in Linux jobs run on `ubuntu-26.04`, with Gradle `9.8.1` and the existing JDK baselines.
 - `.github/workflows/ci.yml` runs the default build path (Kotlin compilation toolchain on JDK 17, Gradle runtime/toolchain tasks on JDK 25).
 - `.github/workflows/testing-legacy-jdk.yml` runs a matrix on legacy runtime JDKs (`17`, `21`).
 - The legacy matrix uses `-PjavaConventions.runtimeJdkVersion=<version>` to set the plugin project's own `Test`/`JavaExec` runtime launcher.
