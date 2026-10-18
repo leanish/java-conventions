@@ -23,7 +23,7 @@ Shared Gradle conventions for JDK-based projects.
 
 ## How to use
 Use the Gradle Plugin Portal for released versions.
-The examples below target `0.6.3`. Until it is published, use the latest version available on the
+The examples below target `0.6.4`. Until it is published, use the latest version available on the
 [Gradle Plugin Portal](https://plugins.gradle.org/plugin/io.github.leanish.java-conventions).
 
 The plugin adds `mavenCentral()` by default to every project where it is applied.
@@ -34,7 +34,7 @@ The canonical plugin id is `io.github.leanish.java-conventions`.
 
 ```kotlin
 plugins {
-    id("io.github.leanish.java-conventions") version "0.6.3"
+    id("io.github.leanish.java-conventions") version "0.6.4"
 }
 ```
 
@@ -48,7 +48,7 @@ pluginManagement {
         mavenCentral()
     }
     plugins {
-        id("io.github.leanish.java-conventions") version "0.6.3"
+        id("io.github.leanish.java-conventions") version "0.6.4"
     }
 }
 ```
@@ -86,7 +86,7 @@ If you want root-only tasks (`installGitHooks`, `setupProject`) in a multi-proje
 
 ```kotlin
 plugins {
-    id("io.github.leanish.java-conventions") version "0.6.3"
+    id("io.github.leanish.java-conventions") version "0.6.4"
 }
 ```
 
