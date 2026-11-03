@@ -2,6 +2,14 @@
 
 ## 0.6.4
 
+### Build and verification
+- The "Publishing GitHub Packages" workflow no longer runs Gradle with the write token. It calls the new reusable
+  `publishing-github-packages.yml`, which other repositories can call too: a `prepare` job builds and stages the
+  publications with read-only access, and a `publish` job (no checkout, no Gradle) uploads exactly the expected
+  artifacts and checksums, refusing to replace a published file with other bytes or an older SNAPSHOT build over a
+  newer one. Releases are dispatched from their `vX.Y.Z` tag, which must match the build's version. Publishing to the
+  Gradle Plugin Portal is unchanged.
+
 ## 0.6.3
 
 ### Changed
