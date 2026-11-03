@@ -281,6 +281,11 @@ gradlePlugin {
 
 publishing {
     repositories {
+        // The publishing workflow's prepare job stages the publications here; its publish job uploads exactly these files.
+        maven {
+            name = "Staging"
+            url = uri(layout.buildDirectory.dir("publication-staging"))
+        }
         maven {
             name = "GitHubPackages"
             url = uri("https://maven.pkg.github.com/leanish/java-conventions")
