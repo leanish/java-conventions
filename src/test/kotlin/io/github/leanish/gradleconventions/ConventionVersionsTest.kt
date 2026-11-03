@@ -31,7 +31,7 @@ class ConventionVersionsTest {
 
     @Test
     fun mainSourcesTakeInjectedVersionsFromTheCatalog() {
-        // A dependency notation or tool version written as a literal would bypass the catalog (and Dependabot).
+        // A dependency notation or tool version written as a literal would bypass the catalog.
         val literalVersions = listOf(
             Regex("\"[\\w.-]+:[\\w.-]+:\\d"),
             Regex("(toolVersion\\s*=|Version\\.set\\()\\s*\""),

@@ -78,13 +78,16 @@ Before finishing work, run:
 For each release:
 
 - Before the release PR, make sure `CHANGELOG.md` lists the `gradle/libs.versions.toml` changes since the last tag
-  (Dependabot PRs don't add entries), with migration notes where a bump changes what consumers see.
+  (dependency-update PRs don't add entries), with migration notes where a bump changes what consumers see.
 - Drop `-SNAPSHOT` from `version` in `build.gradle.kts`: that is all the release PR changes (the README and the
   CHANGELOG already name the version).
 - Run `./gradlew check`.
 - Run `./gradlew publishToMavenLocal` and smoke-test consumption by plugin id + version.
-- Publish with `./gradlew publishPlugins` (with required credentials configured).
-- Create/push git tag for the release version (`vX.Y.Z`).
+- Publish with `./gradlew publishPlugins` from the release PR's merge commit (with required credentials configured).
+- Create and push the `vX.Y.Z` tag at that commit, and a GitHub pre-release for it.
+- Dispatch "Publishing GitHub Packages" from the tag (`gh workflow run publishing-github.yml --ref vX.Y.Z`). A release
+  publishes only from its own tag, so the tag must exist first; release-candidate tags can't be published (their
+  version is a `-SNAPSHOT`).
 - Ensure the published behavior matches README and tests at release commit.
 - Right after publishing, open a PR that only starts the next development version: `version` becomes
   `X.Y.(Z+1)-SNAPSHOT`, and the README examples and a new CHANGELOG heading move to `X.Y.(Z+1)` with it. `main` always

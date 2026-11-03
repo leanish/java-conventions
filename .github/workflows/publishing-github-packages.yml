@@ -184,8 +184,9 @@ jobs:
           name: ${{ needs.prepare.outputs.handover }}
           path: ${{ runner.temp }}/handover
 
-      # prepare runs build code, so nothing it hands over decides what may be written: the exact set comes from this
-      # workflow's coordinates and the version, and a missing, extra or non-regular file fails before any upload.
+      # prepare runs build code, so it can't widen what may be written: the coordinates and path rules come from this
+      # workflow (the version and SNAPSHOT build it hands over only fill them in), and a missing, extra or non-regular
+      # file fails before any upload.
       - name: Check the hand-over
         env:
           VERSION: ${{ needs.prepare.outputs.version }}
