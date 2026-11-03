@@ -374,10 +374,26 @@ It:
 - The legacy matrix uses `-PjavaConventions.runtimeJdkVersion=<version>` to set the plugin project's own `Test`/`JavaExec` runtime launcher.
 - `javaConventions.runtimeJdkVersion` is a plugin-project testing override only; it is not a consumer convention property.
 - `.github/workflows/publishing-github.yml` requires both `ci.yml` and `testing-legacy-jdk.yml` jobs to pass before publishing.
-  Its `prepare` job runs Gradle with a read-only token and stages the publications in `build/publication-staging` (the
-  build's `Staging` repository); only its `publish` job holds `packages: write`, and it runs no Gradle or repository
-  code: it uploads exactly the staged artifacts and checksums. GitHub Packages generates the Maven metadata itself. The
-  local `publishAllPublicationsToGitHubPackagesRepository` path still runs Gradle with your credentials.
+  It then calls the reusable `.github/workflows/publishing-github-packages.yml` (see below). The local
+  `publishAllPublicationsToGitHubPackagesRepository` path still runs Gradle with your credentials.
+- `.github/workflows/publishing-github-packages.yml` is a reusable workflow (`workflow_call`) that publishes a Gradle
+  build to the calling repository's GitHub Packages without Gradle ever holding a write token:
+  - Its `prepare` job (read-only) reads the version from the root project, builds and stages the publications in
+    `build/publication-staging`, and hands them over as an artifact (one per attempt, kept 30 days). Its `publish`
+    job holds `packages: write`, runs no Gradle or repository code, and uploads exactly the files the coordinates
+    and the version call for: each artifact with its `.md5`/`.sha1`/`.sha256`/`.sha512`, and nothing else. An
+    identical remote file is skipped and a different one fails, so re-running `publish` alone completes a partial
+    upload; an older SNAPSHOT build is never put over a newer one. GitHub Packages generates the Maven metadata
+    itself.
+  - A release must be dispatched from its `vX.Y.Z` tag, and a tag publishes only the version it names.
+  - Inputs: `coordinates` (required; repository paths such as `io/github/leanish/sqs-codec`, space or newline
+    separated; one ending in `.gradle.plugin` is a plugin marker, a POM only) and `java-versions` (one per line, the
+    last one runs Gradle; default `25`). Libraries publish `.jar`, `-sources.jar`, `-javadoc.jar`, `.pom` and `.module`.
+  - The caller grants `contents: read` and `packages: write` (each job narrows them), runs its checks first, sets
+    `concurrency` so one publish runs at a time, and its build declares a `Staging` Maven repository at
+    `build/publication-staging`. Call it pinned by full commit SHA:
+    `uses: leanish/java-conventions/.github/workflows/publishing-github-packages.yml@<sha>`.
+  - A green run means the files are on the registry; it doesn't resolve them from a consumer.
 - The build resolves `convention*` configurations (`conventionCheckstyle`, `conventionErrorprone`, …) that mirror what the
   plugin injects into consumer builds, with the same Guava floor, so a dependency scan of this repository covers the
   versions consumers get. Nothing compiles against them; `checkConventionMirrors` (part of `check`) fails when an injected

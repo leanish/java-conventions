@@ -222,6 +222,12 @@ jobs:
           grep -qvE '^(absent|[0-9]{8}\.[0-9]{6}-[0-9]+) [^ /][^ ]*$' ../seeded.txt && { echo "::error::malformed seeded line"; exit 1; }
           diff <(grep -E '/maven-metadata\.xml$' "$expected" | LC_ALL=C sort) <(cut -d' ' -f2- ../seeded.txt | LC_ALL=C sort) \
             || { echo "::error::seeded.txt doesn't cover exactly the SNAPSHOT version metadata"; exit 1; }
+          # A SNAPSHOT continues the build it was seeded from, so it is newer than what the registry had.
+          while read -r seeded path; do
+            [ "$seeded" = absent ] && continue
+            built=$(identity "$path")
+            [ "${built##*-}" -gt "${seeded##*-}" ] || { echo "::error::$path is build $built, not newer than the seeded $seeded"; exit 1; }
+          done < ../seeded.txt
           echo "hand-over checked: $(wc -l < "$expected") files"
 
       - name: Upload
