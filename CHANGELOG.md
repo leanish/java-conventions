@@ -5,7 +5,8 @@
 ### Fixed
 - Raised the Guava version floor on consumer Checkstyle and Error Prone classpaths from `33.7.2-jre` to `33.8.0-jre`,
   which fixes hash flooding in `HashBiMap` and `LinkedHashMultimap` (`GHSA-v5x9-67m3-7m56`). The gate's exception for
-  that advisory is gone. `33.8.0-jre` was taken before the 7-day release-age wait ended: Guava is published by Google.
+  that advisory is gone. `33.8.0-jre` was taken before the 7-day release-age wait ended, by the maintainer's decision,
+  trusting Guava's maintainers.
 
 ## 0.6.4
 
