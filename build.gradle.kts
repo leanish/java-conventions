@@ -9,7 +9,7 @@ plugins {
 }
 
 group = "io.github.leanish"
-version = "0.6.5"
+version = "0.6.6-SNAPSHOT"
 
 repositories {
     gradlePluginPortal()
