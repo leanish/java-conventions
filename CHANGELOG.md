@@ -7,13 +7,16 @@
   NullAway from `0.14.2` to `0.14.3` and PIT from `1.30.0` to `1.30.1`. Error Prone stays at `2.50.0`: `2.51.0` brings
   commonmark `0.29.0` (through google-java-format `1.37.0`), which has open denial-of-service advisories in
   commonmark-java's repository, fixed only in `0.30.0`/`0.31.0`.
+- NullAway `0.14.3` fixes bugs that can report new nullability errors, even outside JSpecify mode, and the conventions
+  run NullAway as an error, so builds that passed on 0.6.3 may need nullability fixes.
 - Upgraded the Gradle wrapper from `9.8.1` to `9.8.2`.
 
 ### Build and verification
 - Checkouts no longer persist the job token, actions are pinned by commit SHA (setup-java moved to `v6.1.0`), and only
   the publishing job gets `packages: write`.
 - Pinned the supply-chain gate to `leanish/leanish-development` `v0.10.1`. The gate trusts GitHub's and AWS's actions,
-  and Guava's unfixed hash-flooding advisory (`GHSA-v5x9-67m3-7m56`) is excepted until 2026-11-16.
+  and Guava's hash-flooding advisory (`GHSA-v5x9-67m3-7m56`) is excepted until 2026-11-16: its fix, Guava
+  `33.8.0-jre` (2026-11-02), is still inside the 7-day release-age wait, so the `33.7.2-jre` floor stays for now.
 - The "Publishing GitHub Packages" workflow no longer runs Gradle with the write token. It calls the new reusable
   `publishing-github-packages.yml`, which other repositories can call too: a `prepare` job builds and stages the
   publications with read-only access, and a `publish` job (no checkout, no Gradle) uploads exactly the expected
