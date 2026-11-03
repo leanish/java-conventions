@@ -1,5 +1,5 @@
 # Every version this plugin applies or injects into consumer builds, plus its own build's.
-# Dependabot reads this file; `generateConventionVersions` turns the injected ones into `ConventionVersions` constants.
+# `generateConventionVersions` turns the injected ones into `ConventionVersions` constants.
 
 [versions]
 # Injected into consumer builds
