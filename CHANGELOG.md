@@ -2,7 +2,18 @@
 
 ## 0.6.4
 
+### Changed
+- Upgraded JaCoCo from `0.8.15` to `0.8.16` in the plugin build and consumer builds, and the consumer defaults of
+  NullAway from `0.14.2` to `0.14.3` and PIT from `1.30.0` to `1.30.1`. Error Prone stays at `2.50.0`: `2.51.0` brings
+  commonmark `0.29.0` (through google-java-format `1.37.0`), which has open denial-of-service advisories in
+  commonmark-java's repository, fixed only in `0.30.0`/`0.31.0`.
+- Upgraded the Gradle wrapper from `9.8.1` to `9.8.2`.
+
 ### Build and verification
+- Checkouts no longer persist the job token, actions are pinned by commit SHA (setup-java moved to `v6.1.0`), and only
+  the publishing job gets `packages: write`.
+- Pinned the supply-chain gate to `leanish/leanish-development` `v0.10.1`. The gate trusts GitHub's and AWS's actions,
+  and Guava's unfixed hash-flooding advisory (`GHSA-v5x9-67m3-7m56`) is excepted until 2026-11-16.
 - The "Publishing GitHub Packages" workflow no longer runs Gradle with the write token. It calls the new reusable
   `publishing-github-packages.yml`, which other repositories can call too: a `prepare` job builds and stages the
   publications with read-only access, and a `publish` job (no checkout, no Gradle) uploads exactly the expected

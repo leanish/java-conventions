@@ -368,7 +368,7 @@ It:
 - The bundled pre-commit hook runs `./gradlew spotlessApply` and `./gradlew checkstyleMain checkstyleTest`, and may modify files before commit.
 
 ## Plugin project CI (maintainers)
-- Checked-in Linux jobs run on `ubuntu-26.04`, with Gradle `9.8.1` and the existing JDK baselines.
+- Checked-in Linux jobs run on `ubuntu-26.04`, with Gradle `9.8.2` and the existing JDK baselines.
 - `.github/workflows/ci.yml` runs the default build path (Kotlin compilation toolchain on JDK 17, Gradle runtime/toolchain tasks on JDK 25).
 - `.github/workflows/testing-legacy-jdk.yml` runs a matrix on legacy runtime JDKs (`17`, `21`).
 - The legacy matrix uses `-PjavaConventions.runtimeJdkVersion=<version>` to set the plugin project's own `Test`/`JavaExec` runtime launcher.
