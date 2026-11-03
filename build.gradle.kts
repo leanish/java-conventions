@@ -119,7 +119,7 @@ val conventionMirrors = listOf(
 )
 
 // Same floor, and same reason, as the plugin sets in consumer builds.
-val guavaFloorReason = "CVE-2026-102554: prevents excessive allocation during Guava deserialization"
+val guavaFloorReason = "CVE-2026-102554 and GHSA-v5x9-67m3-7m56: excessive allocation in Guava deserialization, hash flooding"
 
 dependencies {
     conventionCheckstyle(libs.checkstyle)

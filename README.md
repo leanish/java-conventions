@@ -289,7 +289,7 @@ release tag is what that release uses.
   `com.google.errorprone:error_prone_annotations` as `compileOnly` and `testCompileOnly`.
 - Adds `org.projectlombok:lombok` as `compileOnly`, `testCompileOnly`,
   `annotationProcessor`, and `testAnnotationProcessor`.
-- Sets a Guava `33.7.2-jre` version floor for Checkstyle and Error Prone to fix `CVE-2026-102554`.
+- Sets a Guava `33.8.0-jre` version floor for Checkstyle and Error Prone to fix `CVE-2026-102554` and `GHSA-v5x9-67m3-7m56`.
   Consumer Checkstyle `toolVersion` overrides remain supported.
 - Adds Error Prone analysis dependencies:
   - `com.google.errorprone:error_prone_core`

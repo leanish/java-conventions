@@ -112,8 +112,8 @@ class GradleConventionsPluginTest {
             .build()
 
         assertThat(result.output)
-            .contains("checkstyleGuava=33.7.2-jre")
-            .contains("errorproneGuava=33.7.2-jre")
+            .contains("checkstyleGuava=33.8.0-jre")
+            .contains("errorproneGuava=33.8.0-jre")
             .contains("checkstyleVersion=$checkstyleVersion")
     }
 
