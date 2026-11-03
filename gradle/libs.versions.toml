@@ -6,8 +6,8 @@
 assertj = "3.27.7"
 checkstyle = "14.3.0"
 errorprone = "2.50.0"
-# Floor for the Checkstyle and Error Prone classpaths (CVE-2026-102554)
-guava = "33.7.2-jre"
+# Floor for the Checkstyle and Error Prone classpaths (CVE-2026-102554, GHSA-v5x9-67m3-7m56)
+guava = "33.8.0-jre"
 jacoco = "0.8.16"
 jetbrains-annotations = "26.1.0"
 jspecify = "1.0.1"

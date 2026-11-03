@@ -86,14 +86,14 @@ val checkstyleExtension = extensions.getByType<CheckstyleExtension>()
 
 dependencies {
     checkstyle("com.google.guava:guava:${ConventionVersions.GUAVA}") {
-        because("CVE-2026-102554: prevents excessive allocation during Guava deserialization")
+        because("CVE-2026-102554 and GHSA-v5x9-67m3-7m56: excessive allocation in Guava deserialization, hash flooding")
     }
     // Adding a dependency disables Checkstyle's default dependency; retain toolVersion overrides.
     checkstyle(providers.provider {
         "com.puppycrawl.tools:checkstyle:${checkstyleExtension.toolVersion}"
     })
     errorprone("com.google.guava:guava:${ConventionVersions.GUAVA}") {
-        because("CVE-2026-102554: prevents excessive allocation during Guava deserialization")
+        because("CVE-2026-102554 and GHSA-v5x9-67m3-7m56: excessive allocation in Guava deserialization, hash flooding")
     }
 
     compileOnly("org.jspecify:jspecify:${ConventionVersions.JSPECIFY}")
