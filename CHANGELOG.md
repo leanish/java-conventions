@@ -3,10 +3,10 @@
 ## 0.6.4
 
 ### Changed
-- Upgraded JaCoCo from `0.8.15` to `0.8.16`, NullAway from `0.14.2` to `0.14.3` and PIT from `1.30.0` to `1.30.1` in
-  the plugin build and consumer builds. Error Prone stays at `2.50.0`: `2.51.0` brings commonmark `0.29.0` (through
-  google-java-format `1.37.0`), which has open denial-of-service advisories in commonmark-java's repository, fixed only
-  in `0.30.0`/`0.31.0`.
+- Upgraded JaCoCo from `0.8.15` to `0.8.16` in the plugin build and consumer builds, and the consumer defaults of
+  NullAway from `0.14.2` to `0.14.3` and PIT from `1.30.0` to `1.30.1`. Error Prone stays at `2.50.0`: `2.51.0` brings
+  commonmark `0.29.0` (through google-java-format `1.37.0`), which has open denial-of-service advisories in
+  commonmark-java's repository, fixed only in `0.30.0`/`0.31.0`.
 - Upgraded the Gradle wrapper from `9.8.1` to `9.8.2`.
 
 ### Build and verification
