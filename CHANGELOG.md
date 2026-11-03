@@ -4,7 +4,9 @@
 
 ### Changed
 - Upgraded Error Prone from `2.50.0` to `2.51.0` in consumer builds (`error_prone_core`, and the
-  `error_prone_annotations` added to `compileOnly`).
+  `error_prone_annotations` the conventions put on `compileOnly`). `CompareToZero` is now an error, and it also flags
+  unary negation, non-relational operations and `switch` on `compareTo`/`compare` results, so builds that passed on
+  0.6.4 may need `Integer.signum(...)` there. `IfChainToSwitch` is now on as a warning.
 
 ### Fixed
 - Raised the Guava version floor on consumer Checkstyle and Error Prone classpaths from `33.7.2-jre` to `33.8.0-jre`,

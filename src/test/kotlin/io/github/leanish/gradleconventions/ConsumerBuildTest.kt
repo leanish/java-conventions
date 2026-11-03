@@ -166,13 +166,14 @@ class ConsumerBuildTest {
         )
 
         val result = runner(projectDir, "formatMarkdownJavadoc").build()
+        val version = Regex.escape(ConventionVersions.COMMONMARK)
 
         assertThat(result.task(":formatMarkdownJavadoc")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
         assertThat(result.output)
-            .containsPattern("org\\.commonmark\\.parser\\.Parser source: .*commonmark-${ConventionVersions.COMMONMARK}\\.jar")
+            .containsPattern("org\\.commonmark\\.parser\\.Parser source: .*commonmark-$version\\.jar")
             .containsPattern(
                 "org\\.commonmark\\.ext\\.gfm\\.tables\\.TableBlock source: .*commonmark-ext-gfm-tables-" +
-                    "${ConventionVersions.COMMONMARK}\\.jar",
+                    "$version\\.jar",
             )
             .contains("/// | Name | Value |")
     }
