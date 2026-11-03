@@ -121,7 +121,8 @@ val conventionMirrors = listOf(
 
 // Same floor, and same reason, as the plugin sets in consumer builds.
 val guavaFloorReason = "CVE-2026-102554 and GHSA-v5x9-67m3-7m56: excessive allocation in Guava deserialization, hash flooding"
-val commonmarkFloorReason = "commonmark-java's GHSA-mg3c-47fx-jhgf and related advisories: denial of service parsing Markdown"
+val commonmarkFloorReason = "GHSA-mg3c-47fx-jhgf, GHSA-g3cr-8x4q-74q3, GHSA-cc3j-83v5-hqfg, GHSA-vwrf-xrcv-x2rr, GHSA-cxq4-f84x-5ph8 and GHSA-5g96-4gff-g8g2: denial of service parsing Markdown"
+val commonmarkTablesFloorReason = "GHSA-cx98-gqcg-rp8q: denial of service parsing Markdown tables"
 
 dependencies {
     conventionCheckstyle(libs.checkstyle)
@@ -137,7 +138,7 @@ dependencies {
         because(commonmarkFloorReason)
     }
     conventionErrorprone(libs.commonmark.ext.gfm.tables) {
-        because(commonmarkFloorReason)
+        because(commonmarkTablesFloorReason)
     }
     conventionCompileOnly(libs.jspecify)
     conventionCompileOnly(libs.jetbrains.annotations)
