@@ -71,7 +71,7 @@ class GradleConventionsPluginTest {
 
     @ParameterizedTest
     @ValueSource(strings = ["14.3.0", "14.2.0"])
-    fun qualityToolGraphsUsePatchedGuava(checkstyleVersion: String) {
+    fun qualityToolGraphsUseSecurityFloors(checkstyleVersion: String) {
         val projectDir = tempDir.resolve("patched-guava").toFile()
         projectDir.mkdirs()
         writeRequiredConventionsProperties(projectDir)
@@ -95,6 +95,12 @@ class GradleConventionsPluginTest {
                         val artifacts = configurations.getByName(configurationName).resolvedConfiguration.resolvedArtifacts
                         val guava = artifacts.single { it.moduleVersion.id.group == "com.google.guava" && it.name == "guava" }
                         println("${'$'}{name}Guava=${'$'}{guava.moduleVersion.id.version}")
+                        if (name == "errorprone") {
+                            for (module in listOf("commonmark", "commonmark-ext-gfm-tables")) {
+                                val library = artifacts.single { it.moduleVersion.id.group == "org.commonmark" && it.name == module }
+                                println("errorprone-${'$'}module=${'$'}{library.moduleVersion.id.version}")
+                            }
+                        }
                         if (name == "checkstyle") {
                             val tool = artifacts.single { it.moduleVersion.id.group == "com.puppycrawl.tools" && it.name == "checkstyle" }
                             println("checkstyleVersion=${'$'}{tool.moduleVersion.id.version}")
@@ -114,6 +120,8 @@ class GradleConventionsPluginTest {
         assertThat(result.output)
             .contains("checkstyleGuava=33.8.0-jre")
             .contains("errorproneGuava=33.8.0-jre")
+            .contains("errorprone-commonmark=${ConventionVersions.COMMONMARK}")
+            .contains("errorprone-commonmark-ext-gfm-tables=${ConventionVersions.COMMONMARK}")
             .contains("checkstyleVersion=$checkstyleVersion")
     }
 
