@@ -5,7 +5,9 @@
 # Injected into consumer builds
 assertj = "3.27.7"
 checkstyle = "14.3.0"
-errorprone = "2.50.0"
+errorprone = "2.51.0"
+# Floor for the Error Prone classpath, where google-java-format parses Markdown javadoc (commonmark-java's advisories)
+commonmark = "0.31.0"
 # Floor for the Checkstyle and Error Prone classpaths (CVE-2026-102554, GHSA-v5x9-67m3-7m56)
 guava = "33.8.0-jre"
 jacoco = "0.8.16"
@@ -27,6 +29,8 @@ plugin-publish = "2.2.1"
 [libraries]
 assertj-core = { module = "org.assertj:assertj-core", version.ref = "assertj" }
 checkstyle = { module = "com.puppycrawl.tools:checkstyle", version.ref = "checkstyle" }
+commonmark = { module = "org.commonmark:commonmark", version.ref = "commonmark" }
+commonmark-ext-gfm-tables = { module = "org.commonmark:commonmark-ext-gfm-tables", version.ref = "commonmark" }
 errorprone-annotations = { module = "com.google.errorprone:error_prone_annotations", version.ref = "errorprone" }
 errorprone-core = { module = "com.google.errorprone:error_prone_core", version.ref = "errorprone" }
 guava = { module = "com.google.guava:guava", version.ref = "guava" }

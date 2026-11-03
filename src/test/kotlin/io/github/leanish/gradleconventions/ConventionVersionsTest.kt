@@ -13,6 +13,7 @@ class ConventionVersionsTest {
             mapOf(
                 "assertj" to ConventionVersions.ASSERTJ,
                 "checkstyle" to ConventionVersions.CHECKSTYLE,
+                "commonmark" to ConventionVersions.COMMONMARK,
                 "errorprone" to ConventionVersions.ERROR_PRONE,
                 "guava" to ConventionVersions.GUAVA,
                 "jacoco" to ConventionVersions.JACOCO,

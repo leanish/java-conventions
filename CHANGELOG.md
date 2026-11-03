@@ -2,11 +2,21 @@
 
 ## 0.6.5
 
+### Changed
+- Upgraded Error Prone from `2.50.0` to `2.51.0` in consumer builds (`error_prone_core`, and the
+  `error_prone_annotations` the conventions put on `compileOnly`). `CompareToZero` is now an error, and it also flags
+  unary negation, non-relational operations and `switch` on `compareTo`/`compare` results, so builds that passed on
+  0.6.4 may need `Integer.signum(...)` there. `IfChainToSwitch` is now on as a warning.
+
 ### Fixed
 - Raised the Guava version floor on consumer Checkstyle and Error Prone classpaths from `33.7.2-jre` to `33.8.0-jre`,
   which fixes hash flooding in `HashBiMap` and `LinkedHashMultimap` (`GHSA-v5x9-67m3-7m56`); it brings
   `error_prone_annotations` `2.52.0` into those classpaths. The gate's exception for that advisory is gone. Both were
   taken before the 7-day release-age wait ended, by the maintainer's decision, trusting Guava's maintainers.
+- Added a commonmark `0.31.0` version floor (`commonmark` and `commonmark-ext-gfm-tables`) to consumer Error Prone
+  classpaths. Error Prone `2.51.0` brings commonmark `0.29.0` through google-java-format `1.37.0`, which parses
+  Markdown javadoc with it; `0.29.0` has seven denial-of-service advisories in commonmark-java's repository (for
+  example `GHSA-mg3c-47fx-jhgf` and `GHSA-cx98-gqcg-rp8q`), fixed by `0.31.0`.
 
 ## 0.6.4
 

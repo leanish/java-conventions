@@ -131,6 +131,53 @@ class ConsumerBuildTest {
         assertThat(result.output).contains("[AvoidStarImport]")
     }
 
+    @Test
+    fun errorProneFormatterParsesMarkdownJavadocWithTheCommonmarkFloor() {
+        // google-java-format, on Error Prone's classpath, parses Markdown javadoc with commonmark; the conventions raise
+        // commonmark above the version it was built against, so run it on a Markdown comment with a table.
+        val projectDir = sampleConsumer("consumer-markdown-javadoc")
+        writeSource(
+            projectDir,
+            "src/main/java/io/github/leanish/sample/Table.java",
+            """
+            package io.github.leanish.sample;
+
+            /// Values by name.
+            ///
+            /// | Name | Value |
+            /// |------|-------|
+            /// | one  | 1     |
+            public final class Table {}
+            """.trimIndent(),
+        )
+        projectDir.resolve("build.gradle.kts").appendText(
+            """
+
+            tasks.register<JavaExec>("formatMarkdownJavadoc") {
+                classpath = configurations.getByName("annotationProcessor")
+                mainClass.set("com.google.googlejavaformat.java.Main")
+                jvmArgs(
+                    listOf("api", "code", "file", "main", "parser", "tree", "util")
+                        .map { "--add-exports=jdk.compiler/com.sun.tools.javac.${'$'}it=ALL-UNNAMED" } + "-verbose:class",
+                )
+                args("src/main/java/io/github/leanish/sample/Table.java")
+            }
+            """.trimIndent(),
+        )
+
+        val result = runner(projectDir, "formatMarkdownJavadoc").build()
+        val version = Regex.escape(ConventionVersions.COMMONMARK)
+
+        assertThat(result.task(":formatMarkdownJavadoc")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
+        assertThat(result.output)
+            .containsPattern("org\\.commonmark\\.parser\\.Parser source: .*commonmark-$version\\.jar")
+            .containsPattern(
+                "org\\.commonmark\\.ext\\.gfm\\.tables\\.TableBlock source: .*commonmark-ext-gfm-tables-" +
+                    "$version\\.jar",
+            )
+            .contains("/// | Name | Value |")
+    }
+
     private fun runner(projectDir: File, vararg arguments: String): GradleRunner =
         GradleRunner.create()
             .withProjectDir(projectDir)

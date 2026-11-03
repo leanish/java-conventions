@@ -95,6 +95,13 @@ dependencies {
     errorprone("com.google.guava:guava:${ConventionVersions.GUAVA}") {
         because("CVE-2026-102554 and GHSA-v5x9-67m3-7m56: excessive allocation in Guava deserialization, hash flooding")
     }
+    // google-java-format, which Error Prone uses, parses Markdown javadoc with commonmark.
+    errorprone("org.commonmark:commonmark:${ConventionVersions.COMMONMARK}") {
+        because("GHSA-mg3c-47fx-jhgf, GHSA-g3cr-8x4q-74q3, GHSA-cc3j-83v5-hqfg, GHSA-vwrf-xrcv-x2rr, GHSA-cxq4-f84x-5ph8 and GHSA-5g96-4gff-g8g2: denial of service parsing Markdown")
+    }
+    errorprone("org.commonmark:commonmark-ext-gfm-tables:${ConventionVersions.COMMONMARK}") {
+        because("GHSA-cx98-gqcg-rp8q: denial of service parsing Markdown tables")
+    }
 
     compileOnly("org.jspecify:jspecify:${ConventionVersions.JSPECIFY}")
     testCompileOnly("org.jspecify:jspecify:${ConventionVersions.JSPECIFY}")

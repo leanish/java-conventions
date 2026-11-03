@@ -72,6 +72,7 @@ val generateConventionVersions = tasks.register<GenerateConventionVersions>("gen
         mapOf(
             "ASSERTJ" to libs.versions.assertj,
             "CHECKSTYLE" to libs.versions.checkstyle,
+            "COMMONMARK" to libs.versions.commonmark,
             "ERROR_PRONE" to libs.versions.errorprone.asProvider(),
             "GUAVA" to libs.versions.guava,
             "JACOCO" to libs.versions.jacoco,
@@ -120,6 +121,8 @@ val conventionMirrors = listOf(
 
 // Same floor, and same reason, as the plugin sets in consumer builds.
 val guavaFloorReason = "CVE-2026-102554 and GHSA-v5x9-67m3-7m56: excessive allocation in Guava deserialization, hash flooding"
+val commonmarkFloorReason = "GHSA-mg3c-47fx-jhgf, GHSA-g3cr-8x4q-74q3, GHSA-cc3j-83v5-hqfg, GHSA-vwrf-xrcv-x2rr, GHSA-cxq4-f84x-5ph8 and GHSA-5g96-4gff-g8g2: denial of service parsing Markdown"
+val commonmarkTablesFloorReason = "GHSA-cx98-gqcg-rp8q: denial of service parsing Markdown tables"
 
 dependencies {
     conventionCheckstyle(libs.checkstyle)
@@ -130,6 +133,12 @@ dependencies {
     conventionErrorprone(libs.nullaway)
     conventionErrorprone(libs.guava) {
         because(guavaFloorReason)
+    }
+    conventionErrorprone(libs.commonmark) {
+        because(commonmarkFloorReason)
+    }
+    conventionErrorprone(libs.commonmark.ext.gfm.tables) {
+        because(commonmarkTablesFloorReason)
     }
     conventionCompileOnly(libs.jspecify)
     conventionCompileOnly(libs.jetbrains.annotations)
