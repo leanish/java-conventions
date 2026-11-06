@@ -134,9 +134,6 @@ dependencies {
     conventionErrorprone(libs.guava) {
         because(guavaFloorReason)
     }
-    conventionErrorprone(libs.commonmark) {
-        because(commonmarkFloorReason)
-    }
     conventionErrorprone(libs.commonmark.ext.gfm.tables) {
         because(commonmarkTablesFloorReason)
     }
