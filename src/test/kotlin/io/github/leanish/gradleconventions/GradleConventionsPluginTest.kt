@@ -2241,6 +2241,35 @@ class GradleConventionsPluginTest {
     }
 
     @Test
+    fun installGitHooksSkipsAHooksDirectoryLinkedToSomethingMissing() {
+        val projectDir = tempDir.resolve("dangling-hooks-link").toFile()
+        initGitRepository(projectDir)
+        val missing = tempDir.resolve("outside/missing").toFile()
+        projectDir.resolve(".git/hooks").deleteRecursively()
+        java.nio.file.Files.createSymbolicLink(projectDir.resolve(".git/hooks").toPath(), missing.toPath())
+        writeRequiredConventionsProperties(projectDir)
+        writeFile(projectDir, "settings.gradle.kts", "rootProject.name = \"test-dangling-hooks-link\"")
+        writeFile(
+            projectDir,
+            "build.gradle.kts",
+            """
+            plugins {
+                id("io.github.leanish.java-conventions")
+            }
+            """.trimIndent(),
+        )
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withArguments("installGitHooks")
+            .withPluginClasspath()
+            .build()
+
+        assertThat(result.output).contains("Didn't install the pre-commit hook: the hooks directory").contains("which doesn't exist")
+        assertThat(missing).doesNotExist()
+    }
+
+    @Test
     fun installGitHooksInALinkedWorktreeInstallsWhereGitRunsHooks() {
         val repository = tempDir.resolve("main-repository").toFile()
         initGitRepository(repository)
@@ -2310,6 +2339,13 @@ class GradleConventionsPluginTest {
         assertThat(unchanged).doesNotContain("Git hooks not installed")
         val build = GradleRunner.create().withProjectDir(projectDir).withArguments("installGitHooks").withPluginClasspath().build()
         assertThat(build.output).doesNotContain("is up to date")
+
+        val unchangedWithInfo = GradleRunner.create().withProjectDir(projectDir).withArguments("setupProject", "--info").withPluginClasspath().build().output
+        assertThat(occurrences(unchangedWithInfo, "The pre-commit hook in ${hook.path} is up to date")).isEqualTo(1)
+
+        hook.delete()
+        val installedQuietly = GradleRunner.create().withProjectDir(projectDir).withArguments("setupProject", "--quiet").withPluginClasspath().build().output
+        assertThat(occurrences(installedQuietly, "Installed the pre-commit hook in ${hook.path}")).isEqualTo(1)
 
         hook.writeText("edited by hand")
         val kept = setupProject()

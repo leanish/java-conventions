@@ -31,8 +31,8 @@ internal abstract class InstallGitHookTask : DefaultTask() {
     abstract val hooksLocation: Property<HooksLocation>
 
     /**
-     * What happened, for `setupProject`: the first line says whether it was already logged at lifecycle level or above
-     * (`shown`) or only at info (`quiet`); the rest is the message.
+     * What happened, for `setupProject`: the first line says whether the message was already printed at the build's log
+     * level (`shown`) or not (`quiet`, e.g. info on a default build, lifecycle under `--quiet`); the rest is the message.
      */
     @get:OutputFile
     abstract val reportFile: RegularFileProperty
@@ -43,7 +43,7 @@ internal abstract class InstallGitHookTask : DefaultTask() {
         logger.log(level, message)
         val report = reportFile.get().asFile
         report.parentFile.mkdirs()
-        report.writeText((if (level == LogLevel.INFO) "quiet" else "shown") + "\n" + message)
+        report.writeText((if (logger.isEnabled(level)) "shown" else "quiet") + "\n" + message)
     }
 
     private fun installAndDescribe(): Pair<LogLevel, String> {
