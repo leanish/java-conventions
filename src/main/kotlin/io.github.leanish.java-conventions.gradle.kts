@@ -383,12 +383,25 @@ if (project == rootProject) {
     val projectHookFile = layout.projectDirectory.file("scripts/git-hooks/pre-commit")
     val preCommitHookFile = layout.buildDirectory.file("generated/git-hooks/pre-commit")
     val gitExists = providers.provider { gitMarker.asFile.exists() }
-    val hooksDir = providers.provider {
+    // Git itself says where it looks for hooks (a linked worktree's are in the main repository; `core.hooksPath` moves
+    // them). It's only asked when there is a repository: installGitHooks is skipped otherwise.
+    // The lambdas below capture only these values, not the project, for the configuration cache.
+    val projectDirectoryFile = layout.projectDirectory.asFile
+    val gitHooksPath = providers.exec {
+        commandLine(GitHooks.HOOKS_PATH_COMMAND)
+        workingDir(projectDirectoryFile)
+        isIgnoreExitValue = true
+    }
+    val gitHooksDirectory = gitHooksPath.result.map { result ->
         GitHooks.directory(
-            gitMarker = gitMarker.asFile,
-            fallbackHooksDirectory = layout.projectDirectory.dir(".git/hooks").asFile,
+            projectDirectory = projectDirectoryFile,
+            exitValue = result.exitValue,
+            output = gitHooksPath.standardOutput.asText.get(),
+            errorOutput = gitHooksPath.standardError.asText.get(),
         )
     }
+    val noRepositoryHooksDirectory = providers.provider { projectDirectoryFile.resolve(".git/hooks") }
+    val hooksDir = gitExists.flatMap { exists -> if (exists) gitHooksDirectory else noRepositoryHooksDirectory }
     val writePreCommitHook = tasks.register("writePreCommitHook") {
         description = "Writes the bundled pre-commit hook to the build directory"
         outputs.file(preCommitHookFile)

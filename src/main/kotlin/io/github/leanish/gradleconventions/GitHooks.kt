@@ -5,58 +5,35 @@
  */
 package io.github.leanish.gradleconventions
 
+import org.gradle.api.GradleException
 import java.io.File
 
 internal object GitHooks {
+    /** The command whose output is the hooks directory Git uses here: linked worktrees and `core.hooksPath` included. */
+    val HOOKS_PATH_COMMAND = listOf("git", "rev-parse", "--git-path", "hooks")
+
+    /**
+     * The hooks directory from [HOOKS_PATH_COMMAND] run in [projectDirectory]: Git prints it relative to that directory
+     * unless it is absolute.
+     */
     fun directory(
-        gitMarker: File,
-        fallbackHooksDirectory: File,
+        projectDirectory: File,
+        exitValue: Int,
+        output: String,
+        errorOutput: String,
     ): File {
-        if (gitMarker.isDirectory) {
-            return gitMarker.resolve("hooks")
+        val path = output.trim()
+        if (exitValue != 0 || path.isEmpty()) {
+            throw GradleException(
+                "Couldn't find the git hooks directory: `${HOOKS_PATH_COMMAND.joinToString(" ")}` in $projectDirectory " +
+                    "exited with $exitValue: ${errorOutput.trim()}",
+            )
         }
-
-        if (!gitMarker.isFile) {
-            return fallbackHooksDirectory
-        }
-
-        return directoryFromPointer(gitMarker) ?: fallbackHooksDirectory
+        val hooksDirectory = File(path)
+        return if (hooksDirectory.isAbsolute) hooksDirectory else projectDirectory.resolve(path)
     }
 
     fun bundledPreCommitHook(): String {
         return BundledResources.load("git-hooks/pre-commit")
-    }
-
-    private fun directoryFromPointer(gitMarker: File): File? {
-        return runCatching {
-            val pointerLine = gitMarker.useLines { lines ->
-                lines.firstOrNull()
-            }?.trim()
-            if (pointerLine == null || !pointerLine.startsWith("gitdir:")) {
-                return@runCatching null
-            }
-
-            val gitDirPath = pointerLine.removePrefix("gitdir:").trim()
-            if (gitDirPath.isEmpty()) {
-                return@runCatching null
-            }
-
-            resolveGitDir(
-                gitMarker = gitMarker,
-                gitDirPath = gitDirPath,
-            ).resolve("hooks")
-        }.getOrNull()
-    }
-
-    private fun resolveGitDir(
-        gitMarker: File,
-        gitDirPath: String,
-    ): File {
-        val gitDir = File(gitDirPath)
-        if (gitDir.isAbsolute) {
-            return gitDir
-        }
-
-        return gitMarker.parentFile.resolve(gitDirPath)
     }
 }

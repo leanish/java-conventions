@@ -3,6 +3,11 @@
 ## 0.6.6
 
 ### Changed
+- `installGitHooks` asks Git where it runs hooks (`git rev-parse --git-path hooks`) instead of reading `.git` itself.
+  In a linked worktree it used to write the hook into the worktree's private git directory, where Git never runs it;
+  now it goes to the main repository's hooks directory, and a configured `core.hooksPath` is honoured. It needs `git`
+  on the `PATH` when the project has a `.git`, and fails with Git's message if the lookup fails, instead of falling back
+  to `.git/hooks`.
 - `installGitHooks` (which `build` runs) no longer overwrites a pre-commit hook it didn't install: a hook from another
   tool, a hand-written one, a symbolic link, or an installed hook edited locally is kept, with a warning. It records
   the SHA-256 of what it installs in `.git/hooks/pre-commit.java-conventions.sha256` and replaces only a hook that

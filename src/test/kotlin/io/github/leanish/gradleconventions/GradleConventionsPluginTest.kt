@@ -2136,8 +2136,8 @@ class GradleConventionsPluginTest {
             """.trimIndent(),
         )
 
+        initGitRepository(projectDir)
         val gitHooksDir = projectDir.resolve(".git/hooks")
-        gitHooksDir.mkdirs()
         val customHook = projectDir.resolve("scripts/git-hooks/pre-commit")
         customHook.parentFile.mkdirs()
         customHook.writeText("custom-hook")
@@ -2169,8 +2169,8 @@ class GradleConventionsPluginTest {
             """.trimIndent(),
         )
 
+        initGitRepository(projectDir)
         val gitHooksDir = projectDir.resolve(".git/hooks")
-        gitHooksDir.mkdirs()
 
         GradleRunner.create()
             .withProjectDir(projectDir)
@@ -2198,8 +2198,8 @@ class GradleConventionsPluginTest {
             }
             """.trimIndent(),
         )
+        initGitRepository(projectDir)
         val foreignHook = projectDir.resolve(".git/hooks/pre-commit")
-        foreignHook.parentFile.mkdirs()
         foreignHook.writeText("#!/bin/sh\nexec another-tool\n")
 
         val result = GradleRunner.create()
@@ -2210,6 +2210,37 @@ class GradleConventionsPluginTest {
 
         assertThat(foreignHook).hasContent("#!/bin/sh\nexec another-tool\n")
         assertThat(result.output).contains("java-conventions didn't install it, or it was edited since")
+    }
+
+    @Test
+    fun installGitHooksInALinkedWorktreeInstallsWhereGitRunsHooks() {
+        val repository = tempDir.resolve("main-repository").toFile()
+        initGitRepository(repository)
+        val projectDir = tempDir.resolve("linked-worktree").toFile()
+        git(repository, "worktree", "add", "-q", projectDir.path)
+        writeRequiredConventionsProperties(projectDir)
+        writeFile(projectDir, "settings.gradle.kts", "rootProject.name = \"test-linked-worktree\"")
+        writeFile(
+            projectDir,
+            "build.gradle.kts",
+            """
+            plugins {
+                id("io.github.leanish.java-conventions")
+            }
+            """.trimIndent(),
+        )
+        val marker = tempDir.resolve("hook-ran").toFile()
+        writeFile(projectDir, "scripts/git-hooks/pre-commit", "#!/bin/sh\ntouch '${marker.path}'\n")
+
+        GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withArguments("installGitHooks")
+            .withPluginClasspath()
+            .build()
+        git(projectDir, "commit", "-q", "--allow-empty", "-m", "runs the hook")
+
+        assertThat(repository.resolve(".git/hooks/pre-commit")).exists()
+        assertThat(marker).exists()
     }
 
     @Test

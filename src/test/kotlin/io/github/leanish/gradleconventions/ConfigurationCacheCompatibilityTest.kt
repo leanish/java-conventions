@@ -140,9 +140,11 @@ class ConfigurationCacheCompatibilityTest {
     }
 
     @Test
-    fun reusesConfigurationCacheWhenGitHooksPathIsResolvedFromGitPointerFile() {
+    fun reusesConfigurationCacheWhenGitHooksPathIsResolvedInALinkedWorktree() {
+        val repository = tempDir.resolve("cache-git-hooks-main").toFile()
+        initGitRepository(repository)
         val projectDir = tempDir.resolve("cache-git-hooks").toFile()
-        projectDir.mkdirs()
+        git(repository, "worktree", "add", "-q", projectDir.path)
         writeRequiredConventionsProperties(projectDir)
 
         writeFile(projectDir, "settings.gradle.kts", "rootProject.name = \"cache-git-hooks\"")
@@ -155,11 +157,6 @@ class ConfigurationCacheCompatibilityTest {
             }
             """.trimIndent(),
         )
-        writeFile(
-            projectDir,
-            ".git",
-            "gitdir: .git-worktree",
-        )
 
         val firstRun = runGradle(
             projectDir = projectDir,
@@ -169,7 +166,7 @@ class ConfigurationCacheCompatibilityTest {
         assertThat(firstRun.output)
             .contains("Configuration cache entry stored.")
 
-        val generatedHook = projectDir.resolve(".git-worktree/hooks/pre-commit")
+        val generatedHook = repository.resolve(".git/hooks/pre-commit")
         assertThat(generatedHook).exists()
 
         val secondRun = runGradle(
