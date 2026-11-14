@@ -1061,6 +1061,161 @@ class GradleConventionsPluginTest {
     }
 
     @Test
+    fun publishingOwnerFallsBackToAGroupSetAfterThePluginsBlock() {
+        val projectDir = tempDir.resolve("publishing-owner-group-after-plugins").toFile()
+        projectDir.mkdirs()
+        writeRequiredConventionsProperties(projectDir)
+        writeFile(projectDir, "settings.gradle.kts", "rootProject.name = \"group-after-plugins\"")
+        writeFile(
+            projectDir,
+            "build.gradle.kts",
+            """
+            plugins {
+                id("io.github.leanish.java-conventions")
+            }
+
+            group = "io.github.group-owner"
+            version = "1.0.0"
+            """.trimIndent(),
+        )
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withArguments("generatePomFileForMavenJavaPublication", "tasks", "--all")
+            .withEnvironment(environmentWithoutConventionsOverrides(emptyMap()))
+            .withPluginClasspath()
+            .build()
+
+        val generatedPom = projectDir.resolve("build/publications/mavenJava/pom-default.xml").readText()
+        assertThat(generatedPom)
+            .contains("<url>https://github.com/group-owner/group-after-plugins</url>")
+            .contains("<id>group-owner</id>")
+            .contains("<connection>scm:git:https://github.com/group-owner/group-after-plugins.git</connection>")
+        assertThat(result.output).contains("publishMavenJavaPublicationToGitHubPackagesRepository")
+    }
+
+    private fun groupOwnerProject(name: String, extraGradleProperties: String = "", buildScriptTail: String = ""): File {
+        val projectDir = tempDir.resolve(name).toFile()
+        projectDir.mkdirs()
+        writeRequiredConventionsProperties(projectDir)
+        if (extraGradleProperties.isNotEmpty()) {
+            projectDir.resolve("gradle.properties").appendText("\n$extraGradleProperties\n")
+        }
+        writeFile(projectDir, "settings.gradle.kts", "rootProject.name = \"$name\"")
+        writeFile(
+            projectDir,
+            "build.gradle.kts",
+            """
+            plugins {
+                id("io.github.leanish.java-conventions")
+            }
+
+            group = "io.github.group-owner"
+            version = "1.0.0"
+            """.trimIndent() + "\n" + buildScriptTail,
+        )
+        return projectDir
+    }
+
+    private fun generatedPom(projectDir: File, vararg extraArguments: String): Pair<String, String> {
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withArguments("generatePomFileForMavenJavaPublication", *extraArguments)
+            .withEnvironment(environmentWithoutConventionsOverrides(emptyMap()))
+            .withPluginClasspath()
+            .build()
+        return projectDir.resolve("build/publications/mavenJava/pom-default.xml").readText() to result.output
+    }
+
+    private val ownDeveloper = """
+        publishing.publications.named<MavenPublication>("mavenJava") {
+            pom {
+                developers {
+                    developer {
+                        id.set("me")
+                        name.set("Me")
+                    }
+                }
+            }
+        }
+    """.trimIndent()
+
+    @Test
+    fun aConsumersOwnDeveloperReplacesTheInferredOneWithAGroupOwner() {
+        val (pom, _) = generatedPom(groupOwnerProject("own-developer-group-owner", buildScriptTail = ownDeveloper))
+
+        assertThat(Regex("<developer>").findAll(pom).count()).isEqualTo(1)
+        assertThat(pom).contains("<id>me</id>").doesNotContain("<id>group-owner</id>")
+            .contains("<url>https://github.com/group-owner/own-developer-group-owner</url>")
+    }
+
+    @Test
+    fun aConsumersOwnDeveloperReplacesTheInferredOneWithAnOwnerKnownAtApplication() {
+        val projectDir = groupOwnerProject(
+            "own-developer-property-owner",
+            extraGradleProperties = "leanish.conventions.publishing.githubOwner=property-owner",
+            buildScriptTail = ownDeveloper,
+        )
+
+        val (pom, _) = generatedPom(projectDir)
+
+        assertThat(Regex("<developer>").findAll(pom).count()).isEqualTo(1)
+        assertThat(pom).contains("<id>me</id>").doesNotContain("<id>property-owner</id>")
+    }
+
+    @Test
+    fun theInferredDeveloperKeepsMavensElementOrder() {
+        val (pom, _) = generatedPom(groupOwnerProject("inferred-developer-order"))
+
+        assertThat(pom).contains("<id>group-owner</id>")
+        assertThat(pom.indexOf("<licenses>")).isLessThan(pom.indexOf("<developers>"))
+        assertThat(pom.indexOf("<developers>")).isLessThan(pom.indexOf("<scm>"))
+    }
+
+    @Test
+    fun theGroupOwnerPathReusesTheConfigurationCache() {
+        val projectDir = groupOwnerProject("group-owner-configuration-cache")
+
+        generatedPom(projectDir, "--configuration-cache")
+        projectDir.resolve("build/publications").deleteRecursively()
+        val (pom, output) = generatedPom(projectDir, "--configuration-cache")
+
+        assertThat(output).contains("Reusing configuration cache.")
+        assertThat(pom).contains("<id>group-owner</id>").contains("<url>https://github.com/group-owner/group-owner-configuration-cache</url>")
+    }
+
+    @Test
+    fun publishingWithoutAnyOwnerHasNoGithubMetadataOrRepository() {
+        val projectDir = tempDir.resolve("publishing-without-owner").toFile()
+        projectDir.mkdirs()
+        writeRequiredConventionsProperties(projectDir)
+        writeFile(projectDir, "settings.gradle.kts", "rootProject.name = \"no-owner\"")
+        writeFile(
+            projectDir,
+            "build.gradle.kts",
+            """
+            plugins {
+                id("io.github.leanish.java-conventions")
+            }
+
+            group = "com.example"
+            version = "1.0.0"
+            """.trimIndent(),
+        )
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withArguments("generatePomFileForMavenJavaPublication", "tasks", "--all")
+            .withEnvironment(environmentWithoutConventionsOverrides(emptyMap()))
+            .withPluginClasspath()
+            .build()
+
+        val generatedPom = projectDir.resolve("build/publications/mavenJava/pom-default.xml").readText()
+        assertThat(generatedPom).doesNotContain("github.com").contains("<name>no-owner</name>")
+        assertThat(result.output).doesNotContain("GitHubPackagesRepository")
+    }
+
+    @Test
     fun publishingOwnerConventionEnvironmentOverridesProperty() {
         val projectDir = tempDir.resolve("publishing-owner-convention-env-precedence").toFile()
         projectDir.mkdirs()

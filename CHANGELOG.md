@@ -2,6 +2,18 @@
 
 ## 0.6.6
 
+### Fixed
+- The GitHub owner fallback from `group` (for example `io.github.acme` → `acme`) only worked when `group` was set
+  before the plugin was applied. With the usual `plugins { … }` followed by `group = "io.github.acme"`, the POM got no
+  GitHub URLs, developer or SCM and no `GitHubPackages` repository was added. When no owner is known at application,
+  those owner-dependent parts are now added after the project is evaluated; an owner from a property or the
+  environment is still applied immediately, and `mavenJava` is still created immediately.
+
+### Changed
+- The developer the conventions infer (from the publishing properties or the GitHub owner) is a default: it goes into
+  the generated POM only when the build declares no developer itself. Builds that declared their own developers used
+  to publish them next to the inferred one.
+
 ## 0.6.5
 
 ### Changed

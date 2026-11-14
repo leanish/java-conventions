@@ -16,6 +16,8 @@ import io.github.leanish.gradleconventions.ConventionProperties.PUBLISHING_DEVEL
 import io.github.leanish.gradleconventions.ConventionProperties.PUBLISHING_DEVELOPER_URL_ENV
 import io.github.leanish.gradleconventions.ConventionVersions
 import io.github.leanish.gradleconventions.GitHooks
+import io.github.leanish.gradleconventions.PomDeveloper
+import io.github.leanish.gradleconventions.addDeveloperIfNone
 import io.github.leanish.gradleconventions.WriteCheckstyleConfigTask
 import io.github.leanish.gradleconventions.javaConventionsProviders
 import io.github.leanish.gradleconventions.stringProperty
@@ -152,91 +154,91 @@ plugins.withId("maven-publish") {
         return@withId
     }
 
-    extensions.configure<PublishingExtension>("publishing") {
-        val resolvedGithubOwner = publishingGithubOwner.get().takeIf(String::isNotBlank)
+    val publishing = extensions.getByType<PublishingExtension>()
+    // Created now, so consumers can reconfigure it with publications.named("mavenJava", ...) in their build script.
+    val publication = publishing.publications.let { publications ->
+        val javaComponent = components.findByName("java")
+        val existingPublication = publications.findByName("mavenJava")
+        val publication = when (existingPublication) {
+            is MavenPublication -> existingPublication
+            null -> publications.create("mavenJava", MavenPublication::class.java)
+            else -> throw GradleException(
+                "Publication 'mavenJava' exists but is not a MavenPublication (${existingPublication::class.java.name})",
+            )
+        }
+        if (javaComponent != null && existingPublication == null) {
+            publication.from(javaComponent)
+        }
+        publication
+    }
+    publication.pom {
+        name.convention(publishingPomName)
+        description.convention(publishingPomDescription)
+        licenses {
+            license {
+                name.set("The MIT License")
+                url.set("https://opensource.org/licenses/MIT")
+            }
+        }
+    }
+
+    // What depends on the GitHub owner: POM URLs, developer and SCM, and the GitHubPackages repository.
+    fun configureOwnerDependentPublishing(resolvedGithubOwner: String?) {
         val resolvedGithubRepository = publishingGithubRepository.get()
+        val githubRepoUrl = resolvedGithubOwner?.let { owner ->
+            "https://github.com/$owner/$resolvedGithubRepository"
+        }
+        val githubScmUrl = githubRepoUrl?.let { "scm:git:$it.git" }
+        val githubDeveloperScmUrl = resolvedGithubOwner?.let { owner ->
+            "scm:git:ssh://git@github.com/$owner/$resolvedGithubRepository.git"
+        }
 
-        publications {
-            val javaComponent = components.findByName("java")
-            val existingPublication = findByName("mavenJava")
-            val publication = when (existingPublication) {
-                is MavenPublication -> existingPublication
-                null -> create("mavenJava", MavenPublication::class.java)
-                else -> throw GradleException(
-                    "Publication 'mavenJava' exists but is not a MavenPublication (${existingPublication::class.java.name})",
-                )
+        val configuredDeveloperId = stringProperty(
+            PUBLISHING_DEVELOPER_ID,
+            PUBLISHING_DEVELOPER_ID_ENV,
+        )
+        val configuredDeveloperName = stringProperty(
+            PUBLISHING_DEVELOPER_NAME,
+            PUBLISHING_DEVELOPER_NAME_ENV,
+        )
+        val configuredDeveloperUrl = stringProperty(
+            PUBLISHING_DEVELOPER_URL,
+            PUBLISHING_DEVELOPER_URL_ENV,
+        )
+        val resolvedDeveloperId = configuredDeveloperId ?: resolvedGithubOwner
+        val resolvedDeveloperName = configuredDeveloperName ?: resolvedGithubOwner
+        val resolvedDeveloperUrl = configuredDeveloperUrl ?: resolvedGithubOwner?.let { owner ->
+            "https://github.com/$owner"
+        }
+
+        if (resolvedDeveloperId != null && resolvedDeveloperName != null && resolvedDeveloperUrl != null) {
+            // A default, not an addition: the inferred developer goes into the generated POM only when the build
+            // declared none. Gradle's POM API can't list declared developers, so this checks the generated XML.
+            val inferredDeveloper = PomDeveloper(resolvedDeveloperId, resolvedDeveloperName, resolvedDeveloperUrl)
+            publication.pom.withXml { addDeveloperIfNone(asElement(), inferredDeveloper) }
+        }
+
+        publication.pom {
+            if (githubRepoUrl != null) {
+                url.convention(githubRepoUrl)
             }
 
-            if (javaComponent != null && existingPublication == null) {
-                publication.from(javaComponent)
-            }
-
-            val githubRepoUrl = resolvedGithubOwner?.let { owner ->
-                "https://github.com/$owner/$resolvedGithubRepository"
-            }
-            val githubScmUrl = githubRepoUrl?.let { "scm:git:$it.git" }
-            val githubDeveloperScmUrl = resolvedGithubOwner?.let { owner ->
-                "scm:git:ssh://git@github.com/$owner/$resolvedGithubRepository.git"
-            }
-
-            val configuredDeveloperId = stringProperty(
-                PUBLISHING_DEVELOPER_ID,
-                PUBLISHING_DEVELOPER_ID_ENV,
-            )
-            val configuredDeveloperName = stringProperty(
-                PUBLISHING_DEVELOPER_NAME,
-                PUBLISHING_DEVELOPER_NAME_ENV,
-            )
-            val configuredDeveloperUrl = stringProperty(
-                PUBLISHING_DEVELOPER_URL,
-                PUBLISHING_DEVELOPER_URL_ENV,
-            )
-            val resolvedDeveloperId = configuredDeveloperId ?: resolvedGithubOwner
-            val resolvedDeveloperName = configuredDeveloperName ?: resolvedGithubOwner
-            val resolvedDeveloperUrl = configuredDeveloperUrl ?: resolvedGithubOwner?.let { owner ->
-                "https://github.com/$owner"
-            }
-
-            publication.pom {
-                name.convention(publishingPomName)
-                description.convention(publishingPomDescription)
-                if (githubRepoUrl != null) {
-                    url.convention(githubRepoUrl)
-                }
-                licenses {
-                    license {
-                        name.set("The MIT License")
-                        url.set("https://opensource.org/licenses/MIT")
+            if (githubRepoUrl != null || githubScmUrl != null || githubDeveloperScmUrl != null) {
+                scm {
+                    if (githubRepoUrl != null) {
+                        url.convention(githubRepoUrl)
                     }
-                }
-
-                if (resolvedDeveloperId != null && resolvedDeveloperName != null && resolvedDeveloperUrl != null) {
-                    developers {
-                        developer {
-                            id.set(resolvedDeveloperId)
-                            name.set(resolvedDeveloperName)
-                            url.set(resolvedDeveloperUrl)
-                        }
+                    if (githubScmUrl != null) {
+                        connection.convention(githubScmUrl)
                     }
-                }
-
-                if (githubRepoUrl != null || githubScmUrl != null || githubDeveloperScmUrl != null) {
-                    scm {
-                        if (githubRepoUrl != null) {
-                            url.convention(githubRepoUrl)
-                        }
-                        if (githubScmUrl != null) {
-                            connection.convention(githubScmUrl)
-                        }
-                        if (githubDeveloperScmUrl != null) {
-                            developerConnection.convention(githubDeveloperScmUrl)
-                        }
+                    if (githubDeveloperScmUrl != null) {
+                        developerConnection.convention(githubDeveloperScmUrl)
                     }
                 }
             }
         }
 
-        repositories {
+        publishing.repositories {
             val existingGithubPackages = findByName("GitHubPackages")
             if (publishingGithubPackagesEnabled.get() && resolvedGithubOwner != null) {
                 when (existingGithubPackages) {
@@ -263,6 +265,18 @@ plugins.withId("maven-publish") {
                     )
                 }
             }
+        }
+    }
+
+    // An owner known now (property, environment, or a group set before this plugin) is applied now, so
+    // repositories.named("GitHubPackages", ...) works in the build script. Otherwise the owner may still come from a
+    // `group = ...` the build script sets after `plugins {}`: wait until the project is evaluated.
+    val ownerAtApplication = publishingGithubOwner.get().takeIf(String::isNotBlank)
+    if (ownerAtApplication != null) {
+        configureOwnerDependentPublishing(ownerAtApplication)
+    } else {
+        afterEvaluate {
+            configureOwnerDependentPublishing(publishingGithubOwner.get().takeIf(String::isNotBlank))
         }
     }
 }

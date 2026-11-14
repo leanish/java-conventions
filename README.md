@@ -144,7 +144,7 @@ Publishing repository/name/description conventions are derived from project meta
 Publishing owner/developer metadata is optional:
 - `leanish.conventions.publishing.githubOwner` resolves owner for GitHub URLs/repository.
 - Owner resolves by `GITHUB_REPOSITORY_OWNER`, then `JAVA_CONVENTIONS_PUBLISHING_GITHUB_OWNER`, then `leanish.conventions.publishing.githubOwner`, then `group` when it matches `io.github.<owner>`.
-- Developer fields (`id`, `name`, `url`) are optional and independent; missing values are inferred from resolved owner when possible (`id=<owner>`, `name=<owner>`, `url=https://github.com/<owner>`), and the `developers` block is emitted only when all three resolve.
+- Developer fields (`id`, `name`, `url`) are optional and independent; missing values are inferred from resolved owner when possible (`id=<owner>`, `name=<owner>`, `url=https://github.com/<owner>`), and the inferred developer is added only when all three resolve and the build declares no developer of its own (developers set in `pom { developers { … } }` replace it).
 - GitHub Packages credentials resolve by environment first (`GITHUB_ACTOR`, `GITHUB_TOKEN`), then properties (`gpr.user`, `gpr.key`).
 
 ## Publishing
@@ -324,6 +324,10 @@ Two supported patterns:
 1. Keep conventions enabled and reconfigure existing entries.
    - Reconfigure `mavenJava` with `publications.named("mavenJava", MavenPublication::class.java)`.
    - Reconfigure `GitHubPackages` with `repositories.named("GitHubPackages", MavenArtifactRepository::class.java)`.
+     When the owner comes only from a `group` set in the build script, the owner-dependent parts (POM URLs, developer, SCM
+     and the `GitHubPackages` repository) are added after the project is evaluated, so `named(...)` can't see the
+     repository yet; set the owner explicitly, or use
+     `repositories.withType<MavenArtifactRepository>().matching { it.name == "GitHubPackages" }.configureEach { ... }`.
    - Do not use `create<MavenPublication>("mavenJava")` when conventions are enabled, because `mavenJava` already exists.
 
 2. Fully replace plugin publishing behavior.
