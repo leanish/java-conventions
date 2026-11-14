@@ -1,8 +1,8 @@
 name: Dependency review
 
-# Reviews every dependency a PR adds or changes against the GitHub Advisory Database (vulnerabilities and
-# malware), from the resolved Gradle graph. Building the graph runs the build, so it gets a read-only token;
-# a separate job without any build code submits it.
+# Submits the resolved Gradle dependency graph to GitHub's dependency graph (which feeds Dependabot alerts); it
+# doesn't review or block anything. The advisory gate on PRs is the supply-chain workflow. Building the graph runs
+# the build, so it gets a read-only token; a separate job without any build code submits it.
 on:
   pull_request:
   push:
