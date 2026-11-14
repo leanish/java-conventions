@@ -797,6 +797,7 @@ class GradleConventionsPluginTest {
             projectDir,
             "build.gradle.kts",
             $$"""
+            import info.solidsoft.gradle.pitest.PitestPluginExtension
             import net.ltgt.gradle.errorprone.errorprone
             import org.gradle.api.tasks.compile.JavaCompile
 
@@ -817,6 +818,7 @@ class GradleConventionsPluginTest {
                     }
                     println("annotatedPackagesArg=$annotatedPackagesArg")
                     println("inferredBasePackage=$inferredBasePackage")
+                    println("pitestTargetClasses=${project.extensions.getByType(PitestPluginExtension::class.java).targetClasses.get()}")
                 }
             }
             """.trimIndent(),
@@ -824,7 +826,11 @@ class GradleConventionsPluginTest {
         writeFile(
             projectDir,
             "src/main/java/com/example/app/Sample.java",
+            // A license header with an unstarred declaration-shaped line, which a line-based reader took as the package.
             """
+            /*
+            package com.example.stale;
+            */
             package com.example.app;
 
             public class Sample {
@@ -854,6 +860,8 @@ class GradleConventionsPluginTest {
             .contains("Inferred 'leanish.conventions.basePackage=com.example.app' from source packages under src/main/java")
             .contains("annotatedPackagesArg=-XepOpt:NullAway:AnnotatedPackages=com.example.app")
             .contains("inferredBasePackage=com.example.app")
+            .contains("pitestTargetClasses=[com.example.app.*]")
+            .doesNotContain("com.example.stale")
     }
 
     @Test

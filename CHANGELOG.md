@@ -2,6 +2,12 @@
 
 ## 0.6.6
 
+### Fixed
+- Base package inference read the first line matching `package x.y;`, even inside a comment, and missed valid
+  declarations with Unicode identifiers, `$` or comments between tokens. It now reads the declaration the way the
+  compiler does: comments skipped, annotations (with their literals) allowed before it, Unicode escapes translated, Java
+  identifiers accepted. Projects whose inferred package changes can set `leanish.conventions.basePackage` explicitly.
+
 ## 0.6.5
 
 ### Changed
