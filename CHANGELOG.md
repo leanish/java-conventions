@@ -2,6 +2,13 @@
 
 ## 0.6.6
 
+### Fixed
+- A project's own Checkstyle config couldn't use files next to it through `${config_loc}` (an import-control file, a
+  header, …): only `checkstyle.xml` and `suppressions.xml` were copied to the generated directory that `config_loc`
+  points to. The whole `config/checkstyle` directory is now copied, keeping its layout (regular files only: symbolic
+  links inside it are skipped with a warning); the bundled fallbacks for a missing `checkstyle.xml` or
+  `suppressions.xml` are unchanged.
+
 ## 0.6.5
 
 ### Changed
