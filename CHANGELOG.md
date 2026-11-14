@@ -3,6 +3,10 @@
 ## 0.6.6
 
 ### Changed
+- The bundled pre-commit hook could commit unformatted code: it formatted and checked the working copy, but Git
+  committed the staged bytes. It now refuses the commit when a staged file differs from its working copy after
+  formatting, listing the files, and never restages anything. Committing part of a file's changes is refused too while
+  the rest is unstaged (stash it, or `--no-verify`). Existing installs pick it up as described for `installGitHooks`.
 - `setupProject` no longer prints "Git hooks installed in .git/hooks/" whatever happened: it prints what
   `installGitHooks` did with the hook and where (installed, updated, up to date, kept, or skipped and why), or that
   there was no `.git`. On a plain `build`, `installGitHooks` stays quiet when the hook is already up to date.
