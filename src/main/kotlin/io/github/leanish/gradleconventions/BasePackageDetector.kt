@@ -7,11 +7,13 @@ package io.github.leanish.gradleconventions
 
 import org.gradle.api.Project
 import java.io.File
+import java.nio.file.Files
+import java.nio.file.LinkOption
 
 internal object BasePackageDetector {
     fun detectBasePackages(projectDir: File): List<String> {
         val sourceRoot = projectDir.resolve("src/main/java")
-        if (!sourceRoot.exists() || !sourceRoot.isDirectory) {
+        if (!sourceRoot.isRealDirectory()) {
             return emptyList()
         }
 
@@ -55,7 +57,7 @@ internal object BasePackageDetector {
         }
 
         directoryEntries.asSequence()
-            .filter(File::isDirectory)
+            .filter { entry -> entry.isRealDirectory() }
             .forEach { childDirectory ->
                 detectPackagesRecursively(
                     directory = childDirectory,
@@ -63,6 +65,14 @@ internal object BasePackageDetector {
                 )
             }
     }
+
+    /**
+     * A directory whose own entry isn't a symbolic link (links higher up in the path aren't checked). Linked entries are
+     * skipped so a link to an ancestor can't make the walk revisit the tree over and over; a linked source tree has to
+     * set `leanish.conventions.basePackage`. Windows junctions aren't symbolic links to Java, so they are still followed.
+     */
+    private fun File.isRealDirectory(): Boolean =
+        Files.isDirectory(toPath(), LinkOption.NOFOLLOW_LINKS)
 
     private fun detectPackageNameFromSourceFile(sourceFile: File): String? {
         return JavaPackageDeclaration.parse(sourceFile.readText())

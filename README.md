@@ -136,7 +136,10 @@ Wrapper plugins can import these names directly from
   value in project extra properties, and logs the inference.
   In each directory it reads `.java` files until one has a package declaration, read the way the compiler does
   (comments skipped, annotations allowed before it, Unicode escapes translated), and doesn't descend further once it
-  found one; sources elsewhere (generated, other source sets) aren't read. Set the property when inference picks the wrong package or none.
+  found one; sources elsewhere (generated, other source sets) aren't read. A `src/main/java` that is itself a symbolic
+  link, and subdirectory entries that are symbolic links, are skipped (only those entries are checked, not the links in
+  the path above them); on Windows, directory junctions aren't symbolic links to Java and are still followed. Set the
+  property when inference picks the wrong package or none.
 - The plugin fails fast only when the property is blank or when it cannot infer any Java package.
 
 Publishing repository/name/description conventions are derived from project metadata and are not configurable properties:

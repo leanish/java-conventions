@@ -3,6 +3,9 @@
 ## 0.6.6
 
 ### Fixed
+- Base package inference no longer follows directory symbolic links under `src/main/java` (nor a linked
+  `src/main/java`): a link to an ancestor made it walk the same tree over and over. Packages reached only through a
+  link are no longer inferred; set `leanish.conventions.basePackage` for such layouts.
 - Base package inference read the first line matching `package x.y;`, even inside a comment, and missed valid
   declarations with Unicode identifiers, `$` or comments between tokens. It now reads the declaration the way the
   compiler does: comments skipped, annotations (with their literals) allowed before it, Unicode escapes translated, Java
