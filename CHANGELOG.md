@@ -2,10 +2,11 @@
 
 ## 0.6.6
 
-### Fixed
-- Restored this repository's explicit mirror and gate record of the commonmark core floor that the plugin injects into
-  consumer Error Prone classpaths. Since 0.6.5's follow-up removed them, the gate only saw core through
-  `commonmark-ext-gfm-tables`, which happens to pull `0.31.0`. Consumer builds are unchanged.
+### Changed
+- The plugin no longer declares commonmark core on consumers' Error Prone classpath next to
+  `commonmark-ext-gfm-tables`. The tables extension `0.31.0` depends on core `0.31.0`, so core still resolves to
+  `0.31.0` by default; the separate declaration was redundant, and this repository had already stopped mirroring it.
+  Consumers that exclude the tables extension from `errorprone` now need their own core floor.
 
 ## 0.6.5
 
