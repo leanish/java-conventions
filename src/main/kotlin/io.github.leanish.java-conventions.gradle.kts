@@ -16,6 +16,7 @@ import io.github.leanish.gradleconventions.ConventionProperties.PUBLISHING_DEVEL
 import io.github.leanish.gradleconventions.ConventionProperties.PUBLISHING_DEVELOPER_URL_ENV
 import io.github.leanish.gradleconventions.ConventionVersions
 import io.github.leanish.gradleconventions.GitHooks
+import io.github.leanish.gradleconventions.InstallGitHookTask
 import io.github.leanish.gradleconventions.WriteCheckstyleConfigTask
 import io.github.leanish.gradleconventions.javaConventionsProviders
 import io.github.leanish.gradleconventions.stringProperty
@@ -409,18 +410,12 @@ if (project == rootProject) {
         }
     }
 
-    tasks.register<Copy>("installGitHooks") {
-        description = "Copies git hooks from the conventions plugin to .git/hooks"
+    tasks.register<InstallGitHookTask>("installGitHooks") {
+        description = "Installs the conventions' pre-commit hook, keeping a hook it didn't install or that was edited"
         dependsOn(writePreCommitHook)
         onlyIf { gitExists.get() }
-
-        from(hookSource) {
-            rename { "pre-commit" }
-            filePermissions {
-                unix("755")
-            }
-        }
-        into(hooksDir)
+        hookFile.set(hookSource)
+        hooksDirectory.set(hooksDir)
     }
 
     tasks.named("build") {
