@@ -6,8 +6,10 @@
 package io.github.leanish.gradleconventions
 
 import java.io.File
+import java.io.IOException
 import java.io.Serializable
 import java.nio.file.Files
+import java.nio.file.LinkOption.NOFOLLOW_LINKS
 import java.nio.file.Path
 
 /** What running one git command gave. */
@@ -69,7 +71,17 @@ internal object GitHooks {
             return lookupFailed("`${GIT_PATHS_COMMAND.joinToString(" ")}` printed something unexpected: \"$output\"")
         }
         val (commonDirectory, hooksDirectory) = lines.map { resolve(projectDirectory, it) }
-        if (!realPathOfExistingPart(hooksDirectory).startsWith(realPathOfExistingPart(commonDirectory))) {
+        val hooksPath = hooksDirectory.toPath()
+        // A link to a missing directory can't be checked for containment, and installing would fail on it.
+        if (Files.isSymbolicLink(hooksPath) && !Files.exists(hooksPath)) {
+            return lookupFailed("the hooks directory $hooksDirectory is a link to ${Files.readSymbolicLink(hooksPath)}, which doesn't exist")
+        }
+        val inside = try {
+            realPathOfExistingPart(hooksDirectory).startsWith(realPathOfExistingPart(commonDirectory))
+        } catch (exception: IOException) {
+            return lookupFailed("couldn't resolve the hooks directory $hooksDirectory: $exception")
+        }
+        if (!inside) {
             return lookupFailed("the hooks directory $hooksDirectory is outside the repository's git directory $commonDirectory")
         }
         return HooksLocation.Install(hooksDirectory)
@@ -94,7 +106,8 @@ internal object GitHooks {
     private fun realPathOfExistingPart(file: File): Path {
         val path = file.toPath().toAbsolutePath().normalize()
         var existing = path
-        while (!Files.exists(existing)) {
+        // NOFOLLOW_LINKS: a dangling link counts as existing, so toRealPath() below fails on it instead of skipping it.
+        while (!Files.exists(existing, NOFOLLOW_LINKS)) {
             existing = existing.parent ?: return path
         }
         return existing.toRealPath().resolve(existing.relativize(path))
