@@ -324,6 +324,10 @@ Two supported patterns:
 1. Keep conventions enabled and reconfigure existing entries.
    - Reconfigure `mavenJava` with `publications.named("mavenJava", MavenPublication::class.java)`.
    - Reconfigure `GitHubPackages` with `repositories.named("GitHubPackages", MavenArtifactRepository::class.java)`.
+     When the owner comes only from a `group` set in the build script, the owner-dependent parts (POM URLs, developer, SCM
+     and the `GitHubPackages` repository) are added after the project is evaluated, so `named(...)` can't see the
+     repository yet; set the owner explicitly, or use
+     `repositories.withType<MavenArtifactRepository>().matching { it.name == "GitHubPackages" }.configureEach { ... }`.
    - Do not use `create<MavenPublication>("mavenJava")` when conventions are enabled, because `mavenJava` already exists.
 
 2. Fully replace plugin publishing behavior.
