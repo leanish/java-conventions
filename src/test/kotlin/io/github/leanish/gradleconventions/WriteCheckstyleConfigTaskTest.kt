@@ -128,6 +128,31 @@ class WriteCheckstyleConfigTaskTest {
         assertThat(generatedSuppressions).contains("<suppressions>")
     }
 
+    @Test
+    fun copiesTheWholeConsumerConfigDirectoryAndDropsStaleFiles() {
+        val project = newProject(tempDir.resolve("auxiliary").toFile())
+        val task = project.tasks.register("writeCheckstyleConfig", WriteCheckstyleConfigTask::class.java).get()
+        task.outputDir.set(project.layout.buildDirectory.dir("generated/checkstyle"))
+        val configDir = project.layout.projectDirectory.dir("config/checkstyle").asFile
+        configDir.resolve("nested").mkdirs()
+        configDir.resolve("checkstyle.xml").writeText("<module name=\"Checker\"/>")
+        configDir.resolve("import-control.xml").writeText("<import-control pkg=\"x\"/>")
+        configDir.resolve("nested/header.txt").writeText("header")
+        task.consumerConfigDirectory.set(configDir)
+        task.consumerCheckstyleFile.set(configDir.resolve("checkstyle.xml"))
+
+        task.writeCheckstyleFiles()
+        val generatedDir = project.layout.buildDirectory.dir("generated/checkstyle").get().asFile
+        assertThat(generatedDir.resolve("import-control.xml")).hasContent("<import-control pkg=\"x\"/>")
+        assertThat(generatedDir.resolve("nested/header.txt")).hasContent("header")
+        assertThat(generatedDir.resolve("suppressions.xml").readText()).contains("<suppressions>")
+
+        configDir.resolve("import-control.xml").delete()
+        task.writeCheckstyleFiles()
+        assertThat(generatedDir.resolve("import-control.xml")).doesNotExist()
+        assertThat(generatedDir.resolve("checkstyle.xml")).hasContent("<module name=\"Checker\"/>")
+    }
+
     private fun newProject(projectDir: File): Project {
         projectDir.mkdirs()
         return ProjectBuilder.builder()

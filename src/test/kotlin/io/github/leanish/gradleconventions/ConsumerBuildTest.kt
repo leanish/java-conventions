@@ -132,6 +132,57 @@ class ConsumerBuildTest {
     }
 
     @Test
+    fun customCheckstyleConfigCanReferenceFilesNextToItThroughConfigLoc() {
+        val projectDir = sampleConsumer("consumer-checkstyle-config-loc")
+        writeFile(
+            projectDir,
+            "config/checkstyle/checkstyle.xml",
+            """
+            <?xml version="1.0"?>
+            <!DOCTYPE module PUBLIC "-//Checkstyle//DTD Checkstyle Configuration 1.3//EN" "https://checkstyle.org/dtds/configuration_1_3.dtd">
+            <module name="Checker">
+                <module name="TreeWalker">
+                    <module name="ImportControl">
+                        <property name="file" value="${'$'}{config_loc}/import-control.xml"/>
+                    </module>
+                </module>
+            </module>
+            """.trimIndent(),
+        )
+        writeFile(
+            projectDir,
+            "config/checkstyle/import-control.xml",
+            """
+            <?xml version="1.0"?>
+            <!DOCTYPE import-control PUBLIC "-//Checkstyle//DTD ImportControl Configuration 1.4//EN" "https://checkstyle.org/dtds/import_control_1_4.dtd">
+            <import-control pkg="io.github.leanish.sample" strategyOnMismatch="allowed">
+                <disallow pkg="java.util"/>
+            </import-control>
+            """.trimIndent(),
+        )
+        writeSource(
+            projectDir,
+            "src/main/java/io/github/leanish/sample/Names.java",
+            """
+            package io.github.leanish.sample;
+
+            import java.util.List;
+
+            public final class Names {
+                public List<String> all() {
+                    return List.of("Ada");
+                }
+            }
+            """.trimIndent(),
+        )
+
+        val result = runner(projectDir, "checkstyleMain").buildAndFail()
+
+        assertThat(result.task(":checkstyleMain")?.outcome).isEqualTo(TaskOutcome.FAILED)
+        assertThat(result.output).contains("Disallowed import - java.util.List")
+    }
+
+    @Test
     fun errorProneFormatterParsesMarkdownJavadocWithTheCommonmarkFloor() {
         // google-java-format, on Error Prone's classpath, parses Markdown javadoc with commonmark; the conventions raise
         // commonmark above the version it was built against, so run it on a Markdown comment with a table.

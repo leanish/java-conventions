@@ -270,6 +270,10 @@ plugins.withId("maven-publish") {
 private val writeCheckstyleConfig = tasks.register<WriteCheckstyleConfigTask>("writeCheckstyleConfig") {
     description = "Writes bundled Checkstyle configuration to the build directory"
     outputDir.set(checkstyleConfigDir)
+    val consumerCheckstyleInputDirectory = rootProject.file("config/checkstyle")
+    if (consumerCheckstyleInputDirectory.isDirectory) {
+        consumerConfigDirectory.set(consumerCheckstyleInputDirectory)
+    }
     val consumerCheckstyleInputFile = rootProject.file("config/checkstyle/checkstyle.xml")
     val consumerSuppressionsInputFile = rootProject.file("config/checkstyle/suppressions.xml")
     if (consumerCheckstyleInputFile.exists()) {

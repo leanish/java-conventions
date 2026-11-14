@@ -362,6 +362,7 @@ It:
 ## Notes
 - Checkstyle uses the tool version from [`gradle/libs.versions.toml`](gradle/libs.versions.toml) (`checkstyle`).
 - Checkstyle uses `config/checkstyle/checkstyle.xml` and `config/checkstyle/suppressions.xml` when present in the consumer project.
+  The whole `config/checkstyle` directory is copied to the generated directory that `${config_loc}` points to, so a custom config can reference files next to it (for example `${config_loc}/import-control.xml`).
 - If either file is missing, the plugin falls back to bundled defaults (`checkstyle.xml` and empty suppressions).
 - These files are materialized under `build/generated/checkstyle` for Checkstyle only and are not packaged into JARs/publications.
 - **Checkstyle runtime requirement:** Checkstyle 14.x requires the **Java toolchain used by the plugin's runtime launcher** to be JDK 21 or newer. The default toolchain is JDK 25, which satisfies this. If you override the project Java toolchain to a version lower than JDK 21, Checkstyle tasks will fail even when the Gradle daemon itself runs on a newer JDK.
