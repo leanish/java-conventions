@@ -109,6 +109,23 @@ class GitHooksTest {
     }
 
     @Test
+    fun aHooksDirectoryLinkedToSomethingMissingIsSkipped() {
+        val repository = tempDir.resolve("repo").toFile()
+        initGitRepository(repository)
+        val missing = tempDir.resolve("outside/missing")
+        val hooks = repository.resolve(".git/hooks")
+        hooks.deleteRecursively()
+        Files.createSymbolicLink(hooks.toPath(), missing)
+
+        val location = locate(repository)
+
+        assertThat(location).isInstanceOf(HooksLocation.Skip::class.java)
+        assertThat((location as HooksLocation.Skip).expected).isFalse()
+        assertThat(location.reason).contains("which doesn't exist")
+        assertThat(missing).doesNotExist()
+    }
+
+    @Test
     fun keepsSpacesAtTheEndOfAPath() {
         val output = "/work/repo/.git\n/work/repo/.git/hooks \n"
         val location = GitHooks.locate(
