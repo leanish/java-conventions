@@ -398,8 +398,9 @@ It:
   - A green run means the files are on the registry; it doesn't resolve them from a consumer.
 - The build resolves `convention*` configurations (`conventionCheckstyle`, `conventionErrorprone`, …) that mirror what the
   plugin injects into consumer builds, with the same Guava floor, so a dependency scan of this repository covers the
-  versions consumers get. Nothing compiles against them; `checkConventionMirrors` (part of `check`) fails when an injected
-  version has no mirror.
+  versions consumers get. Nothing compiles against them; `ConventionMirrorsTest` (part of `check`) applies the plugin to a
+  consumer build and fails unless each mirror holds exactly the modules, at the same versions, that the plugin declares in
+  the consumer configurations it mirrors.
 - `.github/workflows/supply-chain.yml` runs the [leanish/leanish-development](https://github.com/leanish/leanish-development)
   gate: on a PR it fails what the change makes worse (new advisories, young versions, unpinned new actions), and it scans
   `main` on every push and daily; an open PR is checked again only when it's reopened, updated, edited or re-run.

@@ -97,18 +97,23 @@ kotlin.sourceSets.main {
 // What the conventions inject into consumer builds, resolved here too, so this repository's supply-chain gate scans the
 // exact versions consumers get. Each mirrors the consumer configuration it's named after, with the same floors; nothing
 // compiles against them. JaCoCo needs no mirror: this build applies it with the same tool version.
-fun conventionMirror(name: String, consumerConfigurations: String): Configuration =
-    configurations.create(name) {
-        description = "What the conventions add to consumer builds' $consumerConfigurations, for the supply-chain gate."
+// The consumer configurations each mirror covers; ConventionMirrorsTest compares them with a consumer build.
+val mirroredConsumerConfigurations = mutableMapOf<String, List<String>>()
+
+fun conventionMirror(name: String, vararg consumerConfigurations: String): Configuration {
+    mirroredConsumerConfigurations[name] = consumerConfigurations.toList()
+    return configurations.create(name) {
+        description = "What the conventions add to consumer builds' ${consumerConfigurations.joinToString(" and ")}, for the supply-chain gate."
         isCanBeConsumed = false
         isCanBeResolved = true
     }
+}
 
 val conventionCheckstyle = conventionMirror("conventionCheckstyle", "checkstyle")
 val conventionErrorprone = conventionMirror("conventionErrorprone", "errorprone")
-val conventionCompileOnly = conventionMirror("conventionCompileOnly", "compileOnly and testCompileOnly")
-val conventionAnnotationProcessor = conventionMirror("conventionAnnotationProcessor", "annotationProcessor and testAnnotationProcessor")
-val conventionTest = conventionMirror("conventionTest", "testImplementation and testRuntimeOnly")
+val conventionCompileOnly = conventionMirror("conventionCompileOnly", "compileOnly", "testCompileOnly")
+val conventionAnnotationProcessor = conventionMirror("conventionAnnotationProcessor", "annotationProcessor", "testAnnotationProcessor")
+val conventionTest = conventionMirror("conventionTest", "testImplementation", "testRuntimeOnly")
 val conventionPitest = conventionMirror("conventionPitest", "pitest")
 val conventionMirrors = listOf(
     conventionCheckstyle,
@@ -152,35 +157,39 @@ dependencies {
     conventionPitest(libs.pitest.junit5.plugin)
 }
 
-/** Fails when a version the conventions inject has no dependency in a convention mirror configuration. */
-abstract class CheckConventionMirrors : DefaultTask() {
+/**
+ * Writes each convention mirror's consumer configurations and declared coordinates (group:artifact:version) as a test
+ * resource, so ConventionMirrorsTest can compare them with what the plugin declares in a consumer build.
+ */
+abstract class WriteConventionMirrors : DefaultTask() {
     @get:Input
-    abstract val injected: MapProperty<String, String>
+    abstract val mirrors: MapProperty<String, String>
 
-    @get:Input
-    abstract val mirrored: SetProperty<String>
+    @get:OutputDirectory
+    abstract val outputDirectory: DirectoryProperty
 
     @TaskAction
-    fun check() {
-        val missing = injected.get().filterValues { it !in mirrored.get() }
-        if (missing.isNotEmpty()) {
-            throw GradleException("Injected versions without a convention mirror configuration: $missing")
-        }
+    fun write() {
+        val file = outputDirectory.file("convention-mirrors.properties").get().asFile
+        file.parentFile.mkdirs()
+        file.writeText(mirrors.get().toSortedMap().entries.joinToString("") { (name, value) -> "$name=$value\n" })
     }
 }
 
-val checkConventionMirrors = tasks.register<CheckConventionMirrors>("checkConventionMirrors") {
-    injected.set(
-        generateConventionVersions.flatMap { it.versions }.map { versions ->
-            // Not injected (tests only), and covered by this build's own JaCoCo.
-            versions - "PITEST_GRADLE_PLUGIN" - "JACOCO"
+val writeConventionMirrors = tasks.register<WriteConventionMirrors>("writeConventionMirrors") {
+    mirrors.set(
+        provider {
+            conventionMirrors.associate { mirror ->
+                val coordinates = mirror.dependencies.map { "${it.group}:${it.name}:${it.version}" }.sorted()
+                mirror.name to mirroredConsumerConfigurations.getValue(mirror.name).joinToString(",") + "|" + coordinates.joinToString(",")
+            }
         },
     )
-    mirrored.set(conventionMirrors.flatMap { mirror -> mirror.dependencies.mapNotNull { it.version } })
+    outputDirectory.set(layout.buildDirectory.dir("generated/resources/conventionMirrors"))
 }
 
-tasks.named("check") {
-    dependsOn(checkConventionMirrors)
+sourceSets.test {
+    resources.srcDir(writeConventionMirrors)
 }
 
 val defaultRuntimeJavaVersion = 25

@@ -3,6 +3,10 @@
 ## 0.6.6
 
 ### Fixed
+- The check that this repository mirrors what the plugin injects into consumers compared version strings only, so a
+  removed module sharing another's version (or still pulled transitively) went unnoticed. `checkConventionMirrors` is
+  replaced by `ConventionMirrorsTest`, which compares coordinates per consumer configuration against a real consumer
+  build.
 - Restored this repository's explicit mirror and gate record of the commonmark core floor that the plugin injects into
   consumer Error Prone classpaths. Since 0.6.5's follow-up removed them, the gate only saw core through
   `commonmark-ext-gfm-tables`, which happens to pull `0.31.0`. Consumer builds are unchanged.
