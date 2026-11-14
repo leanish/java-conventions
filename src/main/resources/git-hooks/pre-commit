@@ -20,16 +20,32 @@ if ! ./gradlew checkstyleMain checkstyleTest; then
     exit 1
 fi
 
-staged=()
-while IFS= read -r -d '' path; do
-    staged+=("$path")
-done < <(git diff --cached --name-only -z --diff-filter=ACMR)
+# Git's output goes to files, not process substitutions: a failing git must stop the commit, and NUL-separated paths
+# can't live in shell variables.
+staged_list=$(mktemp)
+pathspecs=$(mktemp)
+differing_list=$(mktemp)
+trap 'rm -f "$staged_list" "$pathspecs" "$differing_list"' EXIT
 
-if [ "${#staged[@]}" -gt 0 ]; then
+# Every staged path that isn't a deletion: added, modified, type-changed (file <-> symbolic link), renamed (new path).
+if ! git diff --cached --name-only -z --no-renames --diff-filter=d > "$staged_list"; then
+    echo "❌ Couldn't list the staged files (git diff --cached failed)."
+    exit 1
+fi
+while IFS= read -r -d '' path; do
+    printf ':(literal)%s\0' "$path"
+done < "$staged_list" > "$pathspecs"
+
+if [ -s "$pathspecs" ]; then
+    # xargs spreads a long list over several git calls, so a large commit can't exceed the argument limit.
+    if ! xargs -0 git diff --name-only -z -- < "$pathspecs" > "$differing_list"; then
+        echo "❌ Couldn't compare the staged files with the working copy (git diff failed)."
+        exit 1
+    fi
     differing=()
     while IFS= read -r -d '' path; do
         differing+=("$path")
-    done < <(git diff --name-only -z -- "${staged[@]/#/:(literal)}")
+    done < "$differing_list"
     if [ "${#differing[@]}" -gt 0 ]; then
         echo "❌ These staged files differ from what was checked (formatting changed them, or they have unstaged changes):"
         printf '   %s\n' "${differing[@]}"

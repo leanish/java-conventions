@@ -5,6 +5,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.io.File
+import java.nio.file.Files
 import java.nio.file.Path
 
 /**
@@ -57,6 +58,40 @@ class PreCommitHookTest {
             .start()
         val output = process.inputStream.bufferedReader().readText()
         return process.waitFor() to output
+    }
+
+    /**
+     * Runs the installed hook directly, with a stand-in git ahead on the PATH that fails one of its `git diff` calls.
+     * (Through `git commit` the stand-in wouldn't be used: Git puts its own directory first on a hook's PATH.)
+     */
+    private fun runHookWithFailingGitDiff(failingGitDiff: String): Pair<Int, String> {
+        val process = ProcessBuilder("bash", ".git/hooks/pre-commit")
+            .directory(repository)
+            .redirectErrorStream(true)
+            .apply {
+                environment()["PATH"] = failingGit().parent + File.pathSeparator + environment()["PATH"]
+                environment()["FAIL_GIT_DIFF"] = failingGitDiff
+                environment()["GIT_CONFIG_GLOBAL"] = "/dev/null"
+                environment()["GIT_CONFIG_NOSYSTEM"] = "1"
+            }
+            .start()
+        val output = process.inputStream.bufferedReader().readText()
+        return process.waitFor() to output
+    }
+
+    private fun failingGit(): File {
+        val realGit = ProcessBuilder("sh", "-c", "command -v git").start().inputStream.bufferedReader().readText().trim()
+        val stub = tempDir.resolve("stub-bin/git").toFile()
+        stub.parentFile.mkdirs()
+        stub.writeText(
+            """
+            #!/usr/bin/env bash
+            if [ "${'$'}1" = diff ] && [ "${'$'}2" = "${'$'}FAIL_GIT_DIFF" ]; then echo "fatal: injected failure" >&2; exit 128; fi
+            exec '$realGit' "${'$'}@"
+            """.trimIndent() + "\n",
+        )
+        stub.setExecutable(true)
+        return stub
     }
 
     private fun stage(name: String, content: String) {
@@ -131,5 +166,57 @@ class PreCommitHookTest {
         assertThat(exit).isNotZero()
         assertThat(output).contains("-odd name [1].java").doesNotContain("Fine.java")
         assertThat(staged("-odd name [1].java")).isEqualTo("class Odd { UNFORMATTED }\n")
+    }
+
+    @Test
+    fun refusesWhenListingTheStagedFilesFails() {
+        stage("A.java", "class A { formatted }\n")
+
+        val (exit, output) = runHookWithFailingGitDiff("--cached")
+
+        assertThat(exit).isNotZero()
+        assertThat(output).contains("Couldn't list the staged files").doesNotContain("passed!")
+    }
+
+    @Test
+    fun refusesWhenComparingWithTheWorkingCopyFails() {
+        stage("A.java", "class A { formatted }\n")
+
+        val (exit, output) = runHookWithFailingGitDiff("--name-only")
+
+        assertThat(exit).isNotZero()
+        assertThat(output).contains("Couldn't compare the staged files").doesNotContain("passed!")
+    }
+
+    @Test
+    fun refusesAStagedTypeChangeThatDiffersFromTheWorkingCopy() {
+        stage("data.txt", "regular\n")
+        git(repository, "commit", "-q", "-m", "regular file", "--no-verify")
+        val path = repository.resolve("data.txt").toPath()
+        Files.delete(path)
+        Files.createSymbolicLink(path, Path.of("target"))
+        git(repository, "add", "--", "data.txt")
+        Files.delete(path)
+        writeFile(repository, "data.txt", "regular again\n")
+
+        val (exit, output) = commit()
+
+        assertThat(exit).isNotZero()
+        assertThat(output).contains("data.txt")
+    }
+
+    @Test
+    fun handlesMoreStagedPathsThanFitInOneCommandLine() {
+        // About 1.3 MB of paths: more than macOS's 1 MiB argument limit, and passed to git in one go before.
+        val directory = "d".repeat(100)
+        val names = (1..12_000).map { "$directory/file-${"x".repeat(90)}-$it.txt" }
+        names.forEach { writeFile(repository, it, "same\n") }
+        git(repository, "add", "--", directory)
+        writeFile(repository, names.last(), "changed after staging\n")
+
+        val (exit, output) = commit()
+
+        assertThat(exit).describedAs(output).isNotZero()
+        assertThat(output).contains(names.last()).doesNotContain(names.first())
     }
 }
