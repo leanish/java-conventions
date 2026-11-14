@@ -15,13 +15,16 @@ import io.github.leanish.gradleconventions.ConventionProperties.PUBLISHING_DEVEL
 import io.github.leanish.gradleconventions.ConventionProperties.PUBLISHING_DEVELOPER_URL
 import io.github.leanish.gradleconventions.ConventionProperties.PUBLISHING_DEVELOPER_URL_ENV
 import io.github.leanish.gradleconventions.ConventionVersions
+import io.github.leanish.gradleconventions.GitCommandResult
 import io.github.leanish.gradleconventions.GitHooks
+import io.github.leanish.gradleconventions.HooksLocation
 import io.github.leanish.gradleconventions.InstallGitHookTask
 import io.github.leanish.gradleconventions.WriteCheckstyleConfigTask
 import io.github.leanish.gradleconventions.javaConventionsProviders
 import io.github.leanish.gradleconventions.stringProperty
 import net.ltgt.gradle.errorprone.errorprone
 import org.gradle.api.plugins.quality.CheckstyleExtension
+import org.gradle.process.ProcessExecutionException
 
 plugins {
     java
@@ -383,25 +386,30 @@ if (project == rootProject) {
     val projectHookFile = layout.projectDirectory.file("scripts/git-hooks/pre-commit")
     val preCommitHookFile = layout.buildDirectory.file("generated/git-hooks/pre-commit")
     val gitExists = providers.provider { gitMarker.asFile.exists() }
-    // Git itself says where it looks for hooks (a linked worktree's are in the main repository; `core.hooksPath` moves
-    // them). It's only asked when there is a repository: installGitHooks is skipped otherwise.
-    // The lambdas below capture only these values, not the project, for the configuration cache.
+    // Git itself says where it looks for hooks (a linked worktree's are in the main repository) and whether
+    // `core.hooksPath` is set (then the hooks are left alone). It's only asked when there is a repository:
+    // installGitHooks is skipped otherwise. The lambdas below capture only these values, not the project, for the
+    // configuration cache.
     val projectDirectoryFile = layout.projectDirectory.asFile
-    val gitHooksPath = providers.exec {
-        commandLine(GitHooks.HOOKS_PATH_COMMAND)
-        workingDir(projectDirectoryFile)
-        isIgnoreExitValue = true
+    fun gitCommand(command: List<String>): Provider<GitCommandResult> {
+        val exec = providers.exec {
+            commandLine(command)
+            workingDir(projectDirectoryFile)
+            isIgnoreExitValue = true
+        }
+        return providers.provider {
+            try {
+                GitCommandResult.Finished(exec.result.get().exitValue, exec.standardOutput.asText.get(), exec.standardError.asText.get())
+            } catch (exception: ProcessExecutionException) {
+                GitCommandResult.NotStarted(exception.message ?: exception.javaClass.name)
+            }
+        }
     }
-    val gitHooksDirectory = gitHooksPath.result.map { result ->
-        GitHooks.directory(
-            projectDirectory = projectDirectoryFile,
-            exitValue = result.exitValue,
-            output = gitHooksPath.standardOutput.asText.get(),
-            errorOutput = gitHooksPath.standardError.asText.get(),
-        )
-    }
-    val noRepositoryHooksDirectory = providers.provider { projectDirectoryFile.resolve(".git/hooks") }
-    val hooksDir = gitExists.flatMap { exists -> if (exists) gitHooksDirectory else noRepositoryHooksDirectory }
+    val hooksPathConfig = gitCommand(GitHooks.HOOKS_PATH_CONFIG_COMMAND)
+    val gitPaths = gitCommand(GitHooks.GIT_PATHS_COMMAND)
+    val gitHooksLocation = hooksPathConfig.zip(gitPaths) { config, paths -> GitHooks.locate(projectDirectoryFile, config, paths) }
+    val noRepository = providers.provider<HooksLocation> { HooksLocation.Skip("there is no .git", expected = true) }
+    val resolvedHooksLocation = gitExists.flatMap { exists -> if (exists) gitHooksLocation else noRepository }
     val writePreCommitHook = tasks.register("writePreCommitHook") {
         description = "Writes the bundled pre-commit hook to the build directory"
         outputs.file(preCommitHookFile)
@@ -428,7 +436,7 @@ if (project == rootProject) {
         dependsOn(writePreCommitHook)
         onlyIf { gitExists.get() }
         hookFile.set(hookSource)
-        hooksDirectory.set(hooksDir)
+        hooksLocation.set(resolvedHooksLocation)
     }
 
     tasks.named("build") {
