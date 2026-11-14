@@ -6,6 +6,7 @@ import org.gradle.testkit.runner.TaskOutcome
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.io.File
+import java.nio.file.Files
 import java.nio.file.Path
 
 /**
@@ -227,6 +228,40 @@ class ConsumerBuildTest {
                     "$version\\.jar",
             )
             .contains("/// | Name | Value |")
+    }
+
+    @Test
+    fun writeCheckstyleConfigTracksAuxiliaryFilesAndSkipsLinks() {
+        val projectDir = sampleConsumer("consumer-checkstyle-auxiliary-tracking")
+        val auxiliary = projectDir.resolve("config/checkstyle/import-control.xml")
+        val generated = projectDir.resolve("build/generated/checkstyle/import-control.xml")
+        writeFile(projectDir, "config/checkstyle/import-control.xml", "v1")
+        fun write() = runner(projectDir, "writeCheckstyleConfig").build()
+
+        assertThat(write().task(":writeCheckstyleConfig")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
+        assertThat(generated).hasContent("v1")
+        assertThat(write().task(":writeCheckstyleConfig")?.outcome).isEqualTo(TaskOutcome.UP_TO_DATE)
+
+        auxiliary.writeText("v2")
+        assertThat(write().task(":writeCheckstyleConfig")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
+        assertThat(generated).hasContent("v2")
+
+        auxiliary.delete()
+        assertThat(write().task(":writeCheckstyleConfig")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
+        assertThat(generated).doesNotExist()
+
+        // Through Gradle too, so its snapshot of the input directory meets them: a loop, an outside tree, a linked file.
+        val configDir = projectDir.resolve("config/checkstyle").toPath()
+        val outside = tempDir.resolve("outside-config").toFile().apply { mkdirs() }
+        outside.resolve("secret.txt").writeText("outside")
+        Files.createSymbolicLink(configDir.resolve("loop"), configDir)
+        Files.createSymbolicLink(configDir.resolve("external"), outside.toPath())
+        Files.createSymbolicLink(configDir.resolve("linked.txt"), outside.resolve("secret.txt").toPath())
+        val withLinks = write()
+        assertThat(withLinks.task(":writeCheckstyleConfig")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
+        assertThat(withLinks.output).contains("Skipped symbolic links in").contains("external, linked.txt, loop")
+        assertThat(projectDir.resolve("build/generated/checkstyle/external")).doesNotExist()
+        assertThat(projectDir.resolve("build/generated/checkstyle/linked.txt")).doesNotExist()
     }
 
     private fun runner(projectDir: File, vararg arguments: String): GradleRunner =
