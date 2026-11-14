@@ -367,7 +367,7 @@ It:
 - **Checkstyle runtime requirement:** Checkstyle 14.x requires the **Java toolchain used by the plugin's runtime launcher** to be JDK 21 or newer. The default toolchain is JDK 25, which satisfies this. If you override the project Java toolchain to a version lower than JDK 21, Checkstyle tasks will fail even when the Gradle daemon itself runs on a newer JDK.
 - The plugin does not add a toolchain resolver; ensure the configured JDK is available locally or add a resolver in the consuming project.
 - Dependencies added by the plugin are additive; your project dependencies remain in effect.
-- The bundled pre-commit hook runs `./gradlew spotlessApply` and `./gradlew checkstyleMain checkstyleTest`, and may modify files before commit.
+- The bundled pre-commit hook runs `./gradlew spotlessApply` and `./gradlew checkstyleMain checkstyleTest` on the working copy, then refuses the commit if any staged file differs from its working copy: formatting changed it, or it has unstaged changes. It never stages anything itself: review the changes, `git add` them and commit again. Committing part of a file's changes (partial staging) is therefore refused while the rest is unstaged; stash it first, or use `git commit --no-verify`.
 - `installGitHooks` installs `scripts/git-hooks/pre-commit` if the project has one, else the bundled hook, and keeps a pre-commit hook it didn't install (or one edited since, or a symbolic link) with a warning; it records what it installed in `.git/hooks/pre-commit.java-conventions.sha256`. To switch to the conventions' hook, delete the existing one and run `installGitHooks`.
 
 ## Plugin project CI (maintainers)

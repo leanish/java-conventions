@@ -2,6 +2,10 @@
 
 set -euo pipefail
 
+# Spotless and Checkstyle check the working copy, but the commit is made from the index. So after they pass, the
+# commit is refused when any staged file differs from its working copy: formatting changed it, or it has unstaged
+# changes (partial staging). The index is never modified here; the developer reviews and stages.
+
 echo "Running spotlessApply and checkstyle..."
 
 echo "Running spotlessApply..."
@@ -14,6 +18,24 @@ echo "Running checkstyle..."
 if ! ./gradlew checkstyleMain checkstyleTest; then
     echo "❌ Checkstyle failed. Please fix the issues before committing."
     exit 1
+fi
+
+staged=()
+while IFS= read -r -d '' path; do
+    staged+=("$path")
+done < <(git diff --cached --name-only -z --diff-filter=ACMR)
+
+if [ "${#staged[@]}" -gt 0 ]; then
+    differing=()
+    while IFS= read -r -d '' path; do
+        differing+=("$path")
+    done < <(git diff --name-only -z -- "${staged[@]/#/:(literal)}")
+    if [ "${#differing[@]}" -gt 0 ]; then
+        echo "❌ These staged files differ from what was checked (formatting changed them, or they have unstaged changes):"
+        printf '   %s\n' "${differing[@]}"
+        echo "   Review them, stage what you want to commit (git add), and commit again."
+        exit 1
+    fi
 fi
 
 echo "✅ Spotless and checkstyle passed!"
