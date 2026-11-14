@@ -259,7 +259,7 @@ class ConsumerBuildTest {
         Files.createSymbolicLink(configDir.resolve("linked.txt"), outside.resolve("secret.txt").toPath())
         val withLinks = write()
         assertThat(withLinks.task(":writeCheckstyleConfig")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
-        assertThat(withLinks.output).contains("Skipped symbolic links in").contains("external, linked.txt, loop")
+        assertThat(withLinks.output).contains("Skipped symbolic links while copying").contains("external, linked.txt, loop")
         assertThat(projectDir.resolve("build/generated/checkstyle/external")).doesNotExist()
         assertThat(projectDir.resolve("build/generated/checkstyle/linked.txt")).doesNotExist()
     }

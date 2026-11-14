@@ -178,6 +178,28 @@ class WriteCheckstyleConfigTaskTest {
         assertThat(outside.resolve("secret.txt")).hasContent("outside")
     }
 
+    @Test
+    fun readsLinkedCheckstyleAndSuppressionsFiles() {
+        val project = newProject(tempDir.resolve("linked-named-files").toFile())
+        val task = project.tasks.register("writeCheckstyleConfig", WriteCheckstyleConfigTask::class.java).get()
+        task.outputDir.set(project.layout.buildDirectory.dir("generated/checkstyle"))
+        val shared = tempDir.resolve("shared").toFile().apply { mkdirs() }
+        shared.resolve("checkstyle.xml").writeText("<module name=\"Checker\"><!-- shared --></module>")
+        shared.resolve("suppressions.xml").writeText("<suppressions><!-- shared --></suppressions>")
+        val configDir = project.layout.projectDirectory.dir("config/checkstyle").asFile.apply { mkdirs() }
+        Files.createSymbolicLink(configDir.resolve("checkstyle.xml").toPath(), shared.resolve("checkstyle.xml").toPath())
+        Files.createSymbolicLink(configDir.resolve("suppressions.xml").toPath(), shared.resolve("suppressions.xml").toPath())
+        task.consumerConfigDirectory.set(configDir)
+        task.consumerCheckstyleFile.set(configDir.resolve("checkstyle.xml"))
+        task.consumerSuppressionsFile.set(configDir.resolve("suppressions.xml"))
+
+        task.writeCheckstyleFiles()
+
+        val generatedDir = project.layout.buildDirectory.dir("generated/checkstyle").get().asFile
+        assertThat(generatedDir.resolve("checkstyle.xml")).hasContent("<module name=\"Checker\"><!-- shared --></module>")
+        assertThat(generatedDir.resolve("suppressions.xml")).hasContent("<suppressions><!-- shared --></suppressions>")
+    }
+
     private fun newProject(projectDir: File): Project {
         projectDir.mkdirs()
         return ProjectBuilder.builder()

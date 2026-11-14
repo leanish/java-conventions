@@ -33,7 +33,8 @@ import java.nio.file.attribute.BasicFileAttributes
  * - Copies the consumer project's whole `config/checkstyle` directory, keeping its layout, so files a custom config
  *   references through `${config_loc}` (an import-control file, say) resolve in the generated directory. Only regular
  *   files and real directories are copied: symbolic links in it are skipped with a warning, so a link can't pull in an
- *   outside tree or loop back on itself.
+ *   outside tree or loop back on itself. The two named files below are the exception: they are read even through a
+ *   link.
  * - Copies the consumer project's `checkstyle.xml` into the generated config directory when provided.
  * - Falls back to the plugin-bundled `checkstyle.xml` when no project file exists.
  * - Copies the consumer project's `suppressions.xml` into the generated config directory when provided.
@@ -77,9 +78,14 @@ internal abstract class WriteCheckstyleConfigTask : DefaultTask() {
         outputDirFile.deleteRecursively()
         outputDirFile.mkdirs()
         consumerConfigDirectory.orNull?.asFile?.let { source ->
+            // checkstyle.xml and suppressions.xml are written below from their own inputs, links or not.
             val skipped = copyRegularFiles(source.toPath(), outputDirFile.toPath())
+                .filterNot { it.toString() in NAMED_FILES }
             if (skipped.isNotEmpty()) {
-                logger.warn("Skipped symbolic links in ${source}: ${skipped.joinToString()}. Only regular files are copied for Checkstyle.")
+                logger.warn(
+                    "Skipped symbolic links while copying $source: ${skipped.joinToString()}. Only regular files are " +
+                        "copied for Checkstyle (checkstyle.xml and suppressions.xml are read even through a link).",
+                )
             }
         }
 
@@ -93,6 +99,10 @@ internal abstract class WriteCheckstyleConfigTask : DefaultTask() {
             consumerFile = consumerSuppressionsFile.orNull?.asFile,
             bundledResourcePath = "checkstyle/empty-suppressions.xml",
         )
+    }
+
+    private companion object {
+        val NAMED_FILES = setOf("checkstyle.xml", "suppressions.xml")
     }
 
     /** Copies [source]'s regular files into [target] without following links; returns the links it skipped. */
