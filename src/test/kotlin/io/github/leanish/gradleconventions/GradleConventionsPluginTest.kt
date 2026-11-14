@@ -2213,6 +2213,34 @@ class GradleConventionsPluginTest {
     }
 
     @Test
+    fun installGitHooksLeavesAConfiguredHooksPathAlone() {
+        val projectDir = tempDir.resolve("configured-hooks-path").toFile()
+        initGitRepository(projectDir)
+        git(projectDir, "config", "core.hooksPath", ".githooks")
+        writeRequiredConventionsProperties(projectDir)
+        writeFile(projectDir, "settings.gradle.kts", "rootProject.name = \"test-configured-hooks-path\"")
+        writeFile(
+            projectDir,
+            "build.gradle.kts",
+            """
+            plugins {
+                id("io.github.leanish.java-conventions")
+            }
+            """.trimIndent(),
+        )
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withArguments("installGitHooks", "--info")
+            .withPluginClasspath()
+            .build()
+
+        assertThat(result.output).contains("Didn't install the pre-commit hook: core.hooksPath is set (\".githooks\")")
+        assertThat(projectDir.resolve(".githooks")).doesNotExist()
+        assertThat(projectDir.resolve(".git/hooks/pre-commit")).doesNotExist()
+    }
+
+    @Test
     fun installGitHooksInALinkedWorktreeInstallsWhereGitRunsHooks() {
         val repository = tempDir.resolve("main-repository").toFile()
         initGitRepository(repository)

@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+echo "Running spotlessApply and checkstyle..."
+
+echo "Running spotlessApply..."
+if ! ./gradlew spotlessApply; then
+    echo "❌ spotlessApply failed. Please fix the issues before committing."
+    exit 1
+fi
+
+echo "Running checkstyle..."
+if ! ./gradlew checkstyleMain checkstyleTest; then
+    echo "❌ Checkstyle failed. Please fix the issues before committing."
+    exit 1
+fi
+
+echo "✅ Spotless and checkstyle passed!"
+exit 0

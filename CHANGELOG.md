@@ -3,20 +3,23 @@
 ## 0.6.6
 
 ### Changed
-- `setupProject` no longer prints "Git hooks installed in .git/hooks/" whatever happened: `installGitHooks` reports
-  whether it installed, updated, kept or left the hook up to date, and where; `setupProject` says when there was no
-  `.git` to install into.
-- `installGitHooks` asks Git where it runs hooks (`git rev-parse --git-path hooks`) instead of reading `.git` itself.
-  In a linked worktree it used to write the hook into the worktree's private git directory, where Git never runs it;
-  now it goes to the main repository's hooks directory, and a configured `core.hooksPath` is honoured. It needs `git`
-  on the `PATH` when the project has a `.git`, and fails with Git's message if the lookup fails, instead of falling back
-  to `.git/hooks`.
+- `setupProject` no longer prints "Git hooks installed in .git/hooks/" whatever happened: it prints what
+  `installGitHooks` did with the hook and where (installed, updated, up to date, kept, or skipped and why), or that
+  there was no `.git`. On a plain `build`, `installGitHooks` stays quiet when the hook is already up to date.
+- `installGitHooks` asks Git where it runs hooks (`git rev-parse --git-common-dir --git-path hooks`) instead of reading
+  `.git` itself. In a linked worktree it used to write the hook into the worktree's private git directory, where Git
+  never runs it; now it goes to the main repository's hooks directory, which all linked worktrees share. When
+  `core.hooksPath` is set (in the repository or globally, even to an empty value) it now installs nothing and leaves
+  those hooks alone. It needs `git` on the `PATH` when the project has a `.git`; if git can't run or the lookup fails,
+  it warns and skips instead of falling back to `.git/hooks`. The record of what it installed lives next to the hook.
 - `installGitHooks` (which `build` runs) no longer overwrites a pre-commit hook it didn't install: a hook from another
   tool, a hand-written one, a symbolic link, or an installed hook edited locally is kept, with a warning. It records
   the SHA-256 of what it installs in `.git/hooks/pre-commit.java-conventions.sha256` and replaces only a hook that
-  still matches. Migration: a hook installed by an earlier version and identical to the current one is adopted
-  silently; an older one is kept with the warning: delete `.git/hooks/pre-commit` and run `installGitHooks` once to
-  take the current hook.
+  still matches. Migration: a hook installed by an earlier version (the exact bytes of any previously bundled hook) is
+  adopted and updated while there is no record yet; a hand-edited one is kept with the warning (delete
+  `.git/hooks/pre-commit` and run `installGitHooks` once to take the current hook). An installed hook that isn't
+  executable is made executable, and nothing is written through a hook or record that is a symbolic link or not a
+  regular file.
 
 ## 0.6.5
 
