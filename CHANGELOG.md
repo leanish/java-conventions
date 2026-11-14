@@ -2,6 +2,14 @@
 
 ## 0.6.6
 
+### Changed
+- `installGitHooks` (which `build` runs) no longer overwrites a pre-commit hook it didn't install: a hook from another
+  tool, a hand-written one, a symbolic link, or an installed hook edited locally is kept, with a warning. It records
+  the SHA-256 of what it installs in `.git/hooks/pre-commit.java-conventions.sha256` and replaces only a hook that
+  still matches. Migration: a hook installed by an earlier version and identical to the current one is adopted
+  silently; an older one is kept with the warning: delete `.git/hooks/pre-commit` and run `installGitHooks` once to
+  take the current hook.
+
 ## 0.6.5
 
 ### Changed

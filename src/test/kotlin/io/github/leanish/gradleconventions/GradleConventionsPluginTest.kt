@@ -2184,6 +2184,35 @@ class GradleConventionsPluginTest {
     }
 
     @Test
+    fun installGitHooksKeepsAPreCommitHookItDidNotInstall() {
+        val projectDir = tempDir.resolve("foreign-hook").toFile()
+        projectDir.mkdirs()
+        writeRequiredConventionsProperties(projectDir)
+        writeFile(projectDir, "settings.gradle.kts", "rootProject.name = \"test-foreign-hook\"")
+        writeFile(
+            projectDir,
+            "build.gradle.kts",
+            """
+            plugins {
+                id("io.github.leanish.java-conventions")
+            }
+            """.trimIndent(),
+        )
+        val foreignHook = projectDir.resolve(".git/hooks/pre-commit")
+        foreignHook.parentFile.mkdirs()
+        foreignHook.writeText("#!/bin/sh\nexec another-tool\n")
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withArguments("installGitHooks")
+            .withPluginClasspath()
+            .build()
+
+        assertThat(foreignHook).hasContent("#!/bin/sh\nexec another-tool\n")
+        assertThat(result.output).contains("java-conventions didn't install it, or it was edited since")
+    }
+
+    @Test
     fun spotlessOrdersImportsTheWayTheBundledCheckstyleConfigExpects() {
         val projectDir = tempDir.resolve("spotless-import-order").toFile()
         projectDir.mkdirs()

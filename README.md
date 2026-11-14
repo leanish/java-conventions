@@ -368,6 +368,7 @@ It:
 - The plugin does not add a toolchain resolver; ensure the configured JDK is available locally or add a resolver in the consuming project.
 - Dependencies added by the plugin are additive; your project dependencies remain in effect.
 - The bundled pre-commit hook runs `./gradlew spotlessApply` and `./gradlew checkstyleMain checkstyleTest`, and may modify files before commit.
+- `installGitHooks` installs `scripts/git-hooks/pre-commit` if the project has one, else the bundled hook, and keeps a pre-commit hook it didn't install (or one edited since, or a symbolic link) with a warning; it records what it installed in `.git/hooks/pre-commit.java-conventions.sha256`. To switch to the conventions' hook, delete the existing one and run `installGitHooks`.
 
 ## Plugin project CI (maintainers)
 - Checked-in Linux jobs run on `ubuntu-26.04`, with Gradle `9.8.2` and the existing JDK baselines.
