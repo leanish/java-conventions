@@ -291,8 +291,10 @@ release tag is what that release uses.
   `annotationProcessor`, and `testAnnotationProcessor`.
 - Sets a Guava `33.8.0-jre` version floor for Checkstyle and Error Prone to fix `CVE-2026-102554` and `GHSA-v5x9-67m3-7m56`.
   Consumer Checkstyle `toolVersion` overrides remain supported.
-- Sets a commonmark `0.31.0` version floor (`commonmark` and `commonmark-ext-gfm-tables`) for Error Prone, whose
-  google-java-format parses Markdown javadoc with it, to fix commonmark-java's denial-of-service advisories.
+- Sets a commonmark `0.31.0` version floor for Error Prone, whose google-java-format parses Markdown javadoc with it,
+  to fix commonmark-java's denial-of-service advisories: it declares `commonmark-ext-gfm-tables` `0.31.0`, which
+  depends on `commonmark` (core) `0.31.0`, so core resolves to at least that version too. A consumer that excludes the
+  tables extension from `errorprone` needs its own core floor.
 - Adds Error Prone analysis dependencies:
   - `com.google.errorprone:error_prone_core`
   - `com.uber.nullaway:nullaway`
@@ -399,8 +401,8 @@ It:
 - The build resolves `convention*` configurations (`conventionCheckstyle`, `conventionErrorprone`, …) that mirror what the
   plugin injects into consumer builds, with the same Guava floor, so a dependency scan of this repository covers the
   versions consumers get. Nothing compiles against them; `ConventionMirrorsTest` (part of `check`) applies the plugin to a
-  consumer build and fails unless each mirror holds exactly the modules, at the same versions, that the plugin declares in
-  the consumer configurations it mirrors.
+  consumer build and fails unless every consumer configuration the plugin declares something in has a mirror, and each
+  of those configurations declares exactly the mirror's modules, at the same versions.
 - `.github/workflows/supply-chain.yml` runs the [leanish/leanish-development](https://github.com/leanish/leanish-development)
   gate: on a PR it fails what the change makes worse (new advisories, young versions, unpinned new actions), and it scans
   `main` on every push and daily; an open PR is checked again only when it's reopened, updated, edited or re-run.

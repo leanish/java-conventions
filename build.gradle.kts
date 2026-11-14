@@ -113,20 +113,21 @@ val conventionCheckstyle = conventionMirror("conventionCheckstyle", "checkstyle"
 val conventionErrorprone = conventionMirror("conventionErrorprone", "errorprone")
 val conventionCompileOnly = conventionMirror("conventionCompileOnly", "compileOnly", "testCompileOnly")
 val conventionAnnotationProcessor = conventionMirror("conventionAnnotationProcessor", "annotationProcessor", "testAnnotationProcessor")
-val conventionTest = conventionMirror("conventionTest", "testImplementation", "testRuntimeOnly")
+val conventionTestImplementation = conventionMirror("conventionTestImplementation", "testImplementation")
+val conventionTestRuntimeOnly = conventionMirror("conventionTestRuntimeOnly", "testRuntimeOnly")
 val conventionPitest = conventionMirror("conventionPitest", "pitest")
 val conventionMirrors = listOf(
     conventionCheckstyle,
     conventionErrorprone,
     conventionCompileOnly,
     conventionAnnotationProcessor,
-    conventionTest,
+    conventionTestImplementation,
+    conventionTestRuntimeOnly,
     conventionPitest,
 )
 
 // Same floor, and same reason, as the plugin sets in consumer builds.
 val guavaFloorReason = "CVE-2026-102554 and GHSA-v5x9-67m3-7m56: excessive allocation in Guava deserialization, hash flooding"
-val commonmarkFloorReason = "GHSA-mg3c-47fx-jhgf, GHSA-g3cr-8x4q-74q3, GHSA-cc3j-83v5-hqfg, GHSA-vwrf-xrcv-x2rr, GHSA-cxq4-f84x-5ph8 and GHSA-5g96-4gff-g8g2: denial of service parsing Markdown"
 val commonmarkTablesFloorReason = "GHSA-cx98-gqcg-rp8q: denial of service parsing Markdown tables"
 
 dependencies {
@@ -139,9 +140,6 @@ dependencies {
     conventionErrorprone(libs.guava) {
         because(guavaFloorReason)
     }
-    conventionErrorprone(libs.commonmark) {
-        because(commonmarkFloorReason)
-    }
     conventionErrorprone(libs.commonmark.ext.gfm.tables) {
         because(commonmarkTablesFloorReason)
     }
@@ -150,9 +148,9 @@ dependencies {
     conventionCompileOnly(libs.errorprone.annotations)
     conventionCompileOnly(libs.lombok)
     conventionAnnotationProcessor(libs.lombok)
-    conventionTest(libs.junit.jupiter)
-    conventionTest(libs.assertj.core)
-    conventionTest(libs.junit.platform.launcher)
+    conventionTestImplementation(libs.junit.jupiter)
+    conventionTestImplementation(libs.assertj.core)
+    conventionTestRuntimeOnly(libs.junit.platform.launcher)
     conventionPitest(libs.pitest.command.line)
     conventionPitest(libs.pitest.junit5.plugin)
 }
