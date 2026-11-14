@@ -11,10 +11,11 @@ class JavaPackageDeclarationTest {
 
     @Test
     fun ignoresADeclarationInsideABlockComment() {
+        // Unstarred, so a line-based reader (the previous one) took it for the declaration.
         val source = """
             /*
-             * package stale.example;
-             */
+            package stale.example;
+            */
             package com.example;
         """.trimIndent()
 
@@ -24,6 +25,14 @@ class JavaPackageDeclarationTest {
     @Test
     fun ignoresADeclarationInsideALineComment() {
         assertThat(JavaPackageDeclaration.parse("// package stale.example;\npackage com.example;")).isEqualTo("com.example")
+    }
+
+    @Test
+    fun endsALineCommentAtAnyLineTerminator() {
+        assertThat(JavaPackageDeclaration.parse("// notice\rpackage com.example;\rpublic class A {}")).isEqualTo("com.example")
+        assertThat(JavaPackageDeclaration.parse("// notice\r\npackage com.example;\r\n")).isEqualTo("com.example")
+        assertThat(JavaPackageDeclaration.parse("// notice\\u000dpackage com.example;")).isEqualTo("com.example")
+        assertThat(JavaPackageDeclaration.parse("// notice\\u000apackage com.example;")).isEqualTo("com.example")
     }
 
     @Test
