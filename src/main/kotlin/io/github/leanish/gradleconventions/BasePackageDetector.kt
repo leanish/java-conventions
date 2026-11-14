@@ -67,8 +67,9 @@ internal object BasePackageDetector {
     }
 
     /**
-     * A directory that isn't reached through a symbolic link. Links are skipped so a link to an ancestor can't make the
-     * walk revisit the tree over and over; a linked source tree has to set `leanish.conventions.basePackage`.
+     * A directory whose own entry isn't a symbolic link (links higher up in the path aren't checked). Linked entries are
+     * skipped so a link to an ancestor can't make the walk revisit the tree over and over; a linked source tree has to
+     * set `leanish.conventions.basePackage`. Windows junctions aren't symbolic links to Java, so they are still followed.
      */
     private fun File.isRealDirectory(): Boolean =
         Files.isDirectory(toPath(), LinkOption.NOFOLLOW_LINKS)

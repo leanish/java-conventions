@@ -45,18 +45,27 @@ internal object JavaPackageDeclaration {
         }
     }
 
-    /** Skips whitespace and comments from [start]; an unterminated block comment runs to the end. */
+    /**
+     * Skips whitespace and comments from [start]; an unterminated block comment runs to the end. A line comment ends at
+     * any Java line terminator: LF, CR or CRLF (also when written as a Unicode escape, translated before this).
+     */
     private fun skipIgnorable(text: String, start: Int): Int {
         var index = start
         while (index < text.length) {
             index = when {
                 text[index].isWhitespace() -> index + 1
-                text.startsWith("//", index) -> text.indexOf('\n', index).let { if (it < 0) text.length else it + 1 }
+                text.startsWith("//", index) -> lineEnd(text, index)
                 text.startsWith("/*", index) -> text.indexOf("*/", index + 2).let { if (it < 0) text.length else it + 2 }
                 else -> return index
             }
         }
         return index
+    }
+
+    /** The index after the line terminator that ends the line at [start], or the end of [text]. */
+    private fun lineEnd(text: String, start: Int): Int {
+        val terminator = text.indexOfAny(charArrayOf('\n', '\r'), start)
+        return if (terminator < 0) text.length else terminator + 1
     }
 
     /** Skips `@Name`, `@a.b.Name` or `@Name(...)` from the `@` at [start]; null if it isn't one. */
