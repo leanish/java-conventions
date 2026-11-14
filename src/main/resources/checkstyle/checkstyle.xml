@@ -25,7 +25,7 @@
 
     <module name="TreeWalker">
         <module name="RegexpSinglelineJava">
-            <property name="format" value="^import\\s+com\\.fasterxml\\.jackson\\.(core|databind)\\."/>
+            <property name="format" value="^import\s+(static\s+)?com\.fasterxml\.jackson\.(core|databind)\."/>
             <property name="message" value="Use tools.jackson.* instead of com.fasterxml.jackson.core/databind."/>
             <property name="ignoreComments" value="true"/>
         </module>

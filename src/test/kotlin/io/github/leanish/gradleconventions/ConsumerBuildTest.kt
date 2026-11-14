@@ -132,6 +132,39 @@ class ConsumerBuildTest {
     }
 
     @Test
+    fun checkstyleRejectsJacksonCoreAndDatabindImportsOnly() {
+        val projectDir = sampleConsumer("consumer-jackson-imports")
+        val sources = mapOf(
+            "Plain" to "import com.fasterxml.jackson.databind.ObjectMapper;",
+            "Static" to "import static com.fasterxml.jackson.databind.SerializationFeature.INDENT_OUTPUT;",
+            "Core" to "import com.fasterxml.jackson.core.JsonParser;",
+            "Annotation" to "import com.fasterxml.jackson.annotation.JsonProperty;",
+            "Commented" to "// import com.fasterxml.jackson.databind.ObjectMapper;",
+        )
+        sources.forEach { (name, importLine) ->
+            writeSource(
+                projectDir,
+                "src/main/java/io/github/leanish/sample/$name.java",
+                """
+                package io.github.leanish.sample;
+
+                $importLine
+
+                public final class $name {
+                }
+                """.trimIndent(),
+            )
+        }
+
+        // Checkstyle reads sources only; the imported classes aren't on the classpath, so compilation is skipped.
+        val result = runner(projectDir, "checkstyleMain", "-x", "compileJava").buildAndFail()
+
+        val violations = result.output.lines().filter { "Use tools.jackson.* instead" in it }
+        assertThat(violations.map { line -> sources.keys.single { "/$it.java:" in line } }.distinct())
+            .containsExactlyInAnyOrder("Plain", "Static", "Core")
+    }
+
+    @Test
     fun errorProneFormatterParsesMarkdownJavadocWithTheCommonmarkFloor() {
         // google-java-format, on Error Prone's classpath, parses Markdown javadoc with commonmark; the conventions raise
         // commonmark above the version it was built against, so run it on a Markdown comment with a table.

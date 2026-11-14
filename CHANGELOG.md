@@ -2,6 +2,12 @@
 
 ## 0.6.6
 
+### Fixed
+- The bundled Checkstyle rule against `com.fasterxml.jackson.core` and `com.fasterxml.jackson.databind` imports
+  matched nothing: its pattern had doubled backslashes. It now flags them, static imports included
+  (`com.fasterxml.jackson.annotation` stays allowed). Builds that passed with such imports fail `checkstyleMain` or
+  `checkstyleTest` until they move to `tools.jackson.*`.
+
 ## 0.6.5
 
 ### Changed
