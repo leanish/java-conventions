@@ -40,6 +40,10 @@ internal abstract class InstallGitHookTask : DefaultTask() {
                     "To use the conventions' hook, delete it and run installGitHooks.",
             )
             HookInstallOutcome.KEPT_SYMLINK -> logger.warn("Left $hook unchanged: it is a symbolic link.")
+            HookInstallOutcome.KEPT_NOT_REGULAR -> logger.warn(
+                "Left $hook unchanged: it, or its record ${GitHookInstaller.RECORD_NAME} next to it, is a symbolic link " +
+                    "or not a regular file.",
+            )
         }
     }
 }

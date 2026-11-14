@@ -6,9 +6,11 @@
 - `installGitHooks` (which `build` runs) no longer overwrites a pre-commit hook it didn't install: a hook from another
   tool, a hand-written one, a symbolic link, or an installed hook edited locally is kept, with a warning. It records
   the SHA-256 of what it installs in `.git/hooks/pre-commit.java-conventions.sha256` and replaces only a hook that
-  still matches. Migration: a hook installed by an earlier version and identical to the current one is adopted
-  silently; an older one is kept with the warning: delete `.git/hooks/pre-commit` and run `installGitHooks` once to
-  take the current hook.
+  still matches. Migration: a hook installed by an earlier version (the exact bytes of any previously bundled hook) is
+  adopted and updated while there is no record yet; a hand-edited one is kept with the warning (delete
+  `.git/hooks/pre-commit` and run `installGitHooks` once to take the current hook). An installed hook that isn't
+  executable is made executable, and nothing is written through a hook or record that is a symbolic link or not a
+  regular file.
 
 ## 0.6.5
 
