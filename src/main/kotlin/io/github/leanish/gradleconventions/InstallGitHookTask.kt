@@ -34,7 +34,7 @@ internal abstract class InstallGitHookTask : DefaultTask() {
         when (GitHookInstaller.install(hookFile.get().readBytes(), hooksDirectory)) {
             HookInstallOutcome.INSTALLED -> logger.lifecycle("Installed the pre-commit hook in $hook")
             HookInstallOutcome.UPDATED -> logger.lifecycle("Updated the pre-commit hook in $hook")
-            HookInstallOutcome.UNCHANGED -> logger.info("The pre-commit hook in $hook is up to date")
+            HookInstallOutcome.UNCHANGED -> logger.lifecycle("The pre-commit hook in $hook is up to date")
             HookInstallOutcome.KEPT_UNMANAGED -> logger.warn(
                 "Left $hook unchanged: java-conventions didn't install it, or it was edited since. " +
                     "To use the conventions' hook, delete it and run installGitHooks.",

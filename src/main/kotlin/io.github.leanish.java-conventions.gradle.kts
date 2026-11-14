@@ -438,10 +438,15 @@ if (project == rootProject) {
     tasks.register("setupProject") {
         description = "Sets up the project with git hooks and initial configuration"
         dependsOn("installGitHooks")
+        // installGitHooks reports what it did with the hook; this only adds why it was skipped.
+        val gitMarkerFile = gitMarker.asFile
+        val hasGit = gitExists
 
         doLast {
+            if (!hasGit.get()) {
+                println("Git hooks not installed: no .git in ${gitMarkerFile.parentFile}")
+            }
             println("Project setup completed!")
-            println("Git hooks installed in .git/hooks/")
         }
     }
 }

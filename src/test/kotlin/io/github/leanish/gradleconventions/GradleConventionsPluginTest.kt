@@ -2244,6 +2244,39 @@ class GradleConventionsPluginTest {
     }
 
     @Test
+    fun setupProjectReportsWhatHappenedToTheHook() {
+        val projectDir = tempDir.resolve("setup-report").toFile()
+        projectDir.mkdirs()
+        writeRequiredConventionsProperties(projectDir)
+        writeFile(projectDir, "settings.gradle.kts", "rootProject.name = \"test-setup-report\"")
+        writeFile(
+            projectDir,
+            "build.gradle.kts",
+            """
+            plugins {
+                id("io.github.leanish.java-conventions")
+            }
+            """.trimIndent(),
+        )
+        fun setupProject() = GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withArguments("setupProject")
+            .withPluginClasspath()
+            .build()
+            .output
+
+        val withoutGit = setupProject()
+        assertThat(withoutGit)
+            .contains("Git hooks not installed: no .git in")
+            .doesNotContain("Installed the pre-commit hook")
+
+        initGitRepository(projectDir)
+        val hook = projectDir.resolve(".git/hooks/pre-commit").canonicalFile
+        assertThat(setupProject()).contains("Installed the pre-commit hook in").contains(hook.name)
+        assertThat(setupProject()).contains("is up to date").doesNotContain("Git hooks not installed")
+    }
+
+    @Test
     fun spotlessOrdersImportsTheWayTheBundledCheckstyleConfigExpects() {
         val projectDir = tempDir.resolve("spotless-import-order").toFile()
         projectDir.mkdirs()
