@@ -138,7 +138,10 @@ class ConsumerBuildTest {
             "Plain" to "import com.fasterxml.jackson.databind.ObjectMapper;",
             "Static" to "import static com.fasterxml.jackson.databind.SerializationFeature.INDENT_OUTPUT;",
             "Core" to "import com.fasterxml.jackson.core.JsonParser;",
+            "Indented" to "    import com.fasterxml.jackson.databind.JsonNode;",
+            "Split" to "import com.fasterxml.jackson\n    .databind.ObjectReader;",
             "Annotation" to "import com.fasterxml.jackson.annotation.JsonProperty;",
+            "JacksonThree" to "import tools.jackson.databind.ObjectMapper;",
             "Commented" to "// import com.fasterxml.jackson.databind.ObjectMapper;",
         )
         sources.forEach { (name, importLine) ->
@@ -161,7 +164,7 @@ class ConsumerBuildTest {
 
         val violations = result.output.lines().filter { "Use tools.jackson.* instead" in it }
         assertThat(violations.map { line -> sources.keys.single { "/$it.java:" in line } }.distinct())
-            .containsExactlyInAnyOrder("Plain", "Static", "Core")
+            .containsExactlyInAnyOrder("Plain", "Static", "Core", "Indented", "Split")
     }
 
     @Test

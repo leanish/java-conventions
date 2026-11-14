@@ -363,6 +363,10 @@ It:
 - Checkstyle uses the tool version from [`gradle/libs.versions.toml`](gradle/libs.versions.toml) (`checkstyle`).
 - Checkstyle uses `config/checkstyle/checkstyle.xml` and `config/checkstyle/suppressions.xml` when present in the consumer project.
 - If either file is missing, the plugin falls back to bundled defaults (`checkstyle.xml` and empty suppressions).
+- The bundled `checkstyle.xml` rejects imports from Jackson 2's `com.fasterxml.jackson.core` and
+  `com.fasterxml.jackson.databind` (use Jackson 3's `tools.jackson.*`; `com.fasterxml.jackson.annotation` stays
+  allowed). A project that still needs them can suppress that rule alone in its `config/checkstyle/suppressions.xml`,
+  for example `<suppress id="jacksonTwoImport" files=".*"/>`.
 - These files are materialized under `build/generated/checkstyle` for Checkstyle only and are not packaged into JARs/publications.
 - **Checkstyle runtime requirement:** Checkstyle 14.x requires the **Java toolchain used by the plugin's runtime launcher** to be JDK 21 or newer. The default toolchain is JDK 25, which satisfies this. If you override the project Java toolchain to a version lower than JDK 21, Checkstyle tasks will fail even when the Gradle daemon itself runs on a newer JDK.
 - The plugin does not add a toolchain resolver; ensure the configured JDK is available locally or add a resolver in the consuming project.
