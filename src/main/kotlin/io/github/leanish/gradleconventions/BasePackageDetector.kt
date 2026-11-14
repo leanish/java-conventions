@@ -9,8 +9,6 @@ import org.gradle.api.Project
 import java.io.File
 
 internal object BasePackageDetector {
-    private val packageRegex = Regex("""^\s*package\s+([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)\s*;""")
-
     fun detectBasePackages(projectDir: File): List<String> {
         val sourceRoot = projectDir.resolve("src/main/java")
         if (!sourceRoot.exists() || !sourceRoot.isDirectory) {
@@ -67,11 +65,7 @@ internal object BasePackageDetector {
     }
 
     private fun detectPackageNameFromSourceFile(sourceFile: File): String? {
-        sourceFile.useLines { lines ->
-            return lines.firstNotNullOfOrNull { line ->
-                packageRegex.find(line)?.groupValues?.get(1)
-            }
-        }
+        return JavaPackageDeclaration.parse(sourceFile.readText())
     }
 }
 
