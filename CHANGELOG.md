@@ -2,6 +2,11 @@
 
 ## 0.6.6
 
+### Fixed
+- Restored this repository's explicit mirror and gate record of the commonmark core floor that the plugin injects into
+  consumer Error Prone classpaths. Since 0.6.5's follow-up removed them, the gate only saw core through
+  `commonmark-ext-gfm-tables`, which happens to pull `0.31.0`. Consumer builds are unchanged.
+
 ## 0.6.5
 
 ### Changed
