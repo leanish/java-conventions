@@ -2,6 +2,10 @@
 
 ## 0.6.6
 
+### Changed
+- The reusable publishing workflow validates the publication version against the dispatched ref in the upload job too,
+  reading the ref from the workflow context, with the same rule as the build job.
+
 ## 0.6.5
 
 ### Changed

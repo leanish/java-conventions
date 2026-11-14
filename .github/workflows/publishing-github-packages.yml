@@ -81,10 +81,13 @@ jobs:
           [ "$(printf '%s\n' "$lines" | grep -c .)" = 1 ] || { echo "::error::expected one version line, got: $lines"; exit 1; }
           version="${lines#version: }"
           [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-SNAPSHOT)?$ ]] || { echo "::error::unexpected version: $version"; exit 1; }
-          # A release is published only from its tag, and a tag only publishes the version it names.
-          if [[ "$version" != *-SNAPSHOT || "$REF_TYPE" = tag ]] && [ "$REF_TYPE/$REF_NAME" != "tag/v$version" ]; then
-            echo "::error::$version must be dispatched from tag v$version, not $REF_TYPE $REF_NAME"; exit 1
+          VERSION="$version"
+          # BEGIN ref guard (the same in prepare and publish; a test runs it): a release is published only from its
+          # tag, and a tag only publishes the version it names.
+          if [[ "$VERSION" != *-SNAPSHOT || "$REF_TYPE" = tag ]] && [ "$REF_TYPE/$REF_NAME" != "tag/v$VERSION" ]; then
+            echo "::error::$VERSION must be dispatched from tag v$VERSION, not $REF_TYPE $REF_NAME"; exit 1
           fi
+          # END ref guard
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "version $version"
 
@@ -185,14 +188,23 @@ jobs:
           path: ${{ runner.temp }}/handover
 
       # prepare runs build code, so it can't widen what may be written: the coordinates and path rules come from this
-      # workflow (the version and SNAPSHOT build it hands over only fill them in), and a missing, extra or non-regular
-      # file fails before any upload.
+      # workflow (the version and SNAPSHOT build it hands over only fill them in), the version must match the ref this
+      # run was dispatched from (read here from the workflow context, not from prepare), and a missing, extra or
+      # non-regular file fails before any upload.
       - name: Check the hand-over
         env:
           VERSION: ${{ needs.prepare.outputs.version }}
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
         run: |
           set -euo pipefail
           [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-SNAPSHOT)?$ ]] || { echo "::error::unexpected version: $VERSION"; exit 1; }
+          # BEGIN ref guard (the same in prepare and publish; a test runs it): a release is published only from its
+          # tag, and a tag only publishes the version it names.
+          if [[ "$VERSION" != *-SNAPSHOT || "$REF_TYPE" = tag ]] && [ "$REF_TYPE/$REF_NAME" != "tag/v$VERSION" ]; then
+            echo "::error::$VERSION must be dispatched from tag v$VERSION, not $REF_TYPE $REF_NAME"; exit 1
+          fi
+          # END ref guard
           cd "$RUNNER_TEMP/handover/files"
           [ -z "$(find . ! -type f ! -type d)" ] || { echo "::error::the hand-over contains non-regular files"; exit 1; }
           identity() { python3 -I -c 'import sys, xml.etree.ElementTree as ET
