@@ -135,8 +135,8 @@ Wrapper plugins can import these names directly from
 - If missing, the plugin infers it from `src/main/java` package declarations, stores the inferred
   value in project extra properties, and logs the inference.
   It reads each directory's first `.java` file's package declaration the way the compiler does (comments skipped,
-  annotations allowed before it, Unicode escapes translated); sources elsewhere (generated, other source sets) aren't
-  read. Set the property when inference picks the wrong package or none.
+  annotations allowed before it, Unicode escapes translated); sources elsewhere (generated, other source sets) and
+  directories reached through symbolic links aren't read. Set the property when inference picks the wrong package or none.
 - The plugin fails fast only when the property is blank or when it cannot infer any Java package.
 
 Publishing repository/name/description conventions are derived from project metadata and are not configurable properties:

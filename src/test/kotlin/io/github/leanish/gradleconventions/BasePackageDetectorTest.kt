@@ -4,6 +4,7 @@ import org.assertj.core.api.Assertions.assertThat
 import org.gradle.testfixtures.ProjectBuilder
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
+import java.nio.file.Files
 import java.nio.file.Path
 
 class BasePackageDetectorTest {
@@ -142,5 +143,34 @@ class BasePackageDetectorTest {
             .build()
 
         assertThat(project.detectBasePackages()).containsExactly("io.github.acme")
+    }
+
+    @Test
+    fun detectBasePackagesDoesNotFollowDirectorySymlinks() {
+        val projectDir = tempDir.resolve("symlink-loop").toFile()
+        writeFile(projectDir, "src/main/java/com/example/A.java", "package com.example;\npublic class A {}")
+        val sourceRoot = projectDir.resolve("src/main/java").toPath()
+        val nested = projectDir.resolve("src/main/java/org/empty").toPath()
+        Files.createDirectories(nested)
+        // Links back to ancestors, and a chain of links, would make a following walk revisit the tree endlessly.
+        Files.createSymbolicLink(nested.resolve("loop-a"), sourceRoot)
+        Files.createSymbolicLink(nested.resolve("loop-b"), sourceRoot)
+        Files.createSymbolicLink(nested.resolve("chain"), nested.resolve("loop-a"))
+        val outside = tempDir.resolve("outside/net/linked").toFile()
+        writeFile(outside, "B.java", "package net.linked;\npublic class B {}")
+        Files.createSymbolicLink(sourceRoot.resolve("net"), outside.toPath().parent)
+
+        assertThat(BasePackageDetector.detectBasePackages(projectDir)).containsExactly("com.example")
+    }
+
+    @Test
+    fun detectBasePackagesIgnoresALinkedSourceRoot() {
+        val realSources = tempDir.resolve("real-sources").toFile()
+        writeFile(realSources, "com/example/A.java", "package com.example;\npublic class A {}")
+        val projectDir = tempDir.resolve("linked-root").toFile()
+        projectDir.resolve("src/main").mkdirs()
+        Files.createSymbolicLink(projectDir.resolve("src/main/java").toPath(), realSources.toPath())
+
+        assertThat(BasePackageDetector.detectBasePackages(projectDir)).isEmpty()
     }
 }
