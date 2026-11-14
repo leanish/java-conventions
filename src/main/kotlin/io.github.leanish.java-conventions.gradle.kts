@@ -64,19 +64,7 @@ java {
     withJavadocJar()
 }
 
-/**
- * Runs [action] once the project is evaluated, or now when it already is (a build that applies the conventions late, from
- * its own afterEvaluate): Project.afterEvaluate refuses a callback at that point.
- */
-fun whenEvaluated(action: () -> Unit) {
-    if (state.executed) {
-        action()
-    } else {
-        afterEvaluate { action() }
-    }
-}
-
-whenEvaluated {
+afterEvaluate {
     val configuredToolchainVersion = java.toolchain.languageVersion.orNull?.asInt()
     if (configuredToolchainVersion != null && configuredToolchainVersion < minimumSupportedToolchainVersion) {
         throw GradleException(
@@ -287,7 +275,7 @@ plugins.withId("maven-publish") {
     if (ownerAtApplication != null) {
         configureOwnerDependentPublishing(ownerAtApplication)
     } else {
-        whenEvaluated {
+        afterEvaluate {
             configureOwnerDependentPublishing(publishingGithubOwner.get().takeIf(String::isNotBlank))
         }
     }

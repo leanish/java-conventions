@@ -7,8 +7,7 @@
   before the plugin was applied. With the usual `plugins { … }` followed by `group = "io.github.acme"`, the POM got no
   GitHub URLs, developer or SCM and no `GitHubPackages` repository was added. When no owner is known at application,
   those owner-dependent parts are now added after the project is evaluated; an owner from a property or the
-  environment is still applied immediately, and `mavenJava` is still created immediately. The plugin can also be
-  applied from a build's own `afterEvaluate` now, which used to fail.
+  environment is still applied immediately, and `mavenJava` is still created immediately.
 
 ### Changed
 - The developer the conventions infer (from the publishing properties or the GitHub owner) is a default: it goes into

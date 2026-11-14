@@ -1185,34 +1185,6 @@ class GradleConventionsPluginTest {
     }
 
     @Test
-    fun theConventionsCanBeAppliedAfterTheProjectIsEvaluated() {
-        val projectDir = tempDir.resolve("late-application").toFile()
-        projectDir.mkdirs()
-        writeRequiredConventionsProperties(projectDir)
-        writeFile(projectDir, "settings.gradle.kts", "rootProject.name = \"late-application\"")
-        writeFile(
-            projectDir,
-            "build.gradle.kts",
-            """
-            plugins {
-                id("io.github.leanish.java-conventions") apply false
-            }
-
-            group = "io.github.group-owner"
-            version = "1.0.0"
-
-            afterEvaluate {
-                apply(plugin = "io.github.leanish.java-conventions")
-            }
-            """.trimIndent(),
-        )
-
-        val (pom, _) = generatedPom(projectDir)
-
-        assertThat(pom).contains("<id>group-owner</id>")
-    }
-
-    @Test
     fun publishingWithoutAnyOwnerHasNoGithubMetadataOrRepository() {
         val projectDir = tempDir.resolve("publishing-without-owner").toFile()
         projectDir.mkdirs()
