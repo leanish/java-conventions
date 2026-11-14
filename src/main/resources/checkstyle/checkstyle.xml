@@ -24,11 +24,6 @@
     </module>
 
     <module name="TreeWalker">
-        <module name="RegexpSinglelineJava">
-            <property name="format" value="^import\\s+com\\.fasterxml\\.jackson\\.(core|databind)\\."/>
-            <property name="message" value="Use tools.jackson.* instead of com.fasterxml.jackson.core/databind."/>
-            <property name="ignoreComments" value="true"/>
-        </module>
         <module name="JavadocMethod">
             <property name="allowMissingReturnTag" value="true"/>
             <property name="allowMissingParamTags" value="true"/>
@@ -60,6 +55,14 @@
         <module name="AvoidStaticImport">
             <property name="excludes"
                       value="org.mockito.ArgumentMatchers.*,org.mockito.Matchers.*,org.mockito.Mockito.*,org.junit.Assert.*,org.junit.jupiter.api.Assertions.*,org.assertj.core.api.Assertions.*,org.assertj.core.api.AssertionsForClassTypes.*,com.github.tomakehurst.wiremock.client.WireMock.*,org.awaitility.Awaitility.*,org.hamcrest.Matchers.*,org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.*,org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*,org.springframework.test.web.servlet.result.MockMvcResultMatchers.*,java.util.concurrent.TimeUnit.*"/>
+        </module>
+        <!-- Jackson 3 (tools.jackson.*) replaces Jackson 2's core and databind; Jackson 2's annotations stay allowed.
+             Import-aware, so indented, static and split imports are caught too. The id lets a project's suppressions
+             target this rule alone. -->
+        <module name="IllegalImport">
+            <property name="id" value="jacksonTwoImport"/>
+            <property name="illegalPkgs" value="com.fasterxml.jackson.core,com.fasterxml.jackson.databind"/>
+            <message key="import.illegal" value="Use tools.jackson.* instead of Jackson 2''s {0}."/>
         </module>
         <module name="IllegalImport">
             <property name="illegalClasses"
