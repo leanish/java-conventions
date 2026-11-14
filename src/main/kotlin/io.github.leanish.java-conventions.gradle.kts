@@ -431,12 +431,13 @@ if (project == rootProject) {
         }
     }
 
-    tasks.register<InstallGitHookTask>("installGitHooks") {
+    val installGitHooks = tasks.register<InstallGitHookTask>("installGitHooks") {
         description = "Installs the conventions' pre-commit hook, keeping a hook it didn't install or that was edited"
         dependsOn(writePreCommitHook)
         onlyIf { gitExists.get() }
         hookFile.set(hookSource)
         hooksLocation.set(resolvedHooksLocation)
+        reportFile.set(layout.buildDirectory.file("git-hooks/install-report.txt"))
     }
 
     tasks.named("build") {
@@ -445,11 +446,23 @@ if (project == rootProject) {
 
     tasks.register("setupProject") {
         description = "Sets up the project with git hooks and initial configuration"
-        dependsOn("installGitHooks")
+        dependsOn(installGitHooks)
+        // installGitHooks writes what it did with the hook; this prints it unless it was already logged visibly, so
+        // the outcome shows once. It only reads that task's output file, for the configuration cache.
+        val gitMarkerFile = gitMarker.asFile
+        val hasGit = gitExists
+        val installReport = installGitHooks.flatMap { it.reportFile }
 
         doLast {
+            if (!hasGit.get()) {
+                println("Git hooks not installed: no .git in ${gitMarkerFile.parentFile}")
+            } else {
+                val (visibility, message) = installReport.get().asFile.readText().split("\n", limit = 2)
+                if (visibility == "quiet") {
+                    println(message)
+                }
+            }
             println("Project setup completed!")
-            println("Git hooks installed in .git/hooks/")
         }
     }
 }

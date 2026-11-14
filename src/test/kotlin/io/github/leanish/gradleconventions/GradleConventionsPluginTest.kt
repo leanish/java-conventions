@@ -2301,6 +2301,66 @@ class GradleConventionsPluginTest {
     }
 
     @Test
+    fun setupProjectReportsWhatHappenedToTheHook() {
+        val projectDir = tempDir.resolve("setup-report").toFile()
+        projectDir.mkdirs()
+        writeRequiredConventionsProperties(projectDir)
+        writeFile(projectDir, "settings.gradle.kts", "rootProject.name = \"test-setup-report\"")
+        writeFile(
+            projectDir,
+            "build.gradle.kts",
+            """
+            plugins {
+                id("io.github.leanish.java-conventions")
+            }
+            """.trimIndent(),
+        )
+        fun setupProject() = GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withArguments("setupProject")
+            .withPluginClasspath()
+            .build()
+            .output
+
+        val withoutGit = setupProject()
+        assertThat(withoutGit)
+            .contains("Git hooks not installed: no .git in")
+            .doesNotContain("Installed the pre-commit hook")
+
+        initGitRepository(projectDir)
+        val hook = projectDir.resolve(".git/hooks/pre-commit").canonicalFile
+        fun occurrences(output: String, text: String) = output.windowed(text.length).count { it == text }
+
+        val installed = setupProject()
+        assertThat(occurrences(installed, "Installed the pre-commit hook in ${hook.path}")).isEqualTo(1)
+
+        val unchanged = setupProject()
+        assertThat(occurrences(unchanged, "The pre-commit hook in ${hook.path} is up to date")).isEqualTo(1)
+        assertThat(unchanged).doesNotContain("Git hooks not installed")
+        val build = GradleRunner.create().withProjectDir(projectDir).withArguments("installGitHooks").withPluginClasspath().build()
+        assertThat(build.output).doesNotContain("is up to date")
+
+        val unchangedWithInfo = GradleRunner.create().withProjectDir(projectDir).withArguments("setupProject", "--info").withPluginClasspath().build().output
+        assertThat(occurrences(unchangedWithInfo, "The pre-commit hook in ${hook.path} is up to date")).isEqualTo(1)
+
+        hook.delete()
+        val installedQuietly = GradleRunner.create().withProjectDir(projectDir).withArguments("setupProject", "--quiet").withPluginClasspath().build().output
+        assertThat(occurrences(installedQuietly, "Installed the pre-commit hook in ${hook.path}")).isEqualTo(1)
+
+        hook.writeText("edited by hand")
+        val kept = setupProject()
+        assertThat(occurrences(kept, "Left ${hook.path} unchanged: java-conventions didn't install it")).isEqualTo(1)
+
+        git(projectDir, "config", "core.hooksPath", ".githooks")
+        assertThat(occurrences(setupProject(), "Didn't install the pre-commit hook: core.hooksPath is set (\".githooks\")"))
+            .isEqualTo(1)
+
+        projectDir.resolve(".git/config").appendText("\n[broken\n")
+        assertThat(occurrences(setupProject(), "Didn't install the pre-commit hook: `git config --get core.hooksPath` exited with"))
+            .isEqualTo(1)
+    }
+
+    @Test
     fun spotlessOrdersImportsTheWayTheBundledCheckstyleConfigExpects() {
         val projectDir = tempDir.resolve("spotless-import-order").toFile()
         projectDir.mkdirs()

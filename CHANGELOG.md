@@ -3,6 +3,9 @@
 ## 0.6.6
 
 ### Changed
+- `setupProject` no longer prints "Git hooks installed in .git/hooks/" whatever happened: it prints what
+  `installGitHooks` did with the hook and where (installed, updated, up to date, kept, or skipped and why), or that
+  there was no `.git`. On a plain `build`, `installGitHooks` stays quiet when the hook is already up to date.
 - `installGitHooks` asks Git where it runs hooks (`git rev-parse --git-common-dir --git-path hooks`) instead of reading
   `.git` itself. In a linked worktree it used to write the hook into the worktree's private git directory, where Git
   never runs it; now it goes to the main repository's hooks directory, which all linked worktrees share. When
