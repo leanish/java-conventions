@@ -2300,8 +2300,28 @@ class GradleConventionsPluginTest {
 
         initGitRepository(projectDir)
         val hook = projectDir.resolve(".git/hooks/pre-commit").canonicalFile
-        assertThat(setupProject()).contains("Installed the pre-commit hook in").contains(hook.name)
-        assertThat(setupProject()).contains("is up to date").doesNotContain("Git hooks not installed")
+        fun occurrences(output: String, text: String) = output.windowed(text.length).count { it == text }
+
+        val installed = setupProject()
+        assertThat(occurrences(installed, "Installed the pre-commit hook in ${hook.path}")).isEqualTo(1)
+
+        val unchanged = setupProject()
+        assertThat(occurrences(unchanged, "The pre-commit hook in ${hook.path} is up to date")).isEqualTo(1)
+        assertThat(unchanged).doesNotContain("Git hooks not installed")
+        val build = GradleRunner.create().withProjectDir(projectDir).withArguments("installGitHooks").withPluginClasspath().build()
+        assertThat(build.output).doesNotContain("is up to date")
+
+        hook.writeText("edited by hand")
+        val kept = setupProject()
+        assertThat(occurrences(kept, "Left ${hook.path} unchanged: java-conventions didn't install it")).isEqualTo(1)
+
+        git(projectDir, "config", "core.hooksPath", ".githooks")
+        assertThat(occurrences(setupProject(), "Didn't install the pre-commit hook: core.hooksPath is set (\".githooks\")"))
+            .isEqualTo(1)
+
+        projectDir.resolve(".git/config").appendText("\n[broken\n")
+        assertThat(occurrences(setupProject(), "Didn't install the pre-commit hook: `git config --get core.hooksPath` exited with"))
+            .isEqualTo(1)
     }
 
     @Test
