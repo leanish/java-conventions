@@ -72,11 +72,11 @@ internal object GitHooks {
         }
         val (commonDirectory, hooksDirectory) = lines.map { resolve(projectDirectory, it) }
         val hooksPath = hooksDirectory.toPath()
-        // A link to a missing directory can't be checked for containment, and installing would fail on it.
-        if (Files.isSymbolicLink(hooksPath) && !Files.exists(hooksPath)) {
-            return lookupFailed("the hooks directory $hooksDirectory is a link to ${Files.readSymbolicLink(hooksPath)}, which doesn't exist")
-        }
         val inside = try {
+            // A link to a missing directory can't be checked for containment, and installing would fail on it.
+            if (Files.isSymbolicLink(hooksPath) && !Files.exists(hooksPath)) {
+                return lookupFailed("the hooks directory $hooksDirectory is a link to ${Files.readSymbolicLink(hooksPath)}, which doesn't exist")
+            }
             realPathOfExistingPart(hooksDirectory).startsWith(realPathOfExistingPart(commonDirectory))
         } catch (exception: IOException) {
             return lookupFailed("couldn't resolve the hooks directory $hooksDirectory: $exception")
