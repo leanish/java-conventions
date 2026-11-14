@@ -16,6 +16,8 @@ import io.github.leanish.gradleconventions.ConventionProperties.PUBLISHING_DEVEL
 import io.github.leanish.gradleconventions.ConventionProperties.PUBLISHING_DEVELOPER_URL_ENV
 import io.github.leanish.gradleconventions.ConventionVersions
 import io.github.leanish.gradleconventions.GitHooks
+import io.github.leanish.gradleconventions.PomDeveloper
+import io.github.leanish.gradleconventions.addDeveloperIfNone
 import io.github.leanish.gradleconventions.WriteCheckstyleConfigTask
 import io.github.leanish.gradleconventions.javaConventionsProviders
 import io.github.leanish.gradleconventions.stringProperty
@@ -62,7 +64,19 @@ java {
     withJavadocJar()
 }
 
-afterEvaluate {
+/**
+ * Runs [action] once the project is evaluated, or now when it already is (a build that applies the conventions late, from
+ * its own afterEvaluate): Project.afterEvaluate refuses a callback at that point.
+ */
+fun whenEvaluated(action: () -> Unit) {
+    if (state.executed) {
+        action()
+    } else {
+        afterEvaluate { action() }
+    }
+}
+
+whenEvaluated {
     val configuredToolchainVersion = java.toolchain.languageVersion.orNull?.asInt()
     if (configuredToolchainVersion != null && configuredToolchainVersion < minimumSupportedToolchainVersion) {
         throw GradleException(
@@ -209,19 +223,16 @@ plugins.withId("maven-publish") {
             "https://github.com/$owner"
         }
 
+        if (resolvedDeveloperId != null && resolvedDeveloperName != null && resolvedDeveloperUrl != null) {
+            // A default, not an addition: the inferred developer goes into the generated POM only when the build
+            // declared none. Gradle's POM API can't list declared developers, so this checks the generated XML.
+            val inferredDeveloper = PomDeveloper(resolvedDeveloperId, resolvedDeveloperName, resolvedDeveloperUrl)
+            publication.pom.withXml { addDeveloperIfNone(asElement(), inferredDeveloper) }
+        }
+
         publication.pom {
             if (githubRepoUrl != null) {
                 url.convention(githubRepoUrl)
-            }
-
-            if (resolvedDeveloperId != null && resolvedDeveloperName != null && resolvedDeveloperUrl != null) {
-                developers {
-                    developer {
-                        id.set(resolvedDeveloperId)
-                        name.set(resolvedDeveloperName)
-                        url.set(resolvedDeveloperUrl)
-                    }
-                }
             }
 
             if (githubRepoUrl != null || githubScmUrl != null || githubDeveloperScmUrl != null) {
@@ -276,7 +287,7 @@ plugins.withId("maven-publish") {
     if (ownerAtApplication != null) {
         configureOwnerDependentPublishing(ownerAtApplication)
     } else {
-        afterEvaluate {
+        whenEvaluated {
             configureOwnerDependentPublishing(publishingGithubOwner.get().takeIf(String::isNotBlank))
         }
     }

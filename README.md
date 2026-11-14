@@ -144,7 +144,7 @@ Publishing repository/name/description conventions are derived from project meta
 Publishing owner/developer metadata is optional:
 - `leanish.conventions.publishing.githubOwner` resolves owner for GitHub URLs/repository.
 - Owner resolves by `GITHUB_REPOSITORY_OWNER`, then `JAVA_CONVENTIONS_PUBLISHING_GITHUB_OWNER`, then `leanish.conventions.publishing.githubOwner`, then `group` when it matches `io.github.<owner>`.
-- Developer fields (`id`, `name`, `url`) are optional and independent; missing values are inferred from resolved owner when possible (`id=<owner>`, `name=<owner>`, `url=https://github.com/<owner>`), and the `developers` block is emitted only when all three resolve.
+- Developer fields (`id`, `name`, `url`) are optional and independent; missing values are inferred from resolved owner when possible (`id=<owner>`, `name=<owner>`, `url=https://github.com/<owner>`), and the inferred developer is added only when all three resolve and the build declares no developer of its own (developers set in `pom { developers { … } }` replace it).
 - GitHub Packages credentials resolve by environment first (`GITHUB_ACTOR`, `GITHUB_TOKEN`), then properties (`gpr.user`, `gpr.key`).
 
 ## Publishing
