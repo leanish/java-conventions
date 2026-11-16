@@ -5,6 +5,9 @@
  */
 package io.github.leanish.gradleconventions
 
+import io.github.leanish.gradleconventions.ConventionProperties.GITHUB_ACTOR_ENV
+import io.github.leanish.gradleconventions.ConventionProperties.GITHUB_REPOSITORY_OWNER_ENV
+import io.github.leanish.gradleconventions.ConventionProperties.GITHUB_TOKEN_ENV
 import org.gradle.api.GradleException
 import org.gradle.api.Project
 import org.gradle.api.provider.Provider
@@ -29,14 +32,40 @@ internal object PropertyParser {
         name: String,
         value: String?,
     ): String? {
+        return nonBlank(value, source = "Property '$name'")
+    }
+
+    /** Like [stringProperty], for a value read from the environment variable [envName]; a blank one names the variable. */
+    fun environmentStringProperty(
+        name: String,
+        envName: String,
+        value: String?,
+    ): String? {
+        return nonBlank(value, source = "Environment variable '$envName' (for property '$name')")
+    }
+
+    private fun nonBlank(
+        value: String?,
+        source: String,
+    ): String? {
         val configuredValue = value ?: return null
         val trimmedValue = configuredValue.trim()
         if (trimmedValue.isEmpty()) {
-            throw GradleException("Property '$name' must not be blank")
+            throw GradleException("$source must not be blank")
         }
         return trimmedValue
     }
 }
+
+/**
+ * Variables that GitHub Actions or the developer's environment sets, not this plugin's own. Set but blank (a secret a
+ * workflow run can't read, an `export GITHUB_TOKEN=`), they count as unset, so the next source is used.
+ */
+private val PLATFORM_ENVIRONMENT_VARIABLES = setOf(
+    GITHUB_REPOSITORY_OWNER_ENV,
+    GITHUB_ACTOR_ENV,
+    GITHUB_TOKEN_ENV,
+)
 
 internal fun Project.booleanProperty(
     name: String,
@@ -60,21 +89,25 @@ internal fun Project.booleanProperty(
         .orElse(defaultValue)
 }
 
+/** The first of [envNames] that is set, in order, else the property [name]; blank values fail, except as noted above. */
 internal fun Project.stringProperty(
     name: String,
     vararg envNames: String,
 ): String? {
-    val propertyValue = providers.provider {
-        findProperty(name)?.toString()
+    for (envName in envNames) {
+        val envValue = providers.environmentVariable(envName).orNull ?: continue
+        if (envValue.isBlank() && envName in PLATFORM_ENVIRONMENT_VARIABLES) {
+            continue
+        }
+        return PropertyParser.environmentStringProperty(
+            name = name,
+            envName = envName,
+            value = envValue,
+        )
     }
-    val envValue = envNames.fold<String, Provider<String>?>(null) { previousEnvValue, envName ->
-        val currentEnvValue = providers.environmentVariable(envName)
-        previousEnvValue?.orElse(currentEnvValue) ?: currentEnvValue
-    }
-    val configuredValue = envValue?.orElse(propertyValue) ?: propertyValue
 
     return PropertyParser.stringProperty(
         name = name,
-        value = configuredValue.orNull,
+        value = findProperty(name)?.toString(),
     )
 }

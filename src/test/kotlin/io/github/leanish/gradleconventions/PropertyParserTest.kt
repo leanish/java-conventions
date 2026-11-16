@@ -88,4 +88,28 @@ class PropertyParserTest {
             .isInstanceOf(GradleException::class.java)
             .hasMessage("Property 'prop' must not be blank")
     }
+
+    @Test
+    fun environmentStringPropertyReturnsTrimmedValue() {
+        assertThat(
+            PropertyParser.environmentStringProperty(
+                name = "prop",
+                envName = "PROP_ENV",
+                value = "  value  ",
+            ),
+        ).isEqualTo("value")
+    }
+
+    @Test
+    fun environmentStringPropertyRejectsBlankValueNamingTheVariable() {
+        assertThatThrownBy {
+            PropertyParser.environmentStringProperty(
+                name = "prop",
+                envName = "PROP_ENV",
+                value = "   ",
+            )
+        }
+            .isInstanceOf(GradleException::class.java)
+            .hasMessage("Environment variable 'PROP_ENV' (for property 'prop') must not be blank")
+    }
 }

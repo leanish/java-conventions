@@ -1316,6 +1316,166 @@ class GradleConventionsPluginTest {
             .doesNotContain("property-token")
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = ["", "   "])
+    fun blankGithubCredentialVariablesFallBackToProperties(blank: String) {
+        val projectDir = tempDir.resolve("publishing-credentials-blank-env").toFile()
+        writeCredentialsDumpBuild(projectDir, "gpr.user=property-user\ngpr.key=property-token")
+
+        val result = credentialsDumpRunner(projectDir, mapOf("GITHUB_ACTOR" to blank, "GITHUB_TOKEN" to blank)).build()
+
+        assertThat(result.output)
+            .contains("githubPackagesUsername=property-user")
+            .contains("githubPackagesPassword=property-token")
+    }
+
+    @Test
+    fun blankGithubCredentialVariablesWithoutPropertiesLeaveCredentialsUnset() {
+        val projectDir = tempDir.resolve("publishing-credentials-blank-env-no-properties").toFile()
+        writeCredentialsDumpBuild(projectDir, "")
+
+        val result = credentialsDumpRunner(projectDir, mapOf("GITHUB_ACTOR" to "", "GITHUB_TOKEN" to " ")).build()
+
+        assertThat(result.output)
+            .contains("githubPackagesUsername=null")
+            .contains("githubPackagesPassword=null")
+    }
+
+    @Test
+    fun blankCredentialPropertiesStillFail() {
+        val projectDir = tempDir.resolve("publishing-credentials-blank-property").toFile()
+        writeCredentialsDumpBuild(projectDir, "gpr.key=   ")
+
+        val result = credentialsDumpRunner(projectDir, mapOf("GITHUB_TOKEN" to "")).buildAndFail()
+
+        assertThat(result.output).contains("Property 'gpr.key' must not be blank")
+    }
+
+    @Test
+    fun blankGithubRepositoryOwnerFallsThroughToTheConventionsOwnerVariable() {
+        val projectDir = tempDir.resolve("publishing-owner-blank-env").toFile()
+        writePublishingOwnerBuild(projectDir, ownerProperty = "property-owner")
+
+        generatePom(projectDir, mapOf("GITHUB_REPOSITORY_OWNER" to "", "JAVA_CONVENTIONS_PUBLISHING_GITHUB_OWNER" to "env-owner"))
+
+        assertThat(projectDir.resolve("build/publications/mavenJava/pom-default.xml").readText())
+            .contains("<url>https://github.com/env-owner/publishing-owner-blank-env</url>")
+            .doesNotContain("property-owner")
+    }
+
+    @Test
+    fun blankGithubRepositoryOwnerFallsThroughToTheOwnerProperty() {
+        val projectDir = tempDir.resolve("publishing-owner-blank-env-property").toFile()
+        writePublishingOwnerBuild(projectDir, ownerProperty = "property-owner")
+
+        generatePom(projectDir, mapOf("GITHUB_REPOSITORY_OWNER" to " "))
+
+        assertThat(projectDir.resolve("build/publications/mavenJava/pom-default.xml").readText())
+            .contains("<url>https://github.com/property-owner/publishing-owner-blank-env-property</url>")
+    }
+
+    @Test
+    fun blankGithubRepositoryOwnerFallsThroughToTheGroup() {
+        val projectDir = tempDir.resolve("publishing-owner-blank-env-group").toFile()
+        writePublishingOwnerBuild(projectDir, ownerProperty = null)
+
+        generatePom(projectDir, mapOf("GITHUB_REPOSITORY_OWNER" to ""))
+
+        assertThat(projectDir.resolve("build/publications/mavenJava/pom-default.xml").readText())
+            .contains("<url>https://github.com/group-owner/publishing-owner-blank-env-group</url>")
+    }
+
+    @Test
+    fun blankConventionsVariableFailsNamingTheVariable() {
+        val projectDir = tempDir.resolve("base-package-blank-env").toFile()
+        writeFile(projectDir, "settings.gradle.kts", "rootProject.name = \"base-package-blank-env\"")
+        writeFile(projectDir, "build.gradle.kts", "plugins {\n    id(\"io.github.leanish.java-conventions\")\n}\n")
+        writeFile(projectDir, "src/main/java/com/acme/app/App.java", "package com.acme.app;\n\npublic class App {}\n")
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withArguments("compileJava", "--dry-run")
+            .withEnvironment(environmentWithoutConventionsOverrides(mapOf("JAVA_CONVENTIONS_BASE_PACKAGE" to " ")))
+            .withPluginClasspath()
+            .buildAndFail()
+
+        assertThat(result.output).contains(
+            "Environment variable 'JAVA_CONVENTIONS_BASE_PACKAGE' (for property 'leanish.conventions.basePackage') " +
+                "must not be blank",
+        )
+    }
+
+    /** A project whose GitHub Packages repository is configured (owner `acme`), with a task printing its credentials. */
+    private fun writeCredentialsDumpBuild(projectDir: File, credentialProperties: String) {
+        writeFile(
+            projectDir,
+            "gradle.properties",
+            "leanish.conventions.basePackage=io.github.leanish\nleanish.conventions.publishing.githubOwner=acme\n" +
+                credentialProperties,
+        )
+        writeFile(projectDir, "settings.gradle.kts", "rootProject.name = \"${projectDir.name}\"")
+        writeFile(
+            projectDir,
+            "build.gradle.kts",
+            $$"""
+            import org.gradle.api.artifacts.repositories.MavenArtifactRepository
+            import org.gradle.api.credentials.PasswordCredentials
+            import org.gradle.api.publish.PublishingExtension
+
+            plugins {
+                id("io.github.leanish.java-conventions")
+            }
+
+            tasks.register("dumpGithubPackagesCredentials") {
+                doLast {
+                    val publishing = project.extensions.getByType(PublishingExtension::class.java)
+                    val repository = publishing.repositories.findByName("GitHubPackages") as MavenArtifactRepository?
+                    val credentials = repository?.credentials as PasswordCredentials?
+                    println("githubPackagesUsername=${credentials?.username}")
+                    println("githubPackagesPassword=${credentials?.password}")
+                }
+            }
+            """.trimIndent(),
+        )
+    }
+
+    private fun credentialsDumpRunner(projectDir: File, environment: Map<String, String>): GradleRunner {
+        return GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withArguments("dumpGithubPackagesCredentials")
+            .withEnvironment(environmentWithoutConventionsOverrides(environment))
+            .withPluginClasspath()
+    }
+
+    private fun writePublishingOwnerBuild(projectDir: File, ownerProperty: String?) {
+        // The group comes from gradle.properties, so it is set before the plugin reads it.
+        writeFile(
+            projectDir,
+            "gradle.properties",
+            "leanish.conventions.basePackage=io.github.leanish\ngroup=io.github.group-owner\nversion=1.0.0\n" +
+                (ownerProperty?.let { "leanish.conventions.publishing.githubOwner=$it\n" } ?: ""),
+        )
+        writeFile(projectDir, "settings.gradle.kts", "rootProject.name = \"${projectDir.name}\"")
+        writeFile(
+            projectDir,
+            "build.gradle.kts",
+            """
+            plugins {
+                id("io.github.leanish.java-conventions")
+            }
+            """.trimIndent(),
+        )
+    }
+
+    private fun generatePom(projectDir: File, environment: Map<String, String>) {
+        GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withArguments("generatePomFileForMavenJavaPublication")
+            .withEnvironment(environmentWithoutConventionsOverrides(environment))
+            .withPluginClasspath()
+            .build()
+    }
+
     @Test
     fun canDisablePublishingConventionsWithProperty() {
         val projectDir = tempDir.resolve("publishing-conventions-disabled").toFile()
