@@ -9,8 +9,9 @@ import java.util.concurrent.TimeUnit
 
 /**
  * Runs the dependency-review workflow's graph target check, the shell block between its `BEGIN graph target check` and
- * `END graph target check` markers, against artifact directories laid out as `actions/download-artifact` extracts them
- * (one directory per artifact). Like the workflow, it needs `bash` and `python3`.
+ * `END graph target check` markers, against the layouts `actions/download-artifact` (v8.0.2) produces: a single
+ * matching artifact is extracted straight into the target directory, several go one directory per artifact. Like the
+ * workflow, it needs `bash` and `python3`.
  */
 class DependencyGraphWorkflowTest {
     @TempDir
@@ -19,79 +20,104 @@ class DependencyGraphWorkflowTest {
     // Gradle runs tests from the project directory.
     private val workflow = File("").absoluteFile.resolve(".github/workflows/dependency-review.yml")
 
-    private val sha = "0123456789abcdef0123456789abcdef01234567"
+    private val headSha = "0123456789abcdef0123456789abcdef01234567"
+    private val mergeSha = "89abcdef0123456789abcdef0123456789abcdef"
     private val ref = "refs/pull/7/merge"
 
     @Test
-    fun acceptsGraphsRecordedForThisRun() {
-        writeGraph("dependency-graph_a.json", "dependency-graph-reports/a.json", graph(sha, ref))
-        writeGraph("dependency-graph_b.json", "dependency-graph-reports/nested/b.json", graph(sha, ref))
-        writeGraph("dependency-graph_b.json", "dependency-graph-reports/notes.txt", "not a graph")
+    fun acceptsASingleArtifactExtractedDirectly() {
+        writeSingleArtifact("dependency-graph-reports/dependency-review-dependency-graph.json", graph(headSha, ref))
 
-        val result = runCheck()
+        val result = runCheck(expectedSha = headSha)
+
+        assertThat(result.exitValue).isZero()
+        assertThat(result.output).contains("checked 1 dependency graph file(s)")
+    }
+
+    @Test
+    fun acceptsSeveralArtifactsWithNestedPathsAndOtherFiles() {
+        writeArtifact("dependency-graph_a.json", "dependency-graph-reports/a.json", graph(headSha, ref))
+        writeArtifact("dependency-graph_b.json", "dependency-graph-reports/nested/b.json", graph(headSha, ref))
+        writeArtifact("dependency-graph_b.json", "dependency-graph-reports/notes.txt", "not a graph")
+
+        val result = runCheck(expectedSha = headSha)
 
         assertThat(result.exitValue).isZero()
         assertThat(result.output).contains("checked 2 dependency graph file(s)")
     }
 
+    /**
+     * On a pull request, the pinned `gradle/actions/dependency-submission` (v6.4.0) exports
+     * `GITHUB_DEPENDENCY_GRAPH_SHA` as `pull_request.head.sha` (`getShaFromContext` in its `dependency-graph.ts`, the
+     * same in the shipped `dist`), and github-dependency-graph-gradle-plugin 1.5.0 writes that value as the snapshot's
+     * `sha`. `github.sha` is the merge commit, a different one: a graph recorded for it is rejected.
+     */
     @Test
-    fun rejectsAGraphForAnotherCommit() {
-        writeGraph("dependency-graph_a.json", "dependency-graph-reports/a.json", graph("f".repeat(40), ref))
+    fun pullRequestGraphsAreRecordedForTheHeadCommitNotTheMergeCommit() {
+        assertThat(workflow.readLines().map(String::trim))
+            .contains("EXPECTED_SHA: \${{ github.event.pull_request.head.sha || github.sha }}")
+            .contains("EXPECTED_REF: \${{ github.ref }}")
+        writeSingleArtifact("dependency-graph-reports/a.json", graph(headSha, ref))
+        assertThat(runCheck(expectedSha = headSha).exitValue).isZero()
 
-        assertRejected("dependency-graph_a.json/dependency-graph-reports/a.json is recorded for")
+        writeSingleArtifact("dependency-graph-reports/a.json", graph(mergeSha, ref))
+        val mergeCommitGraph = runCheck(expectedSha = headSha)
+
+        assertThat(mergeCommitGraph.exitValue).isEqualTo(1)
+        assertThat(mergeCommitGraph.output).contains("is recorded for {'sha': '$mergeSha'")
     }
 
     @Test
     fun rejectsAGraphForAnotherRef() {
-        writeGraph("dependency-graph_a.json", "dependency-graph-reports/a.json", graph(sha, "refs/heads/main"))
+        writeSingleArtifact("dependency-graph-reports/a.json", graph(headSha, "refs/heads/main"))
 
-        assertRejected("is recorded for {'sha': '$sha', 'ref': 'refs/heads/main'}")
+        assertRejected("dependency-graph-reports/a.json is recorded for {'sha': '$headSha', 'ref': 'refs/heads/main'}")
     }
 
     @Test
     fun rejectsOneBadGraphAmongGoodOnes() {
-        writeGraph("dependency-graph_a.json", "dependency-graph-reports/a.json", graph(sha, ref))
-        writeGraph("dependency-graph_b.json", "dependency-graph-reports/deep/er/b.json", graph(sha, "refs/heads/other"))
+        writeArtifact("dependency-graph_a.json", "dependency-graph-reports/a.json", graph(headSha, ref))
+        writeArtifact("dependency-graph_b.json", "dependency-graph-reports/deep/er/b.json", graph(headSha, "refs/heads/other"))
 
         assertRejected("dependency-graph_b.json/dependency-graph-reports/deep/er/b.json is recorded for")
     }
 
     @Test
     fun rejectsAGraphWithoutTheTargetFields() {
-        writeGraph("dependency-graph_a.json", "dependency-graph-reports/a.json", """{"sha": "$sha"}""")
+        writeSingleArtifact("dependency-graph-reports/a.json", """{"sha": "$headSha"}""")
 
-        assertRejected("is recorded for {'sha': '$sha', 'ref': None}")
+        assertRejected("is recorded for {'sha': '$headSha', 'ref': None}")
     }
 
     @Test
     fun rejectsAGraphThatIsNotAnObject() {
-        writeGraph("dependency-graph_a.json", "dependency-graph-reports/a.json", """["$sha", "$ref"]""")
+        writeSingleArtifact("dependency-graph-reports/a.json", """["$headSha", "$ref"]""")
 
         assertRejected("is recorded for None")
     }
 
     @Test
     fun rejectsMalformedJson() {
-        writeGraph("dependency-graph_a.json", "dependency-graph-reports/a.json", """{"sha": "$sha", """)
+        writeSingleArtifact("dependency-graph-reports/a.json", """{"sha": "$headSha", """)
 
-        assertRejected("dependency-graph_a.json/dependency-graph-reports/a.json isn't JSON")
+        assertRejected("dependency-graph-reports/a.json isn't JSON")
     }
 
     @Test
     fun rejectsTheSamePathInTwoArtifacts() {
-        // Extracted into one directory, the second would replace the first, so neither is trusted.
-        writeGraph("dependency-graph_a.json", "dependency-graph-reports/a.json", graph(sha, ref))
-        writeGraph("dependency-graph_b.json", "dependency-graph-reports/a.json", graph(sha, ref))
+        // The submit step extracts every artifact into one directory, where the second would replace the first.
+        writeArtifact("dependency-graph_a.json", "dependency-graph-reports/a.json", graph(headSha, ref))
+        writeArtifact("dependency-graph_b.json", "dependency-graph-reports/a.json", graph(headSha, ref))
 
         assertRejected("dependency-graph-reports/a.json is in both dependency-graph_a.json and dependency-graph_b.json")
     }
 
     @Test
-    fun rejectsAnEntryThatIsNotAGraphArtifact() {
-        writeGraph("dependency-graph_a.json", "dependency-graph-reports/a.json", graph(sha, ref))
-        tempDir.resolve("dependency-graph-check/stray.json").toFile().writeText(graph(sha, ref))
+    fun checksEveryFileWhenTheLayoutIsNotOneDirectoryPerArtifact() {
+        writeArtifact("dependency-graph_a.json", "dependency-graph-reports/a.json", graph(headSha, ref))
+        writeSingleArtifact("stray.json", graph(headSha, "refs/heads/other"))
 
-        assertRejected("unexpected entry stray.json")
+        assertRejected("stray.json is recorded for")
     }
 
     @Test
@@ -134,14 +160,20 @@ class DependencyGraphWorkflowTest {
     private fun graph(sha: String, ref: String): String =
         """{"version": 0, "job": {"correlator": "c", "id": "1"}, "sha": "$sha", "ref": "$ref", "manifests": {}}"""
 
-    private fun writeGraph(artifact: String, path: String, content: String) {
-        val file = tempDir.resolve("dependency-graph-check").resolve(artifact).resolve(path).toFile()
+    /** A file of one artifact among several: download-artifact puts each in a directory named after the artifact. */
+    private fun writeArtifact(artifact: String, path: String, content: String) {
+        writeSingleArtifact("$artifact/$path", content)
+    }
+
+    /** A file of the only artifact: download-artifact extracts it straight into the target directory. */
+    private fun writeSingleArtifact(path: String, content: String) {
+        val file = tempDir.resolve("dependency-graph-check").resolve(path).toFile()
         file.parentFile.mkdirs()
         file.writeText(content)
     }
 
     private fun assertRejected(expectedMessage: String) {
-        val result = runCheck()
+        val result = runCheck(expectedSha = headSha)
 
         assertThat(result.exitValue).isEqualTo(1)
         assertThat(result.output).contains("::error::").contains(expectedMessage)
@@ -149,19 +181,26 @@ class DependencyGraphWorkflowTest {
 
     private class CheckResult(val exitValue: Int, val output: String)
 
-    private fun runCheck(): CheckResult {
+    private fun runCheck(expectedSha: String): CheckResult {
         // bash and python3 are required: a missing one fails the test instead of skipping the check.
+        val outputFile = tempDir.resolve("check-output.txt").toFile()
         val process = ProcessBuilder("bash", "-c", "set -euo pipefail\n" + check())
             .directory(tempDir.toFile())
             .redirectErrorStream(true)
+            .redirectOutput(outputFile)
             .apply {
                 environment()["RUNNER_TEMP"] = tempDir.toString()
-                environment()["EXPECTED_SHA"] = sha
+                environment()["EXPECTED_SHA"] = expectedSha
                 environment()["EXPECTED_REF"] = ref
             }
             .start()
-        val output = process.inputStream.bufferedReader().readText()
-        assertThat(process.waitFor(30, TimeUnit.SECONDS)).isTrue()
+        // The output goes to a file, so a process that never finishes can't block before the bounded wait.
+        val finished = process.waitFor(30, TimeUnit.SECONDS)
+        if (!finished) {
+            process.destroyForcibly()
+        }
+        val output = outputFile.readText()
+        assertThat(finished).describedAs("the check finished within 30 seconds; output: %s", output).isTrue()
         assertThat(output).describedAs("python3 must be on the PATH").doesNotContain("python3: command not found")
         return CheckResult(process.exitValue(), output)
     }

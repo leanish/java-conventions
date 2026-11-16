@@ -62,14 +62,15 @@ jobs:
       - name: Download the dependency graph
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          # One directory per artifact, so files with the same path in two artifacts can't hide each other.
+          # The same artifacts the submit step reads (this run's, named dependency-graph_*). Several are extracted one
+          # directory per artifact, so a path in two of them can't hide; a single one is extracted directly.
           pattern: dependency-graph_*
           path: ${{ runner.temp }}/dependency-graph-check
 
       - name: Check the dependency graph's commit and ref
         env:
-          # What the dependency-submission action records when it generates a graph: the pull request's head commit or
-          # the pushed commit, and the run's ref.
+          # What the pinned dependency-submission action records when it generates a graph: on a pull request, the head
+          # commit (not the merge commit in github.sha); otherwise the run's commit. The ref is the run's ref.
           EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           EXPECTED_REF: ${{ github.ref }}
         run: |
@@ -82,12 +83,14 @@ jobs:
           root = pathlib.Path(sys.argv[1])
           expected = {"sha": os.environ["EXPECTED_SHA"], "ref": os.environ["EXPECTED_REF"]}
           problems, owners, checked = [], {}, 0
-          for artifact in sorted(root.iterdir()) if root.is_dir() else []:
-              if artifact.is_symlink() or not artifact.is_dir() or not artifact.name.startswith("dependency-graph_"):
-                  problems.append(f"unexpected entry {artifact.name}")
-                  continue
+          entries = sorted(root.iterdir()) if root.is_dir() else []
+          # Several artifacts come one directory each (named after the artifact); a single one is extracted into root.
+          per_artifact = len(entries) > 1 and all(
+              entry.is_dir() and not entry.is_symlink() and entry.name.startswith("dependency-graph_") for entry in entries
+          )
+          for artifact in entries if per_artifact else ([root] if entries else []):
               for path in sorted(artifact.rglob("*")):
-                  name = f"{artifact.name}/{path.relative_to(artifact).as_posix()}"
+                  name = path.relative_to(root).as_posix()
                   if path.is_symlink() or not (path.is_file() or path.is_dir()):
                       problems.append(f"{name} is not a regular file")
                       continue
