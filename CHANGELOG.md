@@ -2,6 +2,11 @@
 
 ## 0.6.6
 
+### Documentation
+- The README says that Checkstyle override files come from the root project only, how to use a JDK 21 toolchain (lower
+  `options.release` with it), what an aggregator root without Java sources needs, and that coverage verification is
+  skipped when a project has no test execution data.
+
 ## 0.6.5
 
 ### Changed

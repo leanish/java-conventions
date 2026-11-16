@@ -7,7 +7,8 @@ Shared Gradle conventions for JDK-based projects.
 - Configures Java toolchain, runtime launcher, and bytecode level (defaults to JDK 25 from any available vendor).
 - The plugin itself targets Kotlin/JVM 17.
 - Adds `mavenCentral()` by default and can optionally add `mavenLocal()` (both configurable).
-- Sets Checkstyle tool version and uses project-level Checkstyle files when provided (bundled defaults otherwise).
+- Sets Checkstyle tool version and uses the root project's `config/checkstyle` files when provided (bundled defaults
+  otherwise); every project that applies the plugin shares them.
 - Sets JaCoCo tool version and enforces instruction coverage.
 - Configures PIT mutation testing (`pitest` task, 95 % mutation threshold) for the resolved base package; it is not part of `check`.
 - Configures Spotless for basic Java formatting (unused imports, import order, trailing whitespace, newline at EOF).
@@ -89,6 +90,14 @@ plugins {
     id("io.github.leanish.java-conventions") version "0.6.6"
 }
 ```
+
+A root project without `src/main/java` can't infer a base package, so `build` fails when it configures `compileJava`
+there. Set `leanish.conventions.basePackage` for it. In the root `gradle.properties` the value reaches every subproject
+too, so use it there only when every project's packages lie under that package (for example `com.acme` for
+`com.acme.app` and `com.acme.lib`): NullAway's annotated packages and PIT's `<package>.*` targets include
+subpackages. When the projects have unrelated packages, a shared value would point NullAway and PIT at the wrong code:
+don't invent a common prefix just to make the root configure. Set the property in each project's own
+`gradle.properties` instead (the root's included); a project's own file takes precedence over the root's.
 
 ## Convention properties
 Configure behavior through `gradle.properties` (or `-P...`):
@@ -217,6 +226,22 @@ tasks.withType<JavaCompile>().configureEach {
 }
 ```
 
+- The toolchain version and the bytecode level are set separately. To use an older toolchain (JDK 21 is the minimum),
+  lower the bytecode level with it: `options.release` stays at 25, which an older `javac` rejects
+  (`release version 25 not supported`).
+
+```kotlin
+java {
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(21))
+    }
+}
+
+tasks.withType<JavaCompile>().configureEach {
+    options.release.set(21)
+}
+```
+
 ## Sources and Javadocs artifacts
 - The plugin enables `sourcesJar` and `javadocJar` by default.
 - Consumers can disable them in `build.gradle.kts`:
@@ -245,6 +270,8 @@ components.named<AdhocComponentWithVariants>("java") {
 - Default minimum is `0.85` unless overridden.
 - Set `-DexcludeTags=integration` (or any tags) to skip those tests and disable coverage verification.
   The same tags are excluded from mutation testing.
+- JaCoCo skips verification when there is no execution data, so a project with main classes but no tests passes
+  `check` without its coverage being checked.
 
 ## Mutation testing
 - Applies `info.solidsoft.pitest` (gradle-pitest-plugin) with PIT and its JUnit 5 plugin, at the versions in
@@ -334,7 +361,7 @@ Two supported patterns:
 With the bundled Checkstyle configuration, Spotless orders imports the way its `ImportOrder` rule expects: static imports
 first, then `java`, `javax`, `org`, `com` and everything else (for example `lombok`), one blank line between groups and
 alphabetical within each. `spotlessApply` (and the pre-commit hook) fixes the order, so the IDE's import layout doesn't
-matter. When the project has its own `config/checkstyle/checkstyle.xml`, the plugin adds no import-order step; add
+matter. When the root project has its own `config/checkstyle/checkstyle.xml`, the plugin adds no import-order step; add
 `importOrder(...)` to `spotless { java { } }` to match that config.
 
 ## License header conventions
@@ -361,7 +388,8 @@ It:
 
 ## Notes
 - Checkstyle uses the tool version from [`gradle/libs.versions.toml`](gradle/libs.versions.toml) (`checkstyle`).
-- Checkstyle uses `config/checkstyle/checkstyle.xml` and `config/checkstyle/suppressions.xml` when present in the consumer project.
+- Checkstyle uses `config/checkstyle/checkstyle.xml` and `config/checkstyle/suppressions.xml` from the root project when
+  present; subprojects use the root's files, not their own.
 - If either file is missing, the plugin falls back to bundled defaults (`checkstyle.xml` and empty suppressions).
 - These files are materialized under `build/generated/checkstyle` for Checkstyle only and are not packaged into JARs/publications.
 - **Checkstyle runtime requirement:** Checkstyle 14.x requires the **Java toolchain used by the plugin's runtime launcher** to be JDK 21 or newer. The default toolchain is JDK 25, which satisfies this. If you override the project Java toolchain to a version lower than JDK 21, Checkstyle tasks will fail even when the Gradle daemon itself runs on a newer JDK.
