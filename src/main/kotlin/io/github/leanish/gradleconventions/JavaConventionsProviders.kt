@@ -159,8 +159,7 @@ private fun Project.resolveNullAwayAnnotatedPackages(): String {
 /**
  * Whether [value] is a parent project's inferred base package that this project only sees because extra properties are
  * inherited. A value set anywhere else (environment, `gradle.properties`, `-P`, or an extra property set in a build
- * script, inherited or not) is configuration. A subproject's own `gradle.properties` value that happens to equal the
- * parent's inferred one can't be told apart from it, so that project infers its own.
+ * script, inherited or not) is configuration, even when it equals the parent's inferred value.
  */
 private fun Project.isInheritedInference(value: String): Boolean {
     if (extensions.extraProperties.has(BASE_PACKAGE)) {

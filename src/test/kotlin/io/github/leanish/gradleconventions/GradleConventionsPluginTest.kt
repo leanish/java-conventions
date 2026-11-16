@@ -892,6 +892,34 @@ class GradleConventionsPluginTest {
     }
 
     @Test
+    fun subprojectKeepsAConfiguredValueEqualToTheRootsInferredOne() {
+        val projectDir = tempDir.resolve("base-package-configured-same-as-inferred").toFile()
+        writeFile(
+            projectDir,
+            "settings.gradle.kts",
+            "rootProject.name = \"base-package-configured-same-as-inferred\"\ninclude(\"lib\")",
+        )
+        writeBasePackageDumpBuild(projectDir.resolve("build.gradle.kts"))
+        writeBasePackageDumpBuild(projectDir.resolve("lib/build.gradle.kts"))
+        // lib configures exactly the package the root infers, although its own sources are elsewhere.
+        writeFile(projectDir, "lib/gradle.properties", "leanish.conventions.basePackage=com.acme.app")
+        writeFile(projectDir, "src/main/java/com/acme/app/App.java", "package com.acme.app;\n\npublic class App {}\n")
+        writeFile(projectDir, "lib/src/main/java/com/acme/lib/Lib.java", "package com.acme.lib;\n\npublic class Lib {}\n")
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withArguments("dumpBasePackage")
+            .withEnvironment(environmentWithoutConventionsOverrides())
+            .withPluginClasspath()
+            .build()
+
+        assertThat(result.output)
+            .contains("basePackage : -XepOpt:NullAway:AnnotatedPackages=com.acme.app pitest=[com.acme.app.*]")
+            .contains("basePackage :lib -XepOpt:NullAway:AnnotatedPackages=com.acme.app pitest=[com.acme.app.*]")
+            .doesNotContain("Inferred 'leanish.conventions.basePackage=com.acme.lib'")
+    }
+
+    @Test
     fun subprojectsKeepConfiguredBasePackages() {
         val projectDir = tempDir.resolve("base-package-configured-per-project").toFile()
         writeFile(
