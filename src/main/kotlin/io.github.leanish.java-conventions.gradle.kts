@@ -394,9 +394,8 @@ if (project == rootProject) {
         onlyIf { gitExists.get() && !projectHookFile.asFile.exists() }
 
         doLast {
-            val targetFile = preCommitHookFile.get().asFile
-            targetFile.parentFile.mkdirs()
-            targetFile.writeText(GitHooks.bundledPreCommitHook())
+            // Gradle creates the declared output's parent directory before this runs.
+            preCommitHookFile.get().asFile.writeText(GitHooks.bundledPreCommitHook())
         }
     }
 
