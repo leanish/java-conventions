@@ -2,6 +2,13 @@
 
 ## 0.6.6
 
+### Build and verification
+- The dependency graph submit job pins its target explicitly: it checks that every graph file is recorded for the run's
+  commit and ref before submitting. It also skips pull requests from forks and from Dependabot, whose token can't
+  submit, instead of failing them. Running `./gradlew check` now needs `python3` on the `PATH` (the tests run that check),
+  and `test` declares `.github/workflows` as an input, so a workflow change runs those tests again.
+- The reusable publishing workflow's comment says that build code in its `prepare` job can use that job's read token.
+
 ## 0.6.5
 
 ### Changed

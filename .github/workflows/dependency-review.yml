@@ -44,12 +44,81 @@ jobs:
   submit:
     name: Submit dependency graph
     needs: dependency-graph
+    # Pushes to main and pull requests from this repository's branches submit. A fork's pull request gets a read-only
+    # token whatever the job asks for, so it is skipped rather than failing; so is a Dependabot pull request, whose token
+    # is read-only by default too. Their changes are submitted from main once merged.
+    if: >-
+      github.event_name != 'pull_request' ||
+      (github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.user.login != 'dependabot[bot]')
     runs-on: ubuntu-26.04
     permissions:
       # The dependency submission API needs write access; this job runs no build code.
       contents: write
 
     steps:
+      # The graph files come from the job that ran the build, which also wrote the commit and ref each one is recorded
+      # for. They are checked before anything is submitted; the submit step downloads the same artifacts again.
+      - name: Download the dependency graph
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          # One directory per artifact, so files with the same path in two artifacts can't hide each other.
+          pattern: dependency-graph_*
+          path: ${{ runner.temp }}/dependency-graph-check
+
+      - name: Check the dependency graph's commit and ref
+        env:
+          # What the dependency-submission action records when it generates a graph: the pull request's head commit or
+          # the pushed commit, and the run's ref.
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          EXPECTED_REF: ${{ github.ref }}
+        run: |
+          set -euo pipefail
+          # BEGIN graph target check (a test runs it): every JSON file in every artifact must be recorded for this run's
+          # commit and ref, no path may be in two artifacts, and there must be at least one graph.
+          python3 -I - "$RUNNER_TEMP/dependency-graph-check" <<'PY'
+          import json, os, pathlib, sys
+
+          root = pathlib.Path(sys.argv[1])
+          expected = {"sha": os.environ["EXPECTED_SHA"], "ref": os.environ["EXPECTED_REF"]}
+          problems, owners, checked = [], {}, 0
+          for artifact in sorted(root.iterdir()) if root.is_dir() else []:
+              if artifact.is_symlink() or not artifact.is_dir() or not artifact.name.startswith("dependency-graph_"):
+                  problems.append(f"unexpected entry {artifact.name}")
+                  continue
+              for path in sorted(artifact.rglob("*")):
+                  name = f"{artifact.name}/{path.relative_to(artifact).as_posix()}"
+                  if path.is_symlink() or not (path.is_file() or path.is_dir()):
+                      problems.append(f"{name} is not a regular file")
+                      continue
+                  if path.is_dir():
+                      continue
+                  relative = path.relative_to(artifact).as_posix()
+                  if relative in owners:
+                      problems.append(f"{relative} is in both {owners[relative]} and {artifact.name}")
+                      continue
+                  owners[relative] = artifact.name
+                  if not relative.endswith(".json"):
+                      continue
+                  try:
+                      graph = json.loads(path.read_text(encoding="utf-8"))
+                  except ValueError as error:
+                      problems.append(f"{name} isn't JSON: {error}")
+                      continue
+                  target = {key: graph.get(key) for key in expected} if isinstance(graph, dict) else None
+                  if target != expected:
+                      problems.append(f"{name} is recorded for {target}, not {expected}")
+                  checked += 1
+          if checked == 0 and not problems:
+              problems.append("no dependency graph to check")
+          for problem in problems:
+              print(f"::error::{problem}")
+          if problems:
+              sys.exit(1)
+          print(f"checked {checked} dependency graph file(s) for {expected}")
+          PY
+          # END graph target check
+
       - name: Submit the dependency graph
         uses: gradle/actions/dependency-submission@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
         with:

@@ -380,7 +380,8 @@ It:
   `publishAllPublicationsToGitHubPackagesRepository` path still runs Gradle with your credentials.
 - `.github/workflows/publishing-github-packages.yml` is a reusable workflow (`workflow_call`) that publishes a Gradle
   build to the calling repository's GitHub Packages without Gradle ever holding a write token:
-  - Its `prepare` job (read-only) reads the version from the root project, builds and stages the publications in
+  - Its `prepare` job (read-only; build code there can reach its read token, so it can read any package that token
+    may read) reads the version from the root project, builds and stages the publications in
     `build/publication-staging`, and hands them over as an artifact (one per attempt, kept 30 days). Its `publish`
     job holds `packages: write`, runs no Gradle or repository code, and uploads exactly the files the coordinates
     and the version call for: each artifact with its `.md5`/`.sha1`/`.sha256`/`.sha512`, and nothing else. An
@@ -400,6 +401,12 @@ It:
   plugin injects into consumer builds, with the same Guava floor, so a dependency scan of this repository covers the
   versions consumers get. Nothing compiles against them; `checkConventionMirrors` (part of `check`) fails when an injected
   version has no mirror.
+- `.github/workflows/dependency-review.yml` submits the resolved Gradle dependency graph to GitHub. A job with a
+  read-only token builds the graph; a separate job without build code checks that every graph file is recorded for the
+  run's commit and ref, then submits. Pushes to `main` and pull requests from this repository's branches submit; pull
+  requests from forks and from Dependabot skip the submission, since their token is read-only.
+- The tests run that check with `bash` and `python3`, as the workflow does, so both must be on the `PATH` to run
+  `./gradlew check`.
 - `.github/workflows/supply-chain.yml` runs the [leanish/leanish-development](https://github.com/leanish/leanish-development)
   gate: on a PR it fails what the change makes worse (new advisories, young versions, unpinned new actions), and it scans
   `main` on every push and daily; an open PR is checked again only when it's reopened, updated, edited or re-run.

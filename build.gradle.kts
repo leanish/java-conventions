@@ -306,3 +306,10 @@ publishing {
         }
     }
 }
+
+tasks.named<Test>("test") {
+    // Some tests run shell blocks taken from the workflows, so a workflow change must run them again.
+    inputs.dir(".github/workflows")
+        .withPropertyName("workflows")
+        .withPathSensitivity(PathSensitivity.RELATIVE)
+}
