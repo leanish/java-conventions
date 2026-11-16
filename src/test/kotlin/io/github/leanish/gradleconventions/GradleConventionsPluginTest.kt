@@ -186,6 +186,123 @@ class GradleConventionsPluginTest {
     }
 
     @Test
+    fun coverageVerificationRunsForClassesWithoutTests() {
+        val projectDir = untestedClassProject("coverage-untested-class", "")
+
+        val result = coverageRunner(projectDir, "jacocoTestCoverageVerification").buildAndFail()
+
+        assertThat(result.task(":jacocoTestCoverageVerification")?.outcome).isEqualTo(TaskOutcome.FAILED)
+        assertThat(result.output).contains("instructions covered ratio is 0.00, but expected minimum is 0.85")
+    }
+
+    @Test
+    fun coverageVerificationWithoutTestsPassesWithAZeroMinimumAndReusesTheConfigurationCache() {
+        val projectDir = untestedClassProject(
+            "coverage-untested-class-zero-minimum",
+            """
+            tasks.withType<JacocoCoverageVerification>().configureEach {
+                violationRules {
+                    rules.forEach { rule ->
+                        rule.limits.forEach { limit ->
+                            limit.minimum = "0".toBigDecimal()
+                        }
+                    }
+                }
+            }
+            """.trimIndent(),
+        )
+
+        // --rerun makes the second run verify again instead of finding the task up to date.
+        val arguments = arrayOf("jacocoTestCoverageVerification", "--rerun", "--configuration-cache")
+        val firstRun = coverageRunner(projectDir, *arguments).build()
+        val secondRun = coverageRunner(projectDir, *arguments).build()
+
+        assertThat(firstRun.task(":jacocoTestCoverageVerification")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
+        assertThat(firstRun.output).contains("Configuration cache entry stored.")
+        assertThat(secondRun.task(":jacocoTestCoverageVerification")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
+        assertThat(secondRun.output).contains("Reusing configuration cache.")
+    }
+
+    @Test
+    fun coverageVerificationWithoutTestsStaysOffWhenTagsAreExcluded() {
+        val projectDir = untestedClassProject("coverage-untested-class-excluded-tags", "")
+
+        val result = coverageRunner(projectDir, "-DexcludeTags=integration", "check", "-x", "checkstyleMain").build()
+
+        assertThat(result.task(":jacocoTestCoverageVerification")?.outcome).isEqualTo(TaskOutcome.SKIPPED)
+    }
+
+    @Test
+    fun coverageVerificationWithoutTestsStaysOffWhenDisabled() {
+        val projectDir = untestedClassProject(
+            "coverage-untested-class-disabled",
+            "tasks.named(\"jacocoTestCoverageVerification\") {\n    enabled = false\n}",
+        )
+
+        val result = coverageRunner(projectDir, "check", "-x", "checkstyleMain").build()
+
+        assertThat(result.task(":jacocoTestCoverageVerification")?.outcome).isEqualTo(TaskOutcome.SKIPPED)
+    }
+
+    @Test
+    fun coverageVerificationKeepsConditionsTheBuildScriptAdds() {
+        val projectDir = untestedClassProject(
+            "coverage-untested-class-build-script-condition",
+            "tasks.named(\"jacocoTestCoverageVerification\") {\n    onlyIf(\"not this time\") { false }\n}",
+        )
+
+        val result = coverageRunner(projectDir, "jacocoTestCoverageVerification", "--info").build()
+
+        assertThat(result.task(":jacocoTestCoverageVerification")?.outcome).isEqualTo(TaskOutcome.SKIPPED)
+        assertThat(result.output).contains("as task onlyIf 'not this time' is false")
+    }
+
+    @Test
+    fun otherCoverageVerificationTasksKeepJacocosConditionWithoutExecutionData() {
+        val projectDir = untestedClassProject(
+            "coverage-untested-class-custom-verification",
+            """
+            tasks.register<JacocoCoverageVerification>("customCoverageVerification") {
+                executionData.setFrom(layout.buildDirectory.file("jacoco/custom.exec"))
+                sourceSets(sourceSets.main.get())
+            }
+            """.trimIndent(),
+        )
+
+        val result = coverageRunner(projectDir, "customCoverageVerification").build()
+
+        assertThat(result.task(":customCoverageVerification")?.outcome).isEqualTo(TaskOutcome.SKIPPED)
+    }
+
+    /** A project with one main class and no tests, plus [extraBuildScript] after the plugins block. */
+    private fun untestedClassProject(name: String, extraBuildScript: String): File {
+        val projectDir = tempDir.resolve(name).toFile()
+        writeRequiredConventionsProperties(projectDir)
+        writeFile(projectDir, "settings.gradle.kts", "rootProject.name = \"$name\"")
+        writeFile(
+            projectDir,
+            "build.gradle.kts",
+            "import org.gradle.testing.jacoco.tasks.JacocoCoverageVerification\n\n" +
+                "plugins {\n    id(\"io.github.leanish.java-conventions\")\n}\n\n" +
+                extraBuildScript + "\n",
+        )
+        writeFile(
+            projectDir,
+            "src/main/java/io/github/leanish/sample/Untested.java",
+            "package io.github.leanish.sample;\n\npublic class Untested {\n    public int one() {\n        return 1;\n    }\n}\n",
+        )
+        return projectDir
+    }
+
+    private fun coverageRunner(projectDir: File, vararg arguments: String): GradleRunner {
+        return GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withArguments(*arguments)
+            .withEnvironment(environmentWithoutConventionsOverrides())
+            .withPluginClasspath()
+    }
+
+    @Test
     fun excludeTagsSystemPropertyFiltersTaggedTestsAndDisablesCoverageVerification() {
         val projectDir = tempDir.resolve("exclude-tags-filtering").toFile()
         projectDir.mkdirs()

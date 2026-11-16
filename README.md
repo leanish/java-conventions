@@ -245,6 +245,9 @@ components.named<AdhocComponentWithVariants>("java") {
 - Default minimum is `0.85` unless overridden.
 - Set `-DexcludeTags=integration` (or any tags) to skip those tests and disable coverage verification.
   The same tags are excluded from mutation testing.
+- `jacocoTestCoverageVerification` runs whenever the project has main classes, so a project with classes and no tests
+  fails it (0 % coverage); a project without main classes skips it. Other `JacocoCoverageVerification` tasks keep
+  JaCoCo's behavior and skip when they have no execution data.
 
 ## Mutation testing
 - Applies `info.solidsoft.pitest` (gradle-pitest-plugin) with PIT and its JUnit 5 plugin, at the versions in
