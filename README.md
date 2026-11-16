@@ -134,6 +134,9 @@ Wrapper plugins can import these names directly from
 - If configured, the plugin uses that value.
 - If missing, the plugin infers it from `src/main/java` package declarations, stores the inferred
   value in project extra properties, and logs the inference.
+- Each project infers its own value: a subproject doesn't take a parent's inferred value, although extra properties are
+  inherited. A value configured in a parent (`gradle.properties`, `-P`, or an extra property set in its build script)
+  still applies to its subprojects that don't set their own.
 - The plugin fails fast only when the property is blank or when it cannot infer any Java package.
 
 Publishing repository/name/description conventions are derived from project metadata and are not configurable properties:

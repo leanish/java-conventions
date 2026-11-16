@@ -123,12 +123,18 @@ internal fun Project.javaConventionsProviders(): JavaConventionsProviders {
     )
 }
 
+/**
+ * Marks the base package this project inferred, next to the inferred value in its extra properties. Extra properties are
+ * inherited by subprojects, so without the mark a subproject would take a parent's inferred package as configured.
+ */
+private const val INFERRED_BASE_PACKAGE = "io.github.leanish.java-conventions.inferredBasePackage"
+
 private fun Project.resolveNullAwayAnnotatedPackages(): String {
     val configuredBasePackage = stringProperty(
         BASE_PACKAGE,
         BASE_PACKAGE_ENV,
     )
-    if (configuredBasePackage != null) {
+    if (configuredBasePackage != null && !isInheritedInference(configuredBasePackage)) {
         return configuredBasePackage
     }
 
@@ -142,9 +148,29 @@ private fun Project.resolveNullAwayAnnotatedPackages(): String {
     val inferredBasePackages = detectedBasePackages.joinToString(",")
     if (!extensions.extraProperties.has(BASE_PACKAGE)) {
         extensions.extraProperties.set(BASE_PACKAGE, inferredBasePackages)
+        extensions.extraProperties.set(INFERRED_BASE_PACKAGE, inferredBasePackages)
         logger.lifecycle(
             "Inferred '$BASE_PACKAGE=$inferredBasePackages' from source packages under src/main/java",
         )
     }
     return inferredBasePackages
+}
+
+/**
+ * Whether [value] is a parent project's inferred base package that this project only sees because extra properties are
+ * inherited. A value set anywhere else (environment, `gradle.properties`, `-P`, or an extra property set in a build
+ * script, inherited or not) is configuration. A subproject's own `gradle.properties` value that happens to equal the
+ * parent's inferred one can't be told apart from it, so that project infers its own.
+ */
+private fun Project.isInheritedInference(value: String): Boolean {
+    if (extensions.extraProperties.has(BASE_PACKAGE)) {
+        return false
+    }
+    val holder = generateSequence(parent) { it.parent }
+        .firstOrNull { ancestor -> ancestor.extensions.extraProperties.has(BASE_PACKAGE) }
+        ?: return false
+    val holderProperties = holder.extensions.extraProperties
+    return holderProperties.has(INFERRED_BASE_PACKAGE) &&
+        holderProperties[INFERRED_BASE_PACKAGE] == holderProperties[BASE_PACKAGE] &&
+        holderProperties[BASE_PACKAGE] == value
 }

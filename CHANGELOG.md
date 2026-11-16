@@ -2,6 +2,12 @@
 
 ## 0.6.6
 
+### Fixed
+- In a multi-project build, a subproject could take its parent's inferred `leanish.conventions.basePackage` (extra
+  properties are inherited) instead of inferring its own, so NullAway and PIT covered the parent's package there. Each
+  project now infers its own; the inferred value is still stored in the project's extra properties, and values
+  configured in a parent still apply to subprojects.
+
 ## 0.6.5
 
 ### Changed
