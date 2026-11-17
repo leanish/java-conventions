@@ -368,7 +368,8 @@ It:
 - The plugin does not add a toolchain resolver; ensure the configured JDK is available locally or add a resolver in the consuming project.
 - Dependencies added by the plugin are additive; your project dependencies remain in effect.
 - The bundled pre-commit hook runs `./gradlew spotlessApply` and `./gradlew checkstyleMain checkstyleTest`, and may modify files before commit.
-- `installGitHooks` installs `scripts/git-hooks/pre-commit` if the project has one, else the bundled hook, and keeps a pre-commit hook it didn't install (or one edited since, or a symbolic link) with a warning; it records what it installed in `.git/hooks/pre-commit.java-conventions.sha256`, and recognizes hooks bundled by earlier versions. To switch to the conventions' hook, delete the existing one and run `installGitHooks`.
+- `installGitHooks` installs `scripts/git-hooks/pre-commit` if the project has one, else the bundled hook, and keeps a pre-commit hook it didn't install (or one edited since, or a symbolic link) with a warning; it records what it installed in `pre-commit.java-conventions.sha256` next to the hook, and recognizes hooks bundled by earlier versions. To switch to the conventions' hook, delete the existing one and run `installGitHooks`.
+- `installGitHooks` asks `git` (it must be on the `PATH`) where Git runs hooks: `.git/hooks`, or in a linked worktree the main repository's hooks directory, which all linked worktrees share (so a worktree with a different `scripts/git-hooks/pre-commit` updates the shared hook). When `core.hooksPath` is set, in the repository or globally, it installs nothing and leaves those hooks to you; set your own `core.hooksPath` if worktrees need separate hooks. If git can't run or the lookup fails, it warns and skips.
 
 ## Plugin project CI (maintainers)
 - Checked-in Linux jobs run on `ubuntu-26.04`, with Gradle `9.8.2` and the existing JDK baselines.
