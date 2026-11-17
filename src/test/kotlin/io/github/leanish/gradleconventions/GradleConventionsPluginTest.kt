@@ -2576,7 +2576,7 @@ class GradleConventionsPluginTest {
         initGitRepository(projectDir)
         val gitHooksDir = projectDir.resolve(".git/hooks")
 
-        GradleRunner.create()
+        val result = GradleRunner.create()
             .withProjectDir(projectDir)
             .withArguments("installGitHooks")
             .withPluginClasspath()
@@ -2585,6 +2585,8 @@ class GradleConventionsPluginTest {
         val installedHook = gitHooksDir.resolve("pre-commit")
         assertThat(installedHook.readText())
             .isEqualTo(loadBundledPreCommitHook())
+        // setupProject relies on this line to report where the hook went.
+        assertThat(result.output).contains("Installed the pre-commit hook in ")
     }
 
     @Test
