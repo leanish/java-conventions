@@ -54,6 +54,10 @@
   project now infers its own; the inferred value is still stored in the project's extra properties, and values
   configured in a parent still apply to subprojects.
 
+### Documentation
+- The README says that Checkstyle override files come from the root project only, how to use a JDK 21 toolchain (lower
+  `options.release` with it), and what an aggregator root without Java sources needs.
+
 ## 0.6.5
 
 ### Changed
