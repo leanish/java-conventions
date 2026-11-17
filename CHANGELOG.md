@@ -61,8 +61,8 @@
   job's read token.
 
 ### Build and verification
-- `test` declares `.github/workflows` as an input, so a workflow change runs the tests that read the workflows again
-  instead of leaving `test` up to date.
+- `test` declares `.github/workflows` as an input, so a workflow change runs the publishing workflow's ref guard test
+  again instead of leaving `test` up to date.
 - The dependency graph's submit job skips pull requests from forks, whose token can't submit, instead of failing them.
 
 ## 0.6.5

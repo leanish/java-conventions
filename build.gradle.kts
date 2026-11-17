@@ -212,7 +212,8 @@ tasks.withType<Test>().configureEach {
 }
 
 tasks.test {
-    // Some tests read the workflows and run shell blocks taken from them, so a workflow change must run them again.
+    // PublishingWorkflowRefGuardTest runs a shell block taken from the publishing workflow, so a workflow change must
+    // run the tests again.
     inputs.dir(".github/workflows")
         .withPropertyName("workflows")
         .withPathSensitivity(PathSensitivity.RELATIVE)
