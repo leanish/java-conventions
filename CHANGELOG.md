@@ -7,6 +7,22 @@
   `commonmark-ext-gfm-tables`. The tables extension `0.31.0` depends on core `0.31.0`, so core still resolves to
   `0.31.0` by default; the separate declaration was redundant, and this repository had already stopped mirroring it.
   Consumers that exclude the tables extension from `errorprone` now need their own core floor.
+- `installGitHooks` asks Git where it runs hooks (`git rev-parse --git-common-dir --git-path hooks`) instead of reading
+  `.git` itself. In a linked worktree it used to write the hook into the worktree's private git directory, where Git
+  never runs it; now it goes to the main repository's hooks directory, which all linked worktrees share. When
+  `core.hooksPath` is set (in the repository or globally, even to an empty value) it now installs nothing and leaves
+  those hooks alone. It needs `git` on the `PATH` when the project has a `.git`; if git can't run or the lookup fails,
+  it warns and skips instead of falling back to `.git/hooks`. The record of what it installed lives next to the hook.
+- `installGitHooks` (which `build` runs) no longer overwrites a pre-commit hook it didn't install: a hook from another
+  tool, a hand-written one, a symbolic link, or an installed hook edited locally is kept, with a warning. It records
+  the SHA-256 of what it installs in `.git/hooks/pre-commit.java-conventions.sha256` and replaces only a hook that
+  still matches. Migration: a hook installed by an earlier version (the exact bytes of any previously bundled hook) is
+  adopted and updated while there is no record yet; a hand-edited one is kept with the warning (delete
+  `.git/hooks/pre-commit` and run `installGitHooks` once to take the current hook). An installed hook that isn't
+  executable is made executable, and nothing is written through a hook or record that is a symbolic link or not a
+  regular file.
+- The reusable publishing workflow validates the publication version against the dispatched ref in the upload job too,
+  reading the ref from the workflow context, with the same rule as the build job.
 
 ## 0.6.5
 
