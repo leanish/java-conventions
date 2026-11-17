@@ -59,10 +59,10 @@
   `options.release` with it), and what an aggregator root without Java sources needs.
 
 ### Build and verification
-- Simplified the plugin's own build and workflows without changing what they do: one `setup-java` step per job, one
-  JaCoCo class-directory setting for the report and the verification, and no Java toolchain block or `JavaExec`
-  launcher setting that had no effect (the Kotlin toolchain `17` already set the Java toolchain, and there are no
-  `JavaExec` tasks). The publishing workflow no longer writes the hand-over's artifact id to the run summary.
+- Simplified the plugin's own build and workflows without changing their build, test or publishing results: one
+  `setup-java` step per job, one JaCoCo class-directory setting for the report and the verification, and no Java
+  toolchain block or `JavaExec` launcher setting that had no effect (the Kotlin toolchain `17` already set the Java
+  toolchain, and there are no `JavaExec` tasks). The publishing workflow no longer writes the hand-over's artifact id to the run summary.
 
 ## 0.6.5
 
