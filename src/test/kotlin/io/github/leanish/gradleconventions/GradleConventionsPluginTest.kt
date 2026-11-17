@@ -1443,6 +1443,166 @@ class GradleConventionsPluginTest {
             .doesNotContain("property-token")
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = ["", "   "])
+    fun blankGithubCredentialVariablesFallBackToProperties(blank: String) {
+        val projectDir = tempDir.resolve("publishing-credentials-blank-env").toFile()
+        writeCredentialsDumpBuild(projectDir, "gpr.user=property-user\ngpr.key=property-token")
+
+        val result = credentialsDumpRunner(projectDir, mapOf("GITHUB_ACTOR" to blank, "GITHUB_TOKEN" to blank)).build()
+
+        assertThat(result.output)
+            .contains("githubPackagesUsername=property-user")
+            .contains("githubPackagesPassword=property-token")
+    }
+
+    @Test
+    fun blankGithubCredentialVariablesWithoutPropertiesLeaveCredentialsUnset() {
+        val projectDir = tempDir.resolve("publishing-credentials-blank-env-no-properties").toFile()
+        writeCredentialsDumpBuild(projectDir, "")
+
+        val result = credentialsDumpRunner(projectDir, mapOf("GITHUB_ACTOR" to "", "GITHUB_TOKEN" to " ")).build()
+
+        assertThat(result.output)
+            .contains("githubPackagesUsername=null")
+            .contains("githubPackagesPassword=null")
+    }
+
+    @Test
+    fun blankCredentialPropertiesStillFail() {
+        val projectDir = tempDir.resolve("publishing-credentials-blank-property").toFile()
+        writeCredentialsDumpBuild(projectDir, "gpr.key=   ")
+
+        val result = credentialsDumpRunner(projectDir, mapOf("GITHUB_TOKEN" to "")).buildAndFail()
+
+        assertThat(result.output).contains("Property 'gpr.key' must not be blank")
+    }
+
+    @Test
+    fun blankGithubRepositoryOwnerFallsThroughToTheConventionsOwnerVariable() {
+        val projectDir = tempDir.resolve("publishing-owner-blank-env").toFile()
+        writePublishingOwnerBuild(projectDir, ownerProperty = "property-owner")
+
+        generatePom(projectDir, mapOf("GITHUB_REPOSITORY_OWNER" to "", "JAVA_CONVENTIONS_PUBLISHING_GITHUB_OWNER" to "env-owner"))
+
+        assertThat(projectDir.resolve("build/publications/mavenJava/pom-default.xml").readText())
+            .contains("<url>https://github.com/env-owner/publishing-owner-blank-env</url>")
+            .doesNotContain("property-owner")
+    }
+
+    @Test
+    fun blankGithubRepositoryOwnerFallsThroughToTheOwnerProperty() {
+        val projectDir = tempDir.resolve("publishing-owner-blank-env-property").toFile()
+        writePublishingOwnerBuild(projectDir, ownerProperty = "property-owner")
+
+        generatePom(projectDir, mapOf("GITHUB_REPOSITORY_OWNER" to " "))
+
+        assertThat(projectDir.resolve("build/publications/mavenJava/pom-default.xml").readText())
+            .contains("<url>https://github.com/property-owner/publishing-owner-blank-env-property</url>")
+    }
+
+    @Test
+    fun blankGithubRepositoryOwnerFallsThroughToTheGroup() {
+        val projectDir = tempDir.resolve("publishing-owner-blank-env-group").toFile()
+        writePublishingOwnerBuild(projectDir, ownerProperty = null)
+
+        generatePom(projectDir, mapOf("GITHUB_REPOSITORY_OWNER" to ""))
+
+        assertThat(projectDir.resolve("build/publications/mavenJava/pom-default.xml").readText())
+            .contains("<url>https://github.com/group-owner/publishing-owner-blank-env-group</url>")
+    }
+
+    @Test
+    fun blankConventionsVariableFailsNamingTheVariable() {
+        val projectDir = tempDir.resolve("base-package-blank-env").toFile()
+        writeFile(projectDir, "settings.gradle.kts", "rootProject.name = \"base-package-blank-env\"")
+        writeFile(projectDir, "build.gradle.kts", "plugins {\n    id(\"io.github.leanish.java-conventions\")\n}\n")
+        writeFile(projectDir, "src/main/java/com/acme/app/App.java", "package com.acme.app;\n\npublic class App {}\n")
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withArguments("compileJava", "--dry-run")
+            .withEnvironment(environmentWithoutConventionsOverrides(mapOf("JAVA_CONVENTIONS_BASE_PACKAGE" to " ")))
+            .withPluginClasspath()
+            .buildAndFail()
+
+        assertThat(result.output).contains(
+            "Environment variable 'JAVA_CONVENTIONS_BASE_PACKAGE' (for property 'leanish.conventions.basePackage') " +
+                "must not be blank",
+        )
+    }
+
+    /** A project whose GitHub Packages repository is configured (owner `acme`), with a task printing its credentials. */
+    private fun writeCredentialsDumpBuild(projectDir: File, credentialProperties: String) {
+        writeFile(
+            projectDir,
+            "gradle.properties",
+            "leanish.conventions.basePackage=io.github.leanish\nleanish.conventions.publishing.githubOwner=acme\n" +
+                credentialProperties,
+        )
+        writeFile(projectDir, "settings.gradle.kts", "rootProject.name = \"${projectDir.name}\"")
+        writeFile(
+            projectDir,
+            "build.gradle.kts",
+            $$"""
+            import org.gradle.api.artifacts.repositories.MavenArtifactRepository
+            import org.gradle.api.credentials.PasswordCredentials
+            import org.gradle.api.publish.PublishingExtension
+
+            plugins {
+                id("io.github.leanish.java-conventions")
+            }
+
+            tasks.register("dumpGithubPackagesCredentials") {
+                doLast {
+                    val publishing = project.extensions.getByType(PublishingExtension::class.java)
+                    val repository = publishing.repositories.findByName("GitHubPackages") as MavenArtifactRepository?
+                    val credentials = repository?.credentials as PasswordCredentials?
+                    println("githubPackagesUsername=${credentials?.username}")
+                    println("githubPackagesPassword=${credentials?.password}")
+                }
+            }
+            """.trimIndent(),
+        )
+    }
+
+    private fun credentialsDumpRunner(projectDir: File, environment: Map<String, String>): GradleRunner {
+        return GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withArguments("dumpGithubPackagesCredentials")
+            .withEnvironment(environmentWithoutConventionsOverrides(environment))
+            .withPluginClasspath()
+    }
+
+    private fun writePublishingOwnerBuild(projectDir: File, ownerProperty: String?) {
+        // The group comes from gradle.properties, so it is set before the plugin reads it.
+        writeFile(
+            projectDir,
+            "gradle.properties",
+            "leanish.conventions.basePackage=io.github.leanish\ngroup=io.github.group-owner\nversion=1.0.0\n" +
+                (ownerProperty?.let { "leanish.conventions.publishing.githubOwner=$it\n" } ?: ""),
+        )
+        writeFile(projectDir, "settings.gradle.kts", "rootProject.name = \"${projectDir.name}\"")
+        writeFile(
+            projectDir,
+            "build.gradle.kts",
+            """
+            plugins {
+                id("io.github.leanish.java-conventions")
+            }
+            """.trimIndent(),
+        )
+    }
+
+    private fun generatePom(projectDir: File, environment: Map<String, String>) {
+        GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withArguments("generatePomFileForMavenJavaPublication")
+            .withEnvironment(environmentWithoutConventionsOverrides(environment))
+            .withPluginClasspath()
+            .build()
+    }
+
     @Test
     fun canDisablePublishingConventionsWithProperty() {
         val projectDir = tempDir.resolve("publishing-conventions-disabled").toFile()
@@ -2263,8 +2423,8 @@ class GradleConventionsPluginTest {
             """.trimIndent(),
         )
 
+        initGitRepository(projectDir)
         val gitHooksDir = projectDir.resolve(".git/hooks")
-        gitHooksDir.mkdirs()
         val customHook = projectDir.resolve("scripts/git-hooks/pre-commit")
         customHook.parentFile.mkdirs()
         customHook.writeText("custom-hook")
@@ -2296,8 +2456,8 @@ class GradleConventionsPluginTest {
             """.trimIndent(),
         )
 
+        initGitRepository(projectDir)
         val gitHooksDir = projectDir.resolve(".git/hooks")
-        gitHooksDir.mkdirs()
 
         GradleRunner.create()
             .withProjectDir(projectDir)
@@ -2308,6 +2468,123 @@ class GradleConventionsPluginTest {
         val installedHook = gitHooksDir.resolve("pre-commit")
         assertThat(installedHook.readText())
             .isEqualTo(loadBundledPreCommitHook())
+    }
+
+    @Test
+    fun installGitHooksKeepsAPreCommitHookItDidNotInstall() {
+        val projectDir = tempDir.resolve("foreign-hook").toFile()
+        projectDir.mkdirs()
+        writeRequiredConventionsProperties(projectDir)
+        writeFile(projectDir, "settings.gradle.kts", "rootProject.name = \"test-foreign-hook\"")
+        writeFile(
+            projectDir,
+            "build.gradle.kts",
+            """
+            plugins {
+                id("io.github.leanish.java-conventions")
+            }
+            """.trimIndent(),
+        )
+        initGitRepository(projectDir)
+        val foreignHook = projectDir.resolve(".git/hooks/pre-commit")
+        foreignHook.writeText("#!/bin/sh\nexec another-tool\n")
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withArguments("installGitHooks")
+            .withPluginClasspath()
+            .build()
+
+        assertThat(foreignHook).hasContent("#!/bin/sh\nexec another-tool\n")
+        assertThat(result.output).contains("java-conventions didn't install it, or it was edited since")
+    }
+
+    @Test
+    fun installGitHooksLeavesAConfiguredHooksPathAlone() {
+        val projectDir = tempDir.resolve("configured-hooks-path").toFile()
+        initGitRepository(projectDir)
+        git(projectDir, "config", "core.hooksPath", ".githooks")
+        writeRequiredConventionsProperties(projectDir)
+        writeFile(projectDir, "settings.gradle.kts", "rootProject.name = \"test-configured-hooks-path\"")
+        writeFile(
+            projectDir,
+            "build.gradle.kts",
+            """
+            plugins {
+                id("io.github.leanish.java-conventions")
+            }
+            """.trimIndent(),
+        )
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withArguments("installGitHooks", "--info")
+            .withPluginClasspath()
+            .build()
+
+        assertThat(result.output).contains("Didn't install the pre-commit hook: core.hooksPath is set (\".githooks\")")
+        assertThat(projectDir.resolve(".githooks")).doesNotExist()
+        assertThat(projectDir.resolve(".git/hooks/pre-commit")).doesNotExist()
+    }
+
+    @Test
+    fun installGitHooksSkipsAHooksDirectoryLinkedToSomethingMissing() {
+        val projectDir = tempDir.resolve("dangling-hooks-link").toFile()
+        initGitRepository(projectDir)
+        val missing = tempDir.resolve("outside/missing").toFile()
+        projectDir.resolve(".git/hooks").deleteRecursively()
+        java.nio.file.Files.createSymbolicLink(projectDir.resolve(".git/hooks").toPath(), missing.toPath())
+        writeRequiredConventionsProperties(projectDir)
+        writeFile(projectDir, "settings.gradle.kts", "rootProject.name = \"test-dangling-hooks-link\"")
+        writeFile(
+            projectDir,
+            "build.gradle.kts",
+            """
+            plugins {
+                id("io.github.leanish.java-conventions")
+            }
+            """.trimIndent(),
+        )
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withArguments("installGitHooks")
+            .withPluginClasspath()
+            .build()
+
+        assertThat(result.output).contains("Didn't install the pre-commit hook: the hooks directory").contains("which doesn't exist")
+        assertThat(missing).doesNotExist()
+    }
+
+    @Test
+    fun installGitHooksInALinkedWorktreeInstallsWhereGitRunsHooks() {
+        val repository = tempDir.resolve("main-repository").toFile()
+        initGitRepository(repository)
+        val projectDir = tempDir.resolve("linked-worktree").toFile()
+        git(repository, "worktree", "add", "-q", projectDir.path)
+        writeRequiredConventionsProperties(projectDir)
+        writeFile(projectDir, "settings.gradle.kts", "rootProject.name = \"test-linked-worktree\"")
+        writeFile(
+            projectDir,
+            "build.gradle.kts",
+            """
+            plugins {
+                id("io.github.leanish.java-conventions")
+            }
+            """.trimIndent(),
+        )
+        val marker = tempDir.resolve("hook-ran").toFile()
+        writeFile(projectDir, "scripts/git-hooks/pre-commit", "#!/bin/sh\ntouch '${marker.path}'\n")
+
+        GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withArguments("installGitHooks")
+            .withPluginClasspath()
+            .build()
+        git(projectDir, "commit", "-q", "--allow-empty", "-m", "runs the hook")
+
+        assertThat(repository.resolve(".git/hooks/pre-commit")).exists()
+        assertThat(marker).exists()
     }
 
     @Test

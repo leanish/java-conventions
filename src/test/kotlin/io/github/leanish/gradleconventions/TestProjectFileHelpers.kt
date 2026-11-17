@@ -30,3 +30,29 @@ internal fun environmentWithoutConventionsOverrides(
     baseEnvironment.putAll(overrides)
     return baseEnvironment
 }
+
+/** Runs git in [directory] (with a fixed identity, no global or system config) and returns its standard output. */
+internal fun git(directory: File, vararg arguments: String): String {
+    val process = ProcessBuilder(listOf("git") + arguments)
+        .directory(directory)
+        .redirectErrorStream(true)
+        .apply {
+            environment()["GIT_CONFIG_GLOBAL"] = "/dev/null"
+            environment()["GIT_CONFIG_NOSYSTEM"] = "1"
+            environment()["GIT_AUTHOR_NAME"] = "Test"
+            environment()["GIT_AUTHOR_EMAIL"] = "test@example.com"
+            environment()["GIT_COMMITTER_NAME"] = "Test"
+            environment()["GIT_COMMITTER_EMAIL"] = "test@example.com"
+        }
+        .start()
+    val output = process.inputStream.bufferedReader().readText()
+    check(process.waitFor() == 0) { "git ${arguments.joinToString(" ")} failed in $directory: $output" }
+    return output
+}
+
+/** A git repository with one empty commit, so worktrees can be added. */
+internal fun initGitRepository(directory: File) {
+    directory.mkdirs()
+    git(directory, "init", "-q", "-b", "main")
+    git(directory, "commit", "-q", "--allow-empty", "-m", "init")
+}
