@@ -3,6 +3,11 @@
 ## 0.6.6
 
 ### Changed
+- The bundled Checkstyle rule against `com.fasterxml.jackson.core` and `com.fasterxml.jackson.databind` imports
+  matched nothing: its pattern had doubled backslashes. It is now an import-aware `IllegalImport` check (id
+  `jacksonTwoImport`) that flags them however they are written, static imports included
+  (`com.fasterxml.jackson.annotation` stays allowed). Builds that passed with such imports fail `checkstyleMain` or
+  `checkstyleTest` until they move to `tools.jackson.*`, or suppress the rule (see README).
 - The plugin no longer declares commonmark core on consumers' Error Prone classpath next to
   `commonmark-ext-gfm-tables`. The tables extension `0.31.0` depends on core `0.31.0`, so core still resolves to
   `0.31.0` by default; the separate declaration was redundant, and this repository had already stopped mirroring it.
