@@ -459,7 +459,6 @@ if (project == rootProject) {
 
         doLast {
             println("Project setup completed!")
-            println("Git hooks installed in .git/hooks/")
         }
     }
 }
