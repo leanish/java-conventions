@@ -53,6 +53,9 @@
   properties are inherited) instead of inferring its own, so NullAway and PIT covered the parent's package there. Each
   project now infers its own; the inferred value is still stored in the project's extra properties, and values
   configured in a parent still apply to subprojects.
+- `setupProject` always printed "Git hooks installed in .git/hooks/", even when `installGitHooks` installed nothing
+  or installed elsewhere. It no longer prints it. `installGitHooks` logs where it installed or updated the hook, and
+  warns when it kept a hook it can't manage; expected skips, such as a set `core.hooksPath`, show with `--info`.
 
 ### Documentation
 - The README says that Checkstyle override files come from the root project only, how to use a JDK 21 toolchain (lower

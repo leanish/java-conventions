@@ -2645,6 +2645,35 @@ class GradleConventionsPluginTest {
     }
 
     @Test
+    fun setupProjectDoesNotClaimHooksWereInstalledWhenTheyWereNot() {
+        val projectDir = tempDir.resolve("setup-with-hooks-path").toFile()
+        initGitRepository(projectDir)
+        git(projectDir, "config", "core.hooksPath", ".githooks")
+        writeRequiredConventionsProperties(projectDir)
+        writeFile(projectDir, "settings.gradle.kts", "rootProject.name = \"test-setup-with-hooks-path\"")
+        writeFile(
+            projectDir,
+            "build.gradle.kts",
+            """
+            plugins {
+                id("io.github.leanish.java-conventions")
+            }
+            """.trimIndent(),
+        )
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withArguments("setupProject")
+            .withPluginClasspath()
+            .build()
+
+        assertThat(projectDir.resolve(".git/hooks/pre-commit")).doesNotExist()
+        assertThat(result.output)
+            .contains("Project setup completed!")
+            .doesNotContain("Git hooks installed in .git/hooks/")
+    }
+
+    @Test
     fun installGitHooksSkipsAHooksDirectoryLinkedToSomethingMissing() {
         val projectDir = tempDir.resolve("dangling-hooks-link").toFile()
         initGitRepository(projectDir)
