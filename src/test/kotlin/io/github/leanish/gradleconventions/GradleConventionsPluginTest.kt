@@ -2585,8 +2585,14 @@ class GradleConventionsPluginTest {
         val installedHook = gitHooksDir.resolve("pre-commit")
         assertThat(installedHook.readText())
             .isEqualTo(loadBundledPreCommitHook())
-        // setupProject relies on this line to report where the hook went.
-        assertThat(result.output).contains("Installed the pre-commit hook in ")
+        // setupProject relies on this line to report where the hook went. Compared canonically: the temp directory
+        // can be reached through a symbolic link (macOS's /var).
+        val installedPrefix = "Installed the pre-commit hook in "
+        assertThat(result.output.lines())
+            .anyMatch {
+                it.startsWith(installedPrefix) &&
+                    File(it.removePrefix(installedPrefix)).canonicalFile == installedHook.canonicalFile
+            }
     }
 
     @Test
