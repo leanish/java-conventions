@@ -60,6 +60,13 @@
 ### Documentation
 - The README says that Checkstyle override files come from the root project only, how to use a JDK 21 toolchain (lower
   `options.release` with it), and what an aggregator root without Java sources needs.
+- The reusable publishing workflow's comment and the README say that build code in its `prepare` job can use that
+  job's read token.
+
+### Build and verification
+- `test` declares `.github/workflows` as an input, so a workflow change runs the publishing workflow's ref guard test
+  again instead of leaving `test` up to date.
+- The dependency graph's submit job skips pull requests from forks, whose token can't submit, instead of failing them.
 
 ## 0.6.5
 

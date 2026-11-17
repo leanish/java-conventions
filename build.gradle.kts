@@ -211,6 +211,14 @@ tasks.withType<Test>().configureEach {
     javaLauncher.set(runtimeLauncher)
 }
 
+tasks.test {
+    // PublishingWorkflowRefGuardTest runs a shell block taken from the publishing workflow, so a workflow change must
+    // run the tests again.
+    inputs.dir(".github/workflows")
+        .withPropertyName("workflows")
+        .withPathSensitivity(PathSensitivity.RELATIVE)
+}
+
 jacoco {
     toolVersion = libs.versions.jacoco.get()
 }
