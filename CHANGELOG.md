@@ -24,6 +24,14 @@
 - The reusable publishing workflow validates the publication version against the dispatched ref in the upload job too,
   reading the ref from the workflow context, with the same rule as the build job.
 
+### Fixed
+- The check that this repository mirrors what the plugin injects into consumers compared version strings only, so a
+  removed module sharing another's version (or still pulled transitively) went unnoticed. `checkConventionMirrors` is
+  replaced by `ConventionMirrorsTest`, which takes the consumer configurations from a real consumer build (so a removed
+  mirror fails too) and compares coordinates one configuration at a time. The test dependencies' mirror is split into
+  `conventionTestImplementation` and `conventionTestRuntimeOnly`, since those two configurations declare different
+  modules.
+
 ## 0.6.5
 
 ### Changed
