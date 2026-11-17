@@ -422,7 +422,8 @@ It:
   `publishAllPublicationsToGitHubPackagesRepository` path still runs Gradle with your credentials.
 - `.github/workflows/publishing-github-packages.yml` is a reusable workflow (`workflow_call`) that publishes a Gradle
   build to the calling repository's GitHub Packages without Gradle ever holding a write token:
-  - Its `prepare` job (read-only) reads the version from the root project, builds and stages the publications in
+  - Its `prepare` job (read-only; build code there can use its read token, so it can read any package that token
+    may read) reads the version from the root project, builds and stages the publications in
     `build/publication-staging`, and hands them over as an artifact (one per attempt, kept 30 days). Its `publish`
     job holds `packages: write`, runs no Gradle or repository code, and uploads exactly the files the coordinates
     and the version call for: each artifact with its `.md5`/`.sha1`/`.sha256`/`.sha512`, and nothing else. An

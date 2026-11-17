@@ -211,6 +211,13 @@ tasks.withType<Test>().configureEach {
     javaLauncher.set(runtimeLauncher)
 }
 
+tasks.test {
+    // Some tests read the workflows and run shell blocks taken from them, so a workflow change must run them again.
+    inputs.dir(".github/workflows")
+        .withPropertyName("workflows")
+        .withPathSensitivity(PathSensitivity.RELATIVE)
+}
+
 jacoco {
     toolVersion = libs.versions.jacoco.get()
 }

@@ -44,6 +44,11 @@ jobs:
   submit:
     name: Submit dependency graph
     needs: dependency-graph
+    # A pull request from a fork gets a read-only token whatever the job asks for, so it can't submit; it skips this job
+    # instead of failing. Its dependencies are submitted from main once it's merged.
+    if: >-
+      github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-26.04
     permissions:
       # The dependency submission API needs write access; this job runs no build code.
