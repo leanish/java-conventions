@@ -146,6 +146,8 @@ Publishing owner/developer metadata is optional:
 - Owner resolves by `GITHUB_REPOSITORY_OWNER`, then `JAVA_CONVENTIONS_PUBLISHING_GITHUB_OWNER`, then `leanish.conventions.publishing.githubOwner`, then `group` when it matches `io.github.<owner>`.
 - Developer fields (`id`, `name`, `url`) are optional and independent; missing values are inferred from resolved owner when possible (`id=<owner>`, `name=<owner>`, `url=https://github.com/<owner>`), and the `developers` block is emitted only when all three resolve.
 - GitHub Packages credentials resolve by environment first (`GITHUB_ACTOR`, `GITHUB_TOKEN`), then properties (`gpr.user`, `gpr.key`).
+- A blank `GITHUB_ACTOR`, `GITHUB_TOKEN` or `GITHUB_REPOSITORY_OWNER` counts as unset (for example a secret a workflow run
+  can't read), so the next source is used. A blank `JAVA_CONVENTIONS_*` variable or property fails the build, naming it.
 
 ## Publishing
 - For Gradle Plugin Portal, set `gradle.publish.key` and `gradle.publish.secret` in `~/.gradle/gradle.properties`,
