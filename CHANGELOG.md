@@ -2,11 +2,6 @@
 
 ## 0.6.6
 
-### Fixed
-- In a multi-project build, a subproject could take its parent's inferred `leanish.conventions.basePackage` (extra
-  properties are inherited) instead of inferring its own, so NullAway and PIT covered the parent's package there. Each
-  project now infers its own; the inferred value is still stored in the project's extra properties, and values
-  configured in a parent still apply to subprojects.
 ### Changed
 - The plugin no longer declares commonmark core on consumers' Error Prone classpath next to
   `commonmark-ext-gfm-tables`. The tables extension `0.31.0` depends on core `0.31.0`, so core still resolves to
@@ -40,6 +35,10 @@
   failed the build while the publishing conventions were configured, with a message about `gpr.key`, `gpr.user` or
   the owner property. They now count as unset, so the next source is used. A blank `JAVA_CONVENTIONS_*` variable still
   fails, and the message now names the variable.
+- In a multi-project build, a subproject could take its parent's inferred `leanish.conventions.basePackage` (extra
+  properties are inherited) instead of inferring its own, so NullAway and PIT covered the parent's package there. Each
+  project now infers its own; the inferred value is still stored in the project's extra properties, and values
+  configured in a parent still apply to subprojects.
 
 ## 0.6.5
 
