@@ -857,6 +857,133 @@ class GradleConventionsPluginTest {
     }
 
     @Test
+    fun subprojectInfersItsOwnBasePackageAfterTheRootInferredOne() {
+        val projectDir = tempDir.resolve("base-package-per-project").toFile()
+        writeFile(projectDir, "settings.gradle.kts", "rootProject.name = \"base-package-per-project\"\ninclude(\"lib\")")
+        writeBasePackageDumpBuild(projectDir.resolve("build.gradle.kts"))
+        writeBasePackageDumpBuild(projectDir.resolve("lib/build.gradle.kts"))
+        writeFile(projectDir, "src/main/java/com/acme/app/App.java", "package com.acme.app;\n\npublic class App {}\n")
+        writeFile(projectDir, "lib/src/main/java/com/acme/lib/Lib.java", "package com.acme.lib;\n\npublic class Lib {}\n")
+
+        val runner = GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withArguments("dumpBasePackage", "--configuration-cache")
+            .withEnvironment(environmentWithoutConventionsOverrides())
+            .withPluginClasspath()
+        val firstRun = runner.build()
+        val secondRun = runner.build()
+
+        // The root is configured first and resolves its base package while its build script runs, so the subproject
+        // sees the root's inferred value before resolving its own.
+        assertThat(firstRun.output)
+            .contains("basePackage : -XepOpt:NullAway:AnnotatedPackages=com.acme.app pitest=[com.acme.app.*]")
+            .contains("basePackage :lib -XepOpt:NullAway:AnnotatedPackages=com.acme.lib pitest=[com.acme.lib.*]")
+            .contains("Configuration cache entry stored.")
+        assertThat(firstRun.output.lines().filter { it.startsWith("Inferred 'leanish.conventions.basePackage=") })
+            .containsExactlyInAnyOrder(
+                "Inferred 'leanish.conventions.basePackage=com.acme.app' from source packages under src/main/java",
+                "Inferred 'leanish.conventions.basePackage=com.acme.lib' from source packages under src/main/java",
+            )
+        assertThat(secondRun.output)
+            .contains("Reusing configuration cache.")
+            .contains("basePackage : -XepOpt:NullAway:AnnotatedPackages=com.acme.app pitest=[com.acme.app.*]")
+            .contains("basePackage :lib -XepOpt:NullAway:AnnotatedPackages=com.acme.lib pitest=[com.acme.lib.*]")
+            .doesNotContain("Inferred 'leanish.conventions.basePackage=")
+    }
+
+    @Test
+    fun subprojectKeepsAConfiguredValueEqualToTheRootsInferredOne() {
+        val projectDir = tempDir.resolve("base-package-configured-same-as-inferred").toFile()
+        writeFile(
+            projectDir,
+            "settings.gradle.kts",
+            "rootProject.name = \"base-package-configured-same-as-inferred\"\ninclude(\"lib\")",
+        )
+        writeBasePackageDumpBuild(projectDir.resolve("build.gradle.kts"))
+        writeBasePackageDumpBuild(projectDir.resolve("lib/build.gradle.kts"))
+        // lib configures exactly the package the root infers, although its own sources are elsewhere.
+        writeFile(projectDir, "lib/gradle.properties", "leanish.conventions.basePackage=com.acme.app")
+        writeFile(projectDir, "src/main/java/com/acme/app/App.java", "package com.acme.app;\n\npublic class App {}\n")
+        writeFile(projectDir, "lib/src/main/java/com/acme/lib/Lib.java", "package com.acme.lib;\n\npublic class Lib {}\n")
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withArguments("dumpBasePackage")
+            .withEnvironment(environmentWithoutConventionsOverrides())
+            .withPluginClasspath()
+            .build()
+
+        assertThat(result.output)
+            .contains("basePackage : -XepOpt:NullAway:AnnotatedPackages=com.acme.app pitest=[com.acme.app.*]")
+            .contains("basePackage :lib -XepOpt:NullAway:AnnotatedPackages=com.acme.app pitest=[com.acme.app.*]")
+            .doesNotContain("Inferred 'leanish.conventions.basePackage=com.acme.lib'")
+    }
+
+    @Test
+    fun subprojectsKeepConfiguredBasePackages() {
+        val projectDir = tempDir.resolve("base-package-configured-per-project").toFile()
+        writeFile(
+            projectDir,
+            "settings.gradle.kts",
+            "rootProject.name = \"base-package-configured-per-project\"\ninclude(\"lib\", \"other\")",
+        )
+        // Configured in the root build script: the root and `lib`, which has no value of its own, both use it.
+        writeBasePackageDumpBuild(
+            projectDir.resolve("build.gradle.kts"),
+            beforeResolution = "extra[\"leanish.conventions.basePackage\"] = \"com.acme\"",
+        )
+        writeBasePackageDumpBuild(projectDir.resolve("lib/build.gradle.kts"))
+        writeBasePackageDumpBuild(projectDir.resolve("other/build.gradle.kts"))
+        writeFile(projectDir, "other/gradle.properties", "leanish.conventions.basePackage=org.other")
+        writeFile(projectDir, "src/main/java/com/acme/app/App.java", "package com.acme.app;\n\npublic class App {}\n")
+        writeFile(projectDir, "lib/src/main/java/com/acme/lib/Lib.java", "package com.acme.lib;\n\npublic class Lib {}\n")
+        writeFile(projectDir, "other/src/main/java/org/other/x/X.java", "package org.other.x;\n\npublic class X {}\n")
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withArguments("dumpBasePackage")
+            .withEnvironment(environmentWithoutConventionsOverrides())
+            .withPluginClasspath()
+            .build()
+
+        assertThat(result.output)
+            .contains("basePackage : -XepOpt:NullAway:AnnotatedPackages=com.acme pitest=[com.acme.*]")
+            .contains("basePackage :lib -XepOpt:NullAway:AnnotatedPackages=com.acme pitest=[com.acme.*]")
+            .contains("basePackage :other -XepOpt:NullAway:AnnotatedPackages=org.other pitest=[org.other.*]")
+            .doesNotContain("Inferred 'leanish.conventions.basePackage=")
+    }
+
+    /** A build script that resolves the project's base package while it runs, and a task that prints the result. */
+    private fun writeBasePackageDumpBuild(buildFile: File, beforeResolution: String = "") {
+        buildFile.parentFile.mkdirs()
+        buildFile.writeText(
+            $$"""
+            import info.solidsoft.gradle.pitest.PitestPluginExtension
+            import net.ltgt.gradle.errorprone.errorprone
+
+            plugins {
+                id("io.github.leanish.java-conventions")
+            }
+
+            $${beforeResolution}
+
+            val annotatedPackages = tasks.named<JavaCompile>("compileJava").get().options.errorprone.errorproneArgs.get()
+                .single { it.startsWith("-XepOpt:NullAway:AnnotatedPackages=") }
+            val pitestTargets = extensions.getByType<PitestPluginExtension>().targetClasses.get()
+            val projectPath = path
+
+            tasks.register("dumpBasePackage") {
+                // Only this string reaches the action, so the configuration cache can store it.
+                val line = "basePackage $projectPath $annotatedPackages pitest=$pitestTargets"
+                doLast {
+                    println(line)
+                }
+            }
+            """.trimIndent(),
+        )
+    }
+
+    @Test
     fun failsWhenBasePackagePropertyIsBlank() {
         val projectDir = tempDir.resolve("base-package-blank").toFile()
         projectDir.mkdirs()
