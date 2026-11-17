@@ -413,9 +413,9 @@ It:
 
 ## Plugin project CI (maintainers)
 - Checked-in Linux jobs run on `ubuntu-26.04`, with Gradle `9.8.2` and the existing JDK baselines.
-- `.github/workflows/ci.yml` runs the default build path (Kotlin compilation toolchain on JDK 17, Gradle runtime/toolchain tasks on JDK 25).
+- `.github/workflows/ci.yml` runs the default build path: compilation toolchain JDK 17 (Kotlin, and the Java toolchain it sets); Gradle runtime and the default test launcher on JDK 25.
 - `.github/workflows/testing-legacy-jdk.yml` runs a matrix on legacy runtime JDKs (`17`, `21`).
-- The legacy matrix uses `-PjavaConventions.runtimeJdkVersion=<version>` to set the plugin project's own `Test`/`JavaExec` runtime launcher.
+- The legacy matrix uses `-PjavaConventions.runtimeJdkVersion=<version>` to set the plugin project's own `Test` runtime launcher.
 - `javaConventions.runtimeJdkVersion` is a plugin-project testing override only; it is not a consumer convention property.
 - `.github/workflows/publishing-github.yml` requires both `ci.yml` and `testing-legacy-jdk.yml` jobs to pass before publishing.
   It then calls the reusable `.github/workflows/publishing-github-packages.yml` (see below). The local

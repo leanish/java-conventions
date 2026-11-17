@@ -5,18 +5,13 @@
  */
 package io.github.leanish.gradleconventions
 
-import org.gradle.api.Project
-
 internal object GithubOwnerResolver {
     private const val GITHUB_GROUP_PREFIX = "io.github."
 
     fun inferFromGroup(groupValue: Any?): String? {
+        // Gradle's "unspecified" group doesn't start with the prefix either.
         val groupText = groupValue?.toString()?.trim()
-        if (groupText.isNullOrEmpty() || groupText == "unspecified") {
-            return null
-        }
-
-        if (!groupText.startsWith(GITHUB_GROUP_PREFIX)) {
+        if (groupText == null || !groupText.startsWith(GITHUB_GROUP_PREFIX)) {
             return null
         }
 
@@ -25,8 +20,4 @@ internal object GithubOwnerResolver {
             .substringBefore('.')
             .takeIf(String::isNotBlank)
     }
-}
-
-internal fun Project.githubOwnerFromGroup(): String? {
-    return GithubOwnerResolver.inferFromGroup(group)
 }

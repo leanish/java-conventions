@@ -67,6 +67,11 @@
 - `test` declares `.github/workflows` as an input, so a workflow change runs the publishing workflow's ref guard test
   again instead of leaving `test` up to date.
 - The dependency graph's submit job skips pull requests from forks, whose token can't submit, instead of failing them.
+- Simplified the plugin's own build and workflows without changing their build, test or publishing results: one
+  `setup-java` step per job, one JaCoCo class-directory setting for the report and the verification, and no Java
+  toolchain block or `JavaExec` launcher setting that had no effect (the Kotlin toolchain `17` already set the Java
+  toolchain, and there are no `JavaExec` tasks). The publishing workflow no longer writes the hand-over's artifact id
+  to the run summary.
 
 ## 0.6.5
 

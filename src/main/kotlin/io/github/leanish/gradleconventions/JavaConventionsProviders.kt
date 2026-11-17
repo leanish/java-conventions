@@ -73,7 +73,7 @@ internal fun Project.javaConventionsProviders(): JavaConventionsProviders {
             GITHUB_REPOSITORY_OWNER_ENV,
             PUBLISHING_GITHUB_OWNER_ENV,
         )
-            ?: githubOwnerFromGroup()
+            ?: GithubOwnerResolver.inferFromGroup(group)
             // Gradle Provider<T> does not support nullable T; blank means "owner unresolved".
             ?: ""
     }

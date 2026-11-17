@@ -16,15 +16,9 @@ repositories {
     mavenCentral()
 }
 
-java {
-    toolchain {
-        // No Java sources today, but pinning Java toolchain tasks (especially tests) to 25 to mirror the conventions' default toolchain.
-        languageVersion.set(JavaLanguageVersion.of(25))
-    }
-}
-
 kotlin {
-    // Targets JVM 17 so the plugin JAR can be loaded by Gradle running on JDK 17+.
+    // Targets JVM 17 so the plugin JAR can be loaded by Gradle running on JDK 17+. This also sets the Java toolchain;
+    // tests run on runtimeLauncher below (JDK 25 by default).
     jvmToolchain(17)
 }
 
@@ -198,13 +192,6 @@ val runtimeLauncher = project.extensions.getByType<JavaToolchainService>().launc
     languageVersion.set(runtimeJavaVersion.map(JavaLanguageVersion::of))
 }
 
-val coverageIncludes = listOf("io/github/leanish/gradleconventions/**")
-
-tasks.withType<JavaExec>().configureEach {
-    // Keep runtime Java version aligned with legacy workflow matrix checks.
-    javaLauncher.set(runtimeLauncher)
-}
-
 tasks.withType<Test>().configureEach {
     useJUnitPlatform()
     // Keep test Java version aligned with legacy workflow matrix checks.
@@ -223,11 +210,12 @@ jacoco {
     toolVersion = libs.versions.jacoco.get()
 }
 
-tasks.named<JacocoReport>("jacocoTestReport") {
+// The report and the verification (the only two JaCoCo report tasks here) cover the plugin's own classes.
+tasks.withType<JacocoReportBase>().configureEach {
     classDirectories.setFrom(
         files(
             sourceSets.main.get().output.asFileTree.matching {
-                include(coverageIncludes)
+                include("io/github/leanish/gradleconventions/**")
             },
         ),
     )
@@ -235,13 +223,6 @@ tasks.named<JacocoReport>("jacocoTestReport") {
 
 tasks.named<JacocoCoverageVerification>("jacocoTestCoverageVerification") {
     dependsOn(tasks.test)
-    classDirectories.setFrom(
-        files(
-            sourceSets.main.get().output.asFileTree.matching {
-                include(coverageIncludes)
-            },
-        ),
-    )
     violationRules {
         rule {
             limit {

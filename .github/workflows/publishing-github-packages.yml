@@ -149,7 +149,6 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload the hand-over
-        id: handover
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: publication-${{ github.run_attempt }}
@@ -157,12 +156,6 @@ jobs:
           if-no-files-found: error
           # Long enough to re-run publish with the same files after a partial upload.
           retention-days: 30
-
-      - name: Identify the hand-over
-        env:
-          ARTIFACT_ID: ${{ steps.handover.outputs.artifact-id }}
-        run: |
-          echo "Hand-over artifact id: $ARTIFACT_ID" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload build artifacts on failure
         if: failure()
