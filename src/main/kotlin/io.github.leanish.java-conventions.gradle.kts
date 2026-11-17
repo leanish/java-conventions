@@ -99,10 +99,10 @@ dependencies {
     errorprone("com.google.guava:guava:${ConventionVersions.GUAVA}") {
         because("CVE-2026-102554 and GHSA-v5x9-67m3-7m56: excessive allocation in Guava deserialization, hash flooding")
     }
-    // google-java-format, which Error Prone uses, parses Markdown javadoc with commonmark.
-    errorprone("org.commonmark:commonmark:${ConventionVersions.COMMONMARK}") {
-        because("GHSA-mg3c-47fx-jhgf, GHSA-g3cr-8x4q-74q3, GHSA-cc3j-83v5-hqfg, GHSA-vwrf-xrcv-x2rr, GHSA-cxq4-f84x-5ph8 and GHSA-5g96-4gff-g8g2: denial of service parsing Markdown")
-    }
+    // google-java-format, which Error Prone uses, parses Markdown javadoc with commonmark. The tables extension
+    // depends on commonmark core at its own version, so this one floor also raises core to 0.31.0 (core's advisories:
+    // GHSA-mg3c-47fx-jhgf, GHSA-g3cr-8x4q-74q3, GHSA-cc3j-83v5-hqfg, GHSA-vwrf-xrcv-x2rr, GHSA-cxq4-f84x-5ph8 and
+    // GHSA-5g96-4gff-g8g2).
     errorprone("org.commonmark:commonmark-ext-gfm-tables:${ConventionVersions.COMMONMARK}") {
         because("GHSA-cx98-gqcg-rp8q: denial of service parsing Markdown tables")
     }
@@ -381,6 +381,16 @@ tasks.withType<JacocoCoverageVerification>().configureEach {
     }
 }
 
+tasks.named<JacocoCoverageVerification>("jacocoTestCoverageVerification").configure {
+    // JaCoCo skips verification when there is no execution data, so a project with classes and no tests would pass
+    // `check` with its coverage never checked. Verify whenever there are classes: this replaces JaCoCo's condition (and
+    // any set before this one), while conditions a build script adds later still apply. Other verification tasks keep
+    // JaCoCo's condition.
+    setOnlyIf("there are classes to verify") { task ->
+        !(task as JacocoCoverageVerification).classDirectories.asFileTree.matching { include("**/*.class") }.isEmpty
+    }
+}
+
 if (project == rootProject) {
     val gitMarker = layout.projectDirectory.file(".git")
     val projectHookFile = layout.projectDirectory.file("scripts/git-hooks/pre-commit")
@@ -431,13 +441,12 @@ if (project == rootProject) {
         }
     }
 
-    val installGitHooks = tasks.register<InstallGitHookTask>("installGitHooks") {
+    tasks.register<InstallGitHookTask>("installGitHooks") {
         description = "Installs the conventions' pre-commit hook, keeping a hook it didn't install or that was edited"
         dependsOn(writePreCommitHook)
         onlyIf { gitExists.get() }
         hookFile.set(hookSource)
         hooksLocation.set(resolvedHooksLocation)
-        reportFile.set(layout.buildDirectory.file("git-hooks/install-report.txt"))
     }
 
     tasks.named("build") {
@@ -446,23 +455,11 @@ if (project == rootProject) {
 
     tasks.register("setupProject") {
         description = "Sets up the project with git hooks and initial configuration"
-        dependsOn(installGitHooks)
-        // installGitHooks writes what it did with the hook; this prints it unless it was already logged visibly, so
-        // the outcome shows once. It only reads that task's output file, for the configuration cache.
-        val gitMarkerFile = gitMarker.asFile
-        val hasGit = gitExists
-        val installReport = installGitHooks.flatMap { it.reportFile }
+        dependsOn("installGitHooks")
 
         doLast {
-            if (!hasGit.get()) {
-                println("Git hooks not installed: no .git in ${gitMarkerFile.parentFile}")
-            } else {
-                val (visibility, message) = installReport.get().asFile.readText().split("\n", limit = 2)
-                if (visibility == "quiet") {
-                    println(message)
-                }
-            }
             println("Project setup completed!")
+            println("Git hooks installed in .git/hooks/")
         }
     }
 }

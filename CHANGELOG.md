@@ -7,9 +7,20 @@
   committed the staged bytes. It now refuses the commit when a staged file differs from its working copy after
   formatting, listing the files, and never restages anything. Committing part of a file's changes is refused too while
   the rest is unstaged (stash it, or `--no-verify`). Existing installs pick it up as described for `installGitHooks`.
-- `setupProject` no longer prints "Git hooks installed in .git/hooks/" whatever happened: it prints what
-  `installGitHooks` did with the hook and where (installed, updated, up to date, kept, or skipped and why), or that
-  there was no `.git`. On a plain `build`, `installGitHooks` stays quiet when the hook is already up to date.
+- `jacocoTestCoverageVerification` now runs whenever a project has main classes. JaCoCo skipped it when there was no
+  execution data, so a project with classes and no tests passed `check` without its coverage being checked; it now
+  fails at 0 % coverage. To keep such a project passing, add tests, lower its minimum (README, "Override existing
+  values"), or disable `jacocoTestCoverageVerification` there. Projects without main classes still skip it, and so do
+  other `JacocoCoverageVerification` tasks without execution data.
+- The bundled Checkstyle rule against `com.fasterxml.jackson.core` and `com.fasterxml.jackson.databind` imports
+  matched nothing: its pattern had doubled backslashes. It is now an import-aware `IllegalImport` check (id
+  `jacksonTwoImport`) that flags them however they are written, static imports included
+  (`com.fasterxml.jackson.annotation` stays allowed). Builds that passed with such imports fail `checkstyleMain` or
+  `checkstyleTest` until they move to `tools.jackson.*`, or suppress the rule (see README).
+- The plugin no longer declares commonmark core on consumers' Error Prone classpath next to
+  `commonmark-ext-gfm-tables`. The tables extension `0.31.0` depends on core `0.31.0`, so core still resolves to
+  `0.31.0` by default; the separate declaration was redundant, and this repository had already stopped mirroring it.
+  Consumers that exclude the tables extension from `errorprone` now need their own core floor.
 - `installGitHooks` asks Git where it runs hooks (`git rev-parse --git-common-dir --git-path hooks`) instead of reading
   `.git` itself. In a linked worktree it used to write the hook into the worktree's private git directory, where Git
   never runs it; now it goes to the main repository's hooks directory, which all linked worktrees share. When
@@ -24,6 +35,24 @@
   `.git/hooks/pre-commit` and run `installGitHooks` once to take the current hook). An installed hook that isn't
   executable is made executable, and nothing is written through a hook or record that is a symbolic link or not a
   regular file.
+- The reusable publishing workflow validates the publication version against the dispatched ref in the upload job too,
+  reading the ref from the workflow context, with the same rule as the build job.
+
+### Fixed
+- The check that this repository mirrors what the plugin injects into consumers compared version strings only, so a
+  removed module sharing another's version (or still pulled transitively) went unnoticed. `checkConventionMirrors` is
+  replaced by `ConventionMirrorsTest`, which takes the consumer configurations from a real consumer build (so a removed
+  mirror fails too) and compares coordinates one configuration at a time. The test dependencies' mirror is split into
+  `conventionTestImplementation` and `conventionTestRuntimeOnly`, since those two configurations declare different
+  modules.
+- A blank `GITHUB_TOKEN`, `GITHUB_ACTOR` or `GITHUB_REPOSITORY_OWNER` (for example a secret a workflow run can't read)
+  failed the build while the publishing conventions were configured, with a message about `gpr.key`, `gpr.user` or
+  the owner property. They now count as unset, so the next source is used. A blank `JAVA_CONVENTIONS_*` variable still
+  fails, and the message now names the variable.
+- In a multi-project build, a subproject could take its parent's inferred `leanish.conventions.basePackage` (extra
+  properties are inherited) instead of inferring its own, so NullAway and PIT covered the parent's package there. Each
+  project now infers its own; the inferred value is still stored in the project's extra properties, and values
+  configured in a parent still apply to subprojects.
 
 ## 0.6.5
 
