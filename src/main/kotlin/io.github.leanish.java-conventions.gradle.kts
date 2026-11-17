@@ -15,12 +15,16 @@ import io.github.leanish.gradleconventions.ConventionProperties.PUBLISHING_DEVEL
 import io.github.leanish.gradleconventions.ConventionProperties.PUBLISHING_DEVELOPER_URL
 import io.github.leanish.gradleconventions.ConventionProperties.PUBLISHING_DEVELOPER_URL_ENV
 import io.github.leanish.gradleconventions.ConventionVersions
+import io.github.leanish.gradleconventions.GitCommandResult
 import io.github.leanish.gradleconventions.GitHooks
+import io.github.leanish.gradleconventions.HooksLocation
+import io.github.leanish.gradleconventions.InstallGitHookTask
 import io.github.leanish.gradleconventions.WriteCheckstyleConfigTask
 import io.github.leanish.gradleconventions.javaConventionsProviders
 import io.github.leanish.gradleconventions.stringProperty
 import net.ltgt.gradle.errorprone.errorprone
 import org.gradle.api.plugins.quality.CheckstyleExtension
+import org.gradle.process.ProcessExecutionException
 
 plugins {
     java
@@ -95,10 +99,10 @@ dependencies {
     errorprone("com.google.guava:guava:${ConventionVersions.GUAVA}") {
         because("CVE-2026-102554 and GHSA-v5x9-67m3-7m56: excessive allocation in Guava deserialization, hash flooding")
     }
-    // google-java-format, which Error Prone uses, parses Markdown javadoc with commonmark.
-    errorprone("org.commonmark:commonmark:${ConventionVersions.COMMONMARK}") {
-        because("GHSA-mg3c-47fx-jhgf, GHSA-g3cr-8x4q-74q3, GHSA-cc3j-83v5-hqfg, GHSA-vwrf-xrcv-x2rr, GHSA-cxq4-f84x-5ph8 and GHSA-5g96-4gff-g8g2: denial of service parsing Markdown")
-    }
+    // google-java-format, which Error Prone uses, parses Markdown javadoc with commonmark. The tables extension
+    // depends on commonmark core at its own version, so this one floor also raises core to 0.31.0 (core's advisories:
+    // GHSA-mg3c-47fx-jhgf, GHSA-g3cr-8x4q-74q3, GHSA-cc3j-83v5-hqfg, GHSA-vwrf-xrcv-x2rr, GHSA-cxq4-f84x-5ph8 and
+    // GHSA-5g96-4gff-g8g2).
     errorprone("org.commonmark:commonmark-ext-gfm-tables:${ConventionVersions.COMMONMARK}") {
         because("GHSA-cx98-gqcg-rp8q: denial of service parsing Markdown tables")
     }
@@ -382,12 +386,30 @@ if (project == rootProject) {
     val projectHookFile = layout.projectDirectory.file("scripts/git-hooks/pre-commit")
     val preCommitHookFile = layout.buildDirectory.file("generated/git-hooks/pre-commit")
     val gitExists = providers.provider { gitMarker.asFile.exists() }
-    val hooksDir = providers.provider {
-        GitHooks.directory(
-            gitMarker = gitMarker.asFile,
-            fallbackHooksDirectory = layout.projectDirectory.dir(".git/hooks").asFile,
-        )
+    // Git itself says where it looks for hooks (a linked worktree's are in the main repository) and whether
+    // `core.hooksPath` is set (then the hooks are left alone). It's only asked when there is a repository:
+    // installGitHooks is skipped otherwise. The lambdas below capture only these values, not the project, for the
+    // configuration cache.
+    val projectDirectoryFile = layout.projectDirectory.asFile
+    fun gitCommand(command: List<String>): Provider<GitCommandResult> {
+        val exec = providers.exec {
+            commandLine(command)
+            workingDir(projectDirectoryFile)
+            isIgnoreExitValue = true
+        }
+        return providers.provider {
+            try {
+                GitCommandResult.Finished(exec.result.get().exitValue, exec.standardOutput.asText.get(), exec.standardError.asText.get())
+            } catch (exception: ProcessExecutionException) {
+                GitCommandResult.NotStarted(exception.message ?: exception.javaClass.name)
+            }
+        }
     }
+    val hooksPathConfig = gitCommand(GitHooks.HOOKS_PATH_CONFIG_COMMAND)
+    val gitPaths = gitCommand(GitHooks.GIT_PATHS_COMMAND)
+    val gitHooksLocation = hooksPathConfig.zip(gitPaths) { config, paths -> GitHooks.locate(projectDirectoryFile, config, paths) }
+    val noRepository = providers.provider<HooksLocation> { HooksLocation.Skip("there is no .git", expected = true) }
+    val resolvedHooksLocation = gitExists.flatMap { exists -> if (exists) gitHooksLocation else noRepository }
     val writePreCommitHook = tasks.register("writePreCommitHook") {
         description = "Writes the bundled pre-commit hook to the build directory"
         outputs.file(preCommitHookFile)
@@ -409,18 +431,12 @@ if (project == rootProject) {
         }
     }
 
-    tasks.register<Copy>("installGitHooks") {
-        description = "Copies git hooks from the conventions plugin to .git/hooks"
+    tasks.register<InstallGitHookTask>("installGitHooks") {
+        description = "Installs the conventions' pre-commit hook, keeping a hook it didn't install or that was edited"
         dependsOn(writePreCommitHook)
         onlyIf { gitExists.get() }
-
-        from(hookSource) {
-            rename { "pre-commit" }
-            filePermissions {
-                unix("755")
-            }
-        }
-        into(hooksDir)
+        hookFile.set(hookSource)
+        hooksLocation.set(resolvedHooksLocation)
     }
 
     tasks.named("build") {

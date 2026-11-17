@@ -7,6 +7,35 @@
   failed the build while the publishing conventions were configured, with a message about `gpr.key`, `gpr.user` or
   the owner property. They now count as unset, so the next source is used. A blank `JAVA_CONVENTIONS_*` variable still
   fails, and the message now names the variable.
+### Changed
+- The plugin no longer declares commonmark core on consumers' Error Prone classpath next to
+  `commonmark-ext-gfm-tables`. The tables extension `0.31.0` depends on core `0.31.0`, so core still resolves to
+  `0.31.0` by default; the separate declaration was redundant, and this repository had already stopped mirroring it.
+  Consumers that exclude the tables extension from `errorprone` now need their own core floor.
+- `installGitHooks` asks Git where it runs hooks (`git rev-parse --git-common-dir --git-path hooks`) instead of reading
+  `.git` itself. In a linked worktree it used to write the hook into the worktree's private git directory, where Git
+  never runs it; now it goes to the main repository's hooks directory, which all linked worktrees share. When
+  `core.hooksPath` is set (in the repository or globally, even to an empty value) it now installs nothing and leaves
+  those hooks alone. It needs `git` on the `PATH` when the project has a `.git`; if git can't run or the lookup fails,
+  it warns and skips instead of falling back to `.git/hooks`. The record of what it installed lives next to the hook.
+- `installGitHooks` (which `build` runs) no longer overwrites a pre-commit hook it didn't install: a hook from another
+  tool, a hand-written one, a symbolic link, or an installed hook edited locally is kept, with a warning. It records
+  the SHA-256 of what it installs in `.git/hooks/pre-commit.java-conventions.sha256` and replaces only a hook that
+  still matches. Migration: a hook installed by an earlier version (the exact bytes of any previously bundled hook) is
+  adopted and updated while there is no record yet; a hand-edited one is kept with the warning (delete
+  `.git/hooks/pre-commit` and run `installGitHooks` once to take the current hook). An installed hook that isn't
+  executable is made executable, and nothing is written through a hook or record that is a symbolic link or not a
+  regular file.
+- The reusable publishing workflow validates the publication version against the dispatched ref in the upload job too,
+  reading the ref from the workflow context, with the same rule as the build job.
+
+### Fixed
+- The check that this repository mirrors what the plugin injects into consumers compared version strings only, so a
+  removed module sharing another's version (or still pulled transitively) went unnoticed. `checkConventionMirrors` is
+  replaced by `ConventionMirrorsTest`, which takes the consumer configurations from a real consumer build (so a removed
+  mirror fails too) and compares coordinates one configuration at a time. The test dependencies' mirror is split into
+  `conventionTestImplementation` and `conventionTestRuntimeOnly`, since those two configurations declare different
+  modules.
 
 ## 0.6.5
 
