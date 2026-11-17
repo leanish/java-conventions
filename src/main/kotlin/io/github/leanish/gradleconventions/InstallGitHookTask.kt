@@ -23,13 +23,20 @@ internal abstract class InstallGitHookTask : DefaultTask() {
     @get:Internal
     abstract val hookFile: Property<File>
 
-    /** The repository's hooks directory. */
+    /** Where Git runs hooks for this repository, or why the hook isn't installed. */
     @get:Internal
-    abstract val hooksDirectory: Property<File>
+    abstract val hooksLocation: Property<HooksLocation>
 
     @TaskAction
     fun install() {
-        val hooksDirectory = hooksDirectory.get()
+        val hooksDirectory = when (val location = hooksLocation.get()) {
+            is HooksLocation.Install -> location.directory
+            is HooksLocation.Skip -> {
+                val message = "Didn't install the pre-commit hook: ${location.reason}."
+                if (location.expected) logger.info(message) else logger.warn(message)
+                return
+            }
+        }
         val hook = hooksDirectory.resolve(GitHookInstaller.HOOK_NAME)
         when (GitHookInstaller.install(hookFile.get().readBytes(), hooksDirectory)) {
             HookInstallOutcome.INSTALLED -> logger.lifecycle("Installed the pre-commit hook in $hook")
