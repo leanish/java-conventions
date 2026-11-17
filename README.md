@@ -7,7 +7,8 @@ Shared Gradle conventions for JDK-based projects.
 - Configures Java toolchain, runtime launcher, and bytecode level (defaults to JDK 25 from any available vendor).
 - The plugin itself targets Kotlin/JVM 17.
 - Adds `mavenCentral()` by default and can optionally add `mavenLocal()` (both configurable).
-- Sets Checkstyle tool version and uses project-level Checkstyle files when provided (bundled defaults otherwise).
+- Sets Checkstyle tool version and uses the root project's `config/checkstyle` files when provided (bundled defaults
+  otherwise); every project that applies the plugin shares them.
 - Sets JaCoCo tool version and enforces instruction coverage.
 - Configures PIT mutation testing (`pitest` task, 95 % mutation threshold) for the resolved base package; it is not part of `check`.
 - Configures Spotless for basic Java formatting (unused imports, import order, trailing whitespace, newline at EOF).
@@ -90,6 +91,14 @@ plugins {
 }
 ```
 
+A root project without `src/main/java` can't infer a base package, so `build` fails when it configures `compileJava`
+there. Set `leanish.conventions.basePackage` for it. In the root `gradle.properties` the value reaches every subproject
+too, so use it there only when every project's packages lie under that package (for example `com.acme` for
+`com.acme.app` and `com.acme.lib`): NullAway's annotated packages and PIT's `<package>.*` targets include
+subpackages. When the projects have unrelated packages, a shared value would point NullAway and PIT at the wrong code:
+don't invent a common prefix just to make the root configure. Set the property in each project's own
+`gradle.properties` instead (the root's included); a project's own file takes precedence over the root's.
+
 ## Convention properties
 Configure behavior through `gradle.properties` (or `-P...`):
 
@@ -134,6 +143,9 @@ Wrapper plugins can import these names directly from
 - If configured, the plugin uses that value.
 - If missing, the plugin infers it from `src/main/java` package declarations, stores the inferred
   value in project extra properties, and logs the inference.
+- Each project infers its own value: a subproject doesn't take a parent's inferred value, although extra properties are
+  inherited. A value configured in a parent (`gradle.properties`, `-P`, or an extra property set in its build script)
+  still applies to its subprojects that don't set their own.
 - The plugin fails fast only when the property is blank or when it cannot infer any Java package.
 
 Publishing repository/name/description conventions are derived from project metadata and are not configurable properties:
@@ -146,6 +158,8 @@ Publishing owner/developer metadata is optional:
 - Owner resolves by `GITHUB_REPOSITORY_OWNER`, then `JAVA_CONVENTIONS_PUBLISHING_GITHUB_OWNER`, then `leanish.conventions.publishing.githubOwner`, then `group` when it matches `io.github.<owner>`.
 - Developer fields (`id`, `name`, `url`) are optional and independent; missing values are inferred from resolved owner when possible (`id=<owner>`, `name=<owner>`, `url=https://github.com/<owner>`), and the `developers` block is emitted only when all three resolve.
 - GitHub Packages credentials resolve by environment first (`GITHUB_ACTOR`, `GITHUB_TOKEN`), then properties (`gpr.user`, `gpr.key`).
+- A blank `GITHUB_ACTOR`, `GITHUB_TOKEN` or `GITHUB_REPOSITORY_OWNER` counts as unset (for example a secret a workflow run
+  can't read), so the next source is used. A blank `JAVA_CONVENTIONS_*` variable or property fails the build, naming it.
 
 ## Publishing
 - For Gradle Plugin Portal, set `gradle.publish.key` and `gradle.publish.secret` in `~/.gradle/gradle.properties`,
@@ -217,6 +231,22 @@ tasks.withType<JavaCompile>().configureEach {
 }
 ```
 
+- The toolchain version and the bytecode level are set separately. To use an older toolchain (JDK 21 is the minimum),
+  lower the bytecode level with it: `options.release` stays at 25, which an older `javac` rejects
+  (`release version 25 not supported`).
+
+```kotlin
+java {
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(21))
+    }
+}
+
+tasks.withType<JavaCompile>().configureEach {
+    options.release.set(21)
+}
+```
+
 ## Sources and Javadocs artifacts
 - The plugin enables `sourcesJar` and `javadocJar` by default.
 - Consumers can disable them in `build.gradle.kts`:
@@ -245,6 +275,9 @@ components.named<AdhocComponentWithVariants>("java") {
 - Default minimum is `0.85` unless overridden.
 - Set `-DexcludeTags=integration` (or any tags) to skip those tests and disable coverage verification.
   The same tags are excluded from mutation testing.
+- `jacocoTestCoverageVerification` runs whenever the project has main classes, so a project with classes and no tests
+  fails it (0 % coverage); a project without main classes skips it. Other `JacocoCoverageVerification` tasks keep
+  JaCoCo's behavior and skip when they have no execution data.
 
 ## Mutation testing
 - Applies `info.solidsoft.pitest` (gradle-pitest-plugin) with PIT and its JUnit 5 plugin, at the versions in
@@ -291,8 +324,10 @@ release tag is what that release uses.
   `annotationProcessor`, and `testAnnotationProcessor`.
 - Sets a Guava `33.8.0-jre` version floor for Checkstyle and Error Prone to fix `CVE-2026-102554` and `GHSA-v5x9-67m3-7m56`.
   Consumer Checkstyle `toolVersion` overrides remain supported.
-- Sets a commonmark `0.31.0` version floor (`commonmark` and `commonmark-ext-gfm-tables`) for Error Prone, whose
-  google-java-format parses Markdown javadoc with it, to fix commonmark-java's denial-of-service advisories.
+- Sets a commonmark `0.31.0` version floor for Error Prone, whose google-java-format parses Markdown javadoc with it,
+  to fix commonmark-java's denial-of-service advisories: it declares `commonmark-ext-gfm-tables` `0.31.0`, which
+  depends on `commonmark` (core) `0.31.0`, so core resolves to at least that version too. A consumer that excludes the
+  tables extension from `errorprone` needs its own core floor.
 - Adds Error Prone analysis dependencies:
   - `com.google.errorprone:error_prone_core`
   - `com.uber.nullaway:nullaway`
@@ -334,7 +369,7 @@ Two supported patterns:
 With the bundled Checkstyle configuration, Spotless orders imports the way its `ImportOrder` rule expects: static imports
 first, then `java`, `javax`, `org`, `com` and everything else (for example `lombok`), one blank line between groups and
 alphabetical within each. `spotlessApply` (and the pre-commit hook) fixes the order, so the IDE's import layout doesn't
-matter. When the project has its own `config/checkstyle/checkstyle.xml`, the plugin adds no import-order step; add
+matter. When the root project has its own `config/checkstyle/checkstyle.xml`, the plugin adds no import-order step; add
 `importOrder(...)` to `spotless { java { } }` to match that config.
 
 ## License header conventions
@@ -361,13 +396,20 @@ It:
 
 ## Notes
 - Checkstyle uses the tool version from [`gradle/libs.versions.toml`](gradle/libs.versions.toml) (`checkstyle`).
-- Checkstyle uses `config/checkstyle/checkstyle.xml` and `config/checkstyle/suppressions.xml` when present in the consumer project.
+- Checkstyle uses `config/checkstyle/checkstyle.xml` and `config/checkstyle/suppressions.xml` from the root project when
+  present; subprojects use the root's files, not their own.
 - If either file is missing, the plugin falls back to bundled defaults (`checkstyle.xml` and empty suppressions).
+- The bundled `checkstyle.xml` rejects imports from Jackson 2's `com.fasterxml.jackson.core` and
+  `com.fasterxml.jackson.databind` (use Jackson 3's `tools.jackson.*`; `com.fasterxml.jackson.annotation` stays
+  allowed). A project that still needs them can suppress that rule alone in its `config/checkstyle/suppressions.xml`,
+  for example `<suppress id="jacksonTwoImport" files=".*"/>`.
 - These files are materialized under `build/generated/checkstyle` for Checkstyle only and are not packaged into JARs/publications.
 - **Checkstyle runtime requirement:** Checkstyle 14.x requires the **Java toolchain used by the plugin's runtime launcher** to be JDK 21 or newer. The default toolchain is JDK 25, which satisfies this. If you override the project Java toolchain to a version lower than JDK 21, Checkstyle tasks will fail even when the Gradle daemon itself runs on a newer JDK.
 - The plugin does not add a toolchain resolver; ensure the configured JDK is available locally or add a resolver in the consuming project.
 - Dependencies added by the plugin are additive; your project dependencies remain in effect.
-- The bundled pre-commit hook runs `./gradlew spotlessApply` and `./gradlew checkstyleMain checkstyleTest`, and may modify files before commit.
+- The bundled pre-commit hook runs `./gradlew spotlessApply` and `./gradlew checkstyleMain checkstyleTest` on the working copy, then refuses the commit if any staged file differs from its working copy: formatting changed it, or it has unstaged changes. It never stages anything itself: review the changes, `git add` them and commit again. Committing part of a file's changes (partial staging) is therefore refused while the rest is unstaged; stash it first, or use `git commit --no-verify`.
+- `installGitHooks` installs `scripts/git-hooks/pre-commit` if the project has one, else the bundled hook, and keeps a pre-commit hook it didn't install (or one edited since, or a symbolic link) with a warning; it records what it installed in `pre-commit.java-conventions.sha256` next to the hook, and recognizes hooks bundled by earlier versions. To switch to the conventions' hook, delete the existing one and run `installGitHooks`.
+- `installGitHooks` asks `git` (it must be on the `PATH`) where Git runs hooks: `.git/hooks`, or in a linked worktree the main repository's hooks directory, which all linked worktrees share (so a worktree with a different `scripts/git-hooks/pre-commit` updates the shared hook). When `core.hooksPath` is set, in the repository or globally, it installs nothing and leaves those hooks to you; set your own `core.hooksPath` if worktrees need separate hooks. If git can't run or the lookup fails, it warns and skips.
 
 ## Plugin project CI (maintainers)
 - Checked-in Linux jobs run on `ubuntu-26.04`, with Gradle `9.8.2` and the existing JDK baselines.
@@ -398,8 +440,9 @@ It:
   - A green run means the files are on the registry; it doesn't resolve them from a consumer.
 - The build resolves `convention*` configurations (`conventionCheckstyle`, `conventionErrorprone`, …) that mirror what the
   plugin injects into consumer builds, with the same Guava floor, so a dependency scan of this repository covers the
-  versions consumers get. Nothing compiles against them; `checkConventionMirrors` (part of `check`) fails when an injected
-  version has no mirror.
+  versions consumers get. Nothing compiles against them; `ConventionMirrorsTest` (part of `check`) applies the plugin to a
+  consumer build and fails unless every consumer configuration the plugin declares something in has a mirror, and each
+  of those configurations declares exactly the mirror's modules, at the same versions.
 - `.github/workflows/supply-chain.yml` runs the [leanish/leanish-development](https://github.com/leanish/leanish-development)
   gate: on a PR it fails what the change makes worse (new advisories, young versions, unpinned new actions), and it scans
   `main` on every push and daily; an open PR is checked again only when it's reopened, updated, edited or re-run.

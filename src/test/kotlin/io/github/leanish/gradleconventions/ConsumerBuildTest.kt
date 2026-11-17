@@ -107,6 +107,30 @@ class ConsumerBuildTest {
     }
 
     @Test
+    fun jacocoVerificationFailsWhenCodeHasNoTests() {
+        val projectDir = sampleConsumer("consumer-no-tests")
+        projectDir.resolve("src/test").deleteRecursively()
+
+        val result = runner(projectDir, "check").buildAndFail()
+
+        assertThat(result.task(":test")?.outcome).isEqualTo(TaskOutcome.NO_SOURCE)
+        assertThat(result.task(":jacocoTestCoverageVerification")?.outcome).isEqualTo(TaskOutcome.FAILED)
+        assertThat(result.output)
+            .contains("Rule violated for bundle consumer-no-tests: instructions covered ratio is 0.00, but expected minimum is 0.85")
+    }
+
+    @Test
+    fun jacocoVerificationIsSkippedWithoutClasses() {
+        val projectDir = sampleConsumer("consumer-no-classes")
+        projectDir.resolve("src").deleteRecursively()
+        writeFile(projectDir, "src/main/resources/application.properties", "name=sample\n")
+
+        val result = runner(projectDir, "check").build()
+
+        assertThat(result.task(":jacocoTestCoverageVerification")?.outcome).isEqualTo(TaskOutcome.SKIPPED)
+    }
+
+    @Test
     fun checkstyleFailsOnViolation() {
         val projectDir = sampleConsumer("consumer-checkstyle")
         writeSource(
@@ -129,6 +153,42 @@ class ConsumerBuildTest {
 
         assertThat(result.task(":checkstyleMain")?.outcome).isEqualTo(TaskOutcome.FAILED)
         assertThat(result.output).contains("[AvoidStarImport]")
+    }
+
+    @Test
+    fun checkstyleRejectsJacksonCoreAndDatabindImportsOnly() {
+        val projectDir = sampleConsumer("consumer-jackson-imports")
+        val sources = mapOf(
+            "Plain" to "import com.fasterxml.jackson.databind.ObjectMapper;",
+            "Static" to "import static com.fasterxml.jackson.databind.SerializationFeature.INDENT_OUTPUT;",
+            "Core" to "import com.fasterxml.jackson.core.JsonParser;",
+            "Indented" to "    import com.fasterxml.jackson.databind.JsonNode;",
+            "Split" to "import com.fasterxml.jackson\n    .databind.ObjectReader;",
+            "Annotation" to "import com.fasterxml.jackson.annotation.JsonProperty;",
+            "JacksonThree" to "import tools.jackson.databind.ObjectMapper;",
+            "Commented" to "// import com.fasterxml.jackson.databind.ObjectMapper;",
+        )
+        sources.forEach { (name, importLine) ->
+            writeSource(
+                projectDir,
+                "src/main/java/io/github/leanish/sample/$name.java",
+                """
+                package io.github.leanish.sample;
+
+                $importLine
+
+                public final class $name {
+                }
+                """.trimIndent(),
+            )
+        }
+
+        // Checkstyle reads sources only; the imported classes aren't on the classpath, so compilation is skipped.
+        val result = runner(projectDir, "checkstyleMain", "-x", "compileJava").buildAndFail()
+
+        val violations = result.output.lines().filter { "Use tools.jackson.* instead" in it }
+        assertThat(violations.map { line -> sources.keys.single { "/$it.java:" in line } }.distinct())
+            .containsExactlyInAnyOrder("Plain", "Static", "Core", "Indented", "Split")
     }
 
     @Test
