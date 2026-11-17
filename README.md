@@ -134,6 +134,9 @@ Wrapper plugins can import these names directly from
 - If configured, the plugin uses that value.
 - If missing, the plugin infers it from `src/main/java` package declarations, stores the inferred
   value in project extra properties, and logs the inference.
+- Each project infers its own value: a subproject doesn't take a parent's inferred value, although extra properties are
+  inherited. A value configured in a parent (`gradle.properties`, `-P`, or an extra property set in its build script)
+  still applies to its subprojects that don't set their own.
 - The plugin fails fast only when the property is blank or when it cannot infer any Java package.
 
 Publishing repository/name/description conventions are derived from project metadata and are not configurable properties:
@@ -146,6 +149,8 @@ Publishing owner/developer metadata is optional:
 - Owner resolves by `GITHUB_REPOSITORY_OWNER`, then `JAVA_CONVENTIONS_PUBLISHING_GITHUB_OWNER`, then `leanish.conventions.publishing.githubOwner`, then `group` when it matches `io.github.<owner>`.
 - Developer fields (`id`, `name`, `url`) are optional and independent; missing values are inferred from resolved owner when possible (`id=<owner>`, `name=<owner>`, `url=https://github.com/<owner>`), and the `developers` block is emitted only when all three resolve.
 - GitHub Packages credentials resolve by environment first (`GITHUB_ACTOR`, `GITHUB_TOKEN`), then properties (`gpr.user`, `gpr.key`).
+- A blank `GITHUB_ACTOR`, `GITHUB_TOKEN` or `GITHUB_REPOSITORY_OWNER` counts as unset (for example a secret a workflow run
+  can't read), so the next source is used. A blank `JAVA_CONVENTIONS_*` variable or property fails the build, naming it.
 
 ## Publishing
 - For Gradle Plugin Portal, set `gradle.publish.key` and `gradle.publish.secret` in `~/.gradle/gradle.properties`,
@@ -294,8 +299,10 @@ release tag is what that release uses.
   `annotationProcessor`, and `testAnnotationProcessor`.
 - Sets a Guava `33.8.0-jre` version floor for Checkstyle and Error Prone to fix `CVE-2026-102554` and `GHSA-v5x9-67m3-7m56`.
   Consumer Checkstyle `toolVersion` overrides remain supported.
-- Sets a commonmark `0.31.0` version floor (`commonmark` and `commonmark-ext-gfm-tables`) for Error Prone, whose
-  google-java-format parses Markdown javadoc with it, to fix commonmark-java's denial-of-service advisories.
+- Sets a commonmark `0.31.0` version floor for Error Prone, whose google-java-format parses Markdown javadoc with it,
+  to fix commonmark-java's denial-of-service advisories: it declares `commonmark-ext-gfm-tables` `0.31.0`, which
+  depends on `commonmark` (core) `0.31.0`, so core resolves to at least that version too. A consumer that excludes the
+  tables extension from `errorprone` needs its own core floor.
 - Adds Error Prone analysis dependencies:
   - `com.google.errorprone:error_prone_core`
   - `com.uber.nullaway:nullaway`
@@ -366,11 +373,17 @@ It:
 - Checkstyle uses the tool version from [`gradle/libs.versions.toml`](gradle/libs.versions.toml) (`checkstyle`).
 - Checkstyle uses `config/checkstyle/checkstyle.xml` and `config/checkstyle/suppressions.xml` when present in the consumer project.
 - If either file is missing, the plugin falls back to bundled defaults (`checkstyle.xml` and empty suppressions).
+- The bundled `checkstyle.xml` rejects imports from Jackson 2's `com.fasterxml.jackson.core` and
+  `com.fasterxml.jackson.databind` (use Jackson 3's `tools.jackson.*`; `com.fasterxml.jackson.annotation` stays
+  allowed). A project that still needs them can suppress that rule alone in its `config/checkstyle/suppressions.xml`,
+  for example `<suppress id="jacksonTwoImport" files=".*"/>`.
 - These files are materialized under `build/generated/checkstyle` for Checkstyle only and are not packaged into JARs/publications.
 - **Checkstyle runtime requirement:** Checkstyle 14.x requires the **Java toolchain used by the plugin's runtime launcher** to be JDK 21 or newer. The default toolchain is JDK 25, which satisfies this. If you override the project Java toolchain to a version lower than JDK 21, Checkstyle tasks will fail even when the Gradle daemon itself runs on a newer JDK.
 - The plugin does not add a toolchain resolver; ensure the configured JDK is available locally or add a resolver in the consuming project.
 - Dependencies added by the plugin are additive; your project dependencies remain in effect.
 - The bundled pre-commit hook runs `./gradlew spotlessApply` and `./gradlew checkstyleMain checkstyleTest`, and may modify files before commit.
+- `installGitHooks` installs `scripts/git-hooks/pre-commit` if the project has one, else the bundled hook, and keeps a pre-commit hook it didn't install (or one edited since, or a symbolic link) with a warning; it records what it installed in `pre-commit.java-conventions.sha256` next to the hook, and recognizes hooks bundled by earlier versions. To switch to the conventions' hook, delete the existing one and run `installGitHooks`.
+- `installGitHooks` asks `git` (it must be on the `PATH`) where Git runs hooks: `.git/hooks`, or in a linked worktree the main repository's hooks directory, which all linked worktrees share (so a worktree with a different `scripts/git-hooks/pre-commit` updates the shared hook). When `core.hooksPath` is set, in the repository or globally, it installs nothing and leaves those hooks to you; set your own `core.hooksPath` if worktrees need separate hooks. If git can't run or the lookup fails, it warns and skips.
 
 ## Plugin project CI (maintainers)
 - Checked-in Linux jobs run on `ubuntu-26.04`, with Gradle `9.8.2` and the existing JDK baselines.
@@ -401,8 +414,9 @@ It:
   - A green run means the files are on the registry; it doesn't resolve them from a consumer.
 - The build resolves `convention*` configurations (`conventionCheckstyle`, `conventionErrorprone`, …) that mirror what the
   plugin injects into consumer builds, with the same Guava floor, so a dependency scan of this repository covers the
-  versions consumers get. Nothing compiles against them; `checkConventionMirrors` (part of `check`) fails when an injected
-  version has no mirror.
+  versions consumers get. Nothing compiles against them; `ConventionMirrorsTest` (part of `check`) applies the plugin to a
+  consumer build and fails unless every consumer configuration the plugin declares something in has a mirror, and each
+  of those configurations declares exactly the mirror's modules, at the same versions.
 - `.github/workflows/supply-chain.yml` runs the [leanish/leanish-development](https://github.com/leanish/leanish-development)
   gate: on a PR it fails what the change makes worse (new advisories, young versions, unpinned new actions), and it scans
   `main` on every push and daily; an open PR is checked again only when it's reopened, updated, edited or re-run.

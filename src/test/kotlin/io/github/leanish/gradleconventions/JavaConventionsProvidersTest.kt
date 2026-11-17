@@ -108,6 +108,47 @@ class JavaConventionsProvidersTest {
     }
 
     @Test
+    fun subprojectDoesNotTakeTheParentsInferredBasePackage() {
+        val root = newJavaProject(tempDir.resolve("root").toFile(), "root")
+        writeFile(root.projectDir, "src/main/java/com/acme/app/App.java", "package com.acme.app;\npublic class App {}")
+        val lib = newJavaProject(tempDir.resolve("root/lib").toFile(), "lib", parent = root)
+        writeFile(lib.projectDir, "src/main/java/com/acme/lib/Lib.java", "package com.acme.lib;\npublic class Lib {}")
+
+        assertThat(root.javaConventionsProviders().nullAwayAnnotatedPackages.get()).isEqualTo("com.acme.app")
+        val libProviders = lib.javaConventionsProviders()
+
+        assertThat(libProviders.nullAwayAnnotatedPackages.get()).isEqualTo("com.acme.lib")
+        assertThat(libProviders.pitestTargetClasses.get()).containsExactly("com.acme.lib.*")
+        assertThat(lib.extensions.extraProperties[BASE_PACKAGE]).isEqualTo("com.acme.lib")
+        assertThat(root.extensions.extraProperties[BASE_PACKAGE]).isEqualTo("com.acme.app")
+    }
+
+    @Test
+    fun subprojectUsesABasePackageConfiguredInTheParent() {
+        val root = newJavaProject(tempDir.resolve("configured-root").toFile(), "configured-root")
+        root.extensions.extraProperties.set(BASE_PACKAGE, "com.acme")
+        val lib = newJavaProject(tempDir.resolve("configured-root/lib").toFile(), "lib", parent = root)
+        writeFile(lib.projectDir, "src/main/java/com/acme/lib/Lib.java", "package com.acme.lib;\npublic class Lib {}")
+
+        assertThat(root.javaConventionsProviders().nullAwayAnnotatedPackages.get()).isEqualTo("com.acme")
+        assertThat(lib.javaConventionsProviders().nullAwayAnnotatedPackages.get()).isEqualTo("com.acme")
+    }
+
+    @Test
+    fun subprojectUsesAValueSetOverTheParentsInferredOne() {
+        val root = newJavaProject(tempDir.resolve("overwritten-root").toFile(), "overwritten-root")
+        writeFile(root.projectDir, "src/main/java/com/acme/app/App.java", "package com.acme.app;\npublic class App {}")
+        val lib = newJavaProject(tempDir.resolve("overwritten-root/lib").toFile(), "lib", parent = root)
+        writeFile(lib.projectDir, "src/main/java/com/acme/lib/Lib.java", "package com.acme.lib;\npublic class Lib {}")
+
+        assertThat(root.javaConventionsProviders().nullAwayAnnotatedPackages.get()).isEqualTo("com.acme.app")
+        // A build script sets the root's value after the root inferred one: that is configuration again.
+        root.extensions.extraProperties.set(BASE_PACKAGE, "com.acme")
+
+        assertThat(lib.javaConventionsProviders().nullAwayAnnotatedPackages.get()).isEqualTo("com.acme")
+    }
+
+    @Test
     fun nullAwayAnnotatedPackagesFailsWhenPropertyAndSourcesAreMissing() {
         val project = newJavaProject(tempDir.resolve("missing").toFile(), "missing")
 
@@ -222,11 +263,12 @@ class JavaConventionsProvidersTest {
         return PropertyParser.booleanProperty(name, envValue, defaultValue)
     }
 
-    private fun newJavaProject(projectDir: File, name: String): Project {
+    private fun newJavaProject(projectDir: File, name: String, parent: Project? = null): Project {
         projectDir.mkdirs()
         val project = ProjectBuilder.builder()
             .withProjectDir(projectDir)
             .withName(name)
+            .withParent(parent)
             .build()
         project.pluginManager.apply("java")
         project.extensions
