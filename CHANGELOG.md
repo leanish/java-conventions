@@ -3,6 +3,10 @@
 ## 0.6.6
 
 ### Changed
+- The plugin no longer declares commonmark core on consumers' Error Prone classpath next to
+  `commonmark-ext-gfm-tables`. The tables extension `0.31.0` depends on core `0.31.0`, so core still resolves to
+  `0.31.0` by default; the separate declaration was redundant, and this repository had already stopped mirroring it.
+  Consumers that exclude the tables extension from `errorprone` now need their own core floor.
 - `installGitHooks` asks Git where it runs hooks (`git rev-parse --git-common-dir --git-path hooks`) instead of reading
   `.git` itself. In a linked worktree it used to write the hook into the worktree's private git directory, where Git
   never runs it; now it goes to the main repository's hooks directory, which all linked worktrees share. When

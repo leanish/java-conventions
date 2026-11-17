@@ -291,8 +291,10 @@ release tag is what that release uses.
   `annotationProcessor`, and `testAnnotationProcessor`.
 - Sets a Guava `33.8.0-jre` version floor for Checkstyle and Error Prone to fix `CVE-2026-102554` and `GHSA-v5x9-67m3-7m56`.
   Consumer Checkstyle `toolVersion` overrides remain supported.
-- Sets a commonmark `0.31.0` version floor (`commonmark` and `commonmark-ext-gfm-tables`) for Error Prone, whose
-  google-java-format parses Markdown javadoc with it, to fix commonmark-java's denial-of-service advisories.
+- Sets a commonmark `0.31.0` version floor for Error Prone, whose google-java-format parses Markdown javadoc with it,
+  to fix commonmark-java's denial-of-service advisories: it declares `commonmark-ext-gfm-tables` `0.31.0`, which
+  depends on `commonmark` (core) `0.31.0`, so core resolves to at least that version too. A consumer that excludes the
+  tables extension from `errorprone` needs its own core floor.
 - Adds Error Prone analysis dependencies:
   - `com.google.errorprone:error_prone_core`
   - `com.uber.nullaway:nullaway`
