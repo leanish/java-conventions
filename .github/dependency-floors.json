@@ -29,7 +29,7 @@
       "advisories": [
         "GHSA-cx98-gqcg-rp8q"
       ],
-      "reason": "Error Prone's google-java-format pulls an affected commonmark to parse Markdown javadoc; the conventions inject this floor into consumers' errorprone configuration, mirrored here so the gate checks it",
+      "reason": "Error Prone's google-java-format pulls an affected commonmark to parse Markdown javadoc; the conventions inject this floor into consumers' errorprone configuration, mirrored here so the gate checks it. It also raises commonmark core, which tables 0.31.0 depends on at the same version",
       "added": "2026-11-03"
     }
   ]

@@ -186,6 +186,123 @@ class GradleConventionsPluginTest {
     }
 
     @Test
+    fun coverageVerificationRunsForClassesWithoutTests() {
+        val projectDir = untestedClassProject("coverage-untested-class", "")
+
+        val result = coverageRunner(projectDir, "jacocoTestCoverageVerification").buildAndFail()
+
+        assertThat(result.task(":jacocoTestCoverageVerification")?.outcome).isEqualTo(TaskOutcome.FAILED)
+        assertThat(result.output).contains("instructions covered ratio is 0.00, but expected minimum is 0.85")
+    }
+
+    @Test
+    fun coverageVerificationWithoutTestsPassesWithAZeroMinimumAndReusesTheConfigurationCache() {
+        val projectDir = untestedClassProject(
+            "coverage-untested-class-zero-minimum",
+            """
+            tasks.withType<JacocoCoverageVerification>().configureEach {
+                violationRules {
+                    rules.forEach { rule ->
+                        rule.limits.forEach { limit ->
+                            limit.minimum = "0".toBigDecimal()
+                        }
+                    }
+                }
+            }
+            """.trimIndent(),
+        )
+
+        // --rerun makes the second run verify again instead of finding the task up to date.
+        val arguments = arrayOf("jacocoTestCoverageVerification", "--rerun", "--configuration-cache")
+        val firstRun = coverageRunner(projectDir, *arguments).build()
+        val secondRun = coverageRunner(projectDir, *arguments).build()
+
+        assertThat(firstRun.task(":jacocoTestCoverageVerification")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
+        assertThat(firstRun.output).contains("Configuration cache entry stored.")
+        assertThat(secondRun.task(":jacocoTestCoverageVerification")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
+        assertThat(secondRun.output).contains("Reusing configuration cache.")
+    }
+
+    @Test
+    fun coverageVerificationWithoutTestsStaysOffWhenTagsAreExcluded() {
+        val projectDir = untestedClassProject("coverage-untested-class-excluded-tags", "")
+
+        val result = coverageRunner(projectDir, "-DexcludeTags=integration", "check", "-x", "checkstyleMain").build()
+
+        assertThat(result.task(":jacocoTestCoverageVerification")?.outcome).isEqualTo(TaskOutcome.SKIPPED)
+    }
+
+    @Test
+    fun coverageVerificationWithoutTestsStaysOffWhenDisabled() {
+        val projectDir = untestedClassProject(
+            "coverage-untested-class-disabled",
+            "tasks.named(\"jacocoTestCoverageVerification\") {\n    enabled = false\n}",
+        )
+
+        val result = coverageRunner(projectDir, "check", "-x", "checkstyleMain").build()
+
+        assertThat(result.task(":jacocoTestCoverageVerification")?.outcome).isEqualTo(TaskOutcome.SKIPPED)
+    }
+
+    @Test
+    fun coverageVerificationKeepsConditionsTheBuildScriptAdds() {
+        val projectDir = untestedClassProject(
+            "coverage-untested-class-build-script-condition",
+            "tasks.named(\"jacocoTestCoverageVerification\") {\n    onlyIf(\"not this time\") { false }\n}",
+        )
+
+        val result = coverageRunner(projectDir, "jacocoTestCoverageVerification", "--info").build()
+
+        assertThat(result.task(":jacocoTestCoverageVerification")?.outcome).isEqualTo(TaskOutcome.SKIPPED)
+        assertThat(result.output).contains("as task onlyIf 'not this time' is false")
+    }
+
+    @Test
+    fun otherCoverageVerificationTasksKeepJacocosConditionWithoutExecutionData() {
+        val projectDir = untestedClassProject(
+            "coverage-untested-class-custom-verification",
+            """
+            tasks.register<JacocoCoverageVerification>("customCoverageVerification") {
+                executionData.setFrom(layout.buildDirectory.file("jacoco/custom.exec"))
+                sourceSets(sourceSets.main.get())
+            }
+            """.trimIndent(),
+        )
+
+        val result = coverageRunner(projectDir, "customCoverageVerification").build()
+
+        assertThat(result.task(":customCoverageVerification")?.outcome).isEqualTo(TaskOutcome.SKIPPED)
+    }
+
+    /** A project with one main class and no tests, plus [extraBuildScript] after the plugins block. */
+    private fun untestedClassProject(name: String, extraBuildScript: String): File {
+        val projectDir = tempDir.resolve(name).toFile()
+        writeRequiredConventionsProperties(projectDir)
+        writeFile(projectDir, "settings.gradle.kts", "rootProject.name = \"$name\"")
+        writeFile(
+            projectDir,
+            "build.gradle.kts",
+            "import org.gradle.testing.jacoco.tasks.JacocoCoverageVerification\n\n" +
+                "plugins {\n    id(\"io.github.leanish.java-conventions\")\n}\n\n" +
+                extraBuildScript + "\n",
+        )
+        writeFile(
+            projectDir,
+            "src/main/java/io/github/leanish/sample/Untested.java",
+            "package io.github.leanish.sample;\n\npublic class Untested {\n    public int one() {\n        return 1;\n    }\n}\n",
+        )
+        return projectDir
+    }
+
+    private fun coverageRunner(projectDir: File, vararg arguments: String): GradleRunner {
+        return GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withArguments(*arguments)
+            .withEnvironment(environmentWithoutConventionsOverrides())
+            .withPluginClasspath()
+    }
+
+    @Test
     fun excludeTagsSystemPropertyFiltersTaggedTestsAndDisablesCoverageVerification() {
         val projectDir = tempDir.resolve("exclude-tags-filtering").toFile()
         projectDir.mkdirs()
@@ -857,6 +974,133 @@ class GradleConventionsPluginTest {
     }
 
     @Test
+    fun subprojectInfersItsOwnBasePackageAfterTheRootInferredOne() {
+        val projectDir = tempDir.resolve("base-package-per-project").toFile()
+        writeFile(projectDir, "settings.gradle.kts", "rootProject.name = \"base-package-per-project\"\ninclude(\"lib\")")
+        writeBasePackageDumpBuild(projectDir.resolve("build.gradle.kts"))
+        writeBasePackageDumpBuild(projectDir.resolve("lib/build.gradle.kts"))
+        writeFile(projectDir, "src/main/java/com/acme/app/App.java", "package com.acme.app;\n\npublic class App {}\n")
+        writeFile(projectDir, "lib/src/main/java/com/acme/lib/Lib.java", "package com.acme.lib;\n\npublic class Lib {}\n")
+
+        val runner = GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withArguments("dumpBasePackage", "--configuration-cache")
+            .withEnvironment(environmentWithoutConventionsOverrides())
+            .withPluginClasspath()
+        val firstRun = runner.build()
+        val secondRun = runner.build()
+
+        // The root is configured first and resolves its base package while its build script runs, so the subproject
+        // sees the root's inferred value before resolving its own.
+        assertThat(firstRun.output)
+            .contains("basePackage : -XepOpt:NullAway:AnnotatedPackages=com.acme.app pitest=[com.acme.app.*]")
+            .contains("basePackage :lib -XepOpt:NullAway:AnnotatedPackages=com.acme.lib pitest=[com.acme.lib.*]")
+            .contains("Configuration cache entry stored.")
+        assertThat(firstRun.output.lines().filter { it.startsWith("Inferred 'leanish.conventions.basePackage=") })
+            .containsExactlyInAnyOrder(
+                "Inferred 'leanish.conventions.basePackage=com.acme.app' from source packages under src/main/java",
+                "Inferred 'leanish.conventions.basePackage=com.acme.lib' from source packages under src/main/java",
+            )
+        assertThat(secondRun.output)
+            .contains("Reusing configuration cache.")
+            .contains("basePackage : -XepOpt:NullAway:AnnotatedPackages=com.acme.app pitest=[com.acme.app.*]")
+            .contains("basePackage :lib -XepOpt:NullAway:AnnotatedPackages=com.acme.lib pitest=[com.acme.lib.*]")
+            .doesNotContain("Inferred 'leanish.conventions.basePackage=")
+    }
+
+    @Test
+    fun subprojectKeepsAConfiguredValueEqualToTheRootsInferredOne() {
+        val projectDir = tempDir.resolve("base-package-configured-same-as-inferred").toFile()
+        writeFile(
+            projectDir,
+            "settings.gradle.kts",
+            "rootProject.name = \"base-package-configured-same-as-inferred\"\ninclude(\"lib\")",
+        )
+        writeBasePackageDumpBuild(projectDir.resolve("build.gradle.kts"))
+        writeBasePackageDumpBuild(projectDir.resolve("lib/build.gradle.kts"))
+        // lib configures exactly the package the root infers, although its own sources are elsewhere.
+        writeFile(projectDir, "lib/gradle.properties", "leanish.conventions.basePackage=com.acme.app")
+        writeFile(projectDir, "src/main/java/com/acme/app/App.java", "package com.acme.app;\n\npublic class App {}\n")
+        writeFile(projectDir, "lib/src/main/java/com/acme/lib/Lib.java", "package com.acme.lib;\n\npublic class Lib {}\n")
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withArguments("dumpBasePackage")
+            .withEnvironment(environmentWithoutConventionsOverrides())
+            .withPluginClasspath()
+            .build()
+
+        assertThat(result.output)
+            .contains("basePackage : -XepOpt:NullAway:AnnotatedPackages=com.acme.app pitest=[com.acme.app.*]")
+            .contains("basePackage :lib -XepOpt:NullAway:AnnotatedPackages=com.acme.app pitest=[com.acme.app.*]")
+            .doesNotContain("Inferred 'leanish.conventions.basePackage=com.acme.lib'")
+    }
+
+    @Test
+    fun subprojectsKeepConfiguredBasePackages() {
+        val projectDir = tempDir.resolve("base-package-configured-per-project").toFile()
+        writeFile(
+            projectDir,
+            "settings.gradle.kts",
+            "rootProject.name = \"base-package-configured-per-project\"\ninclude(\"lib\", \"other\")",
+        )
+        // Configured in the root build script: the root and `lib`, which has no value of its own, both use it.
+        writeBasePackageDumpBuild(
+            projectDir.resolve("build.gradle.kts"),
+            beforeResolution = "extra[\"leanish.conventions.basePackage\"] = \"com.acme\"",
+        )
+        writeBasePackageDumpBuild(projectDir.resolve("lib/build.gradle.kts"))
+        writeBasePackageDumpBuild(projectDir.resolve("other/build.gradle.kts"))
+        writeFile(projectDir, "other/gradle.properties", "leanish.conventions.basePackage=org.other")
+        writeFile(projectDir, "src/main/java/com/acme/app/App.java", "package com.acme.app;\n\npublic class App {}\n")
+        writeFile(projectDir, "lib/src/main/java/com/acme/lib/Lib.java", "package com.acme.lib;\n\npublic class Lib {}\n")
+        writeFile(projectDir, "other/src/main/java/org/other/x/X.java", "package org.other.x;\n\npublic class X {}\n")
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withArguments("dumpBasePackage")
+            .withEnvironment(environmentWithoutConventionsOverrides())
+            .withPluginClasspath()
+            .build()
+
+        assertThat(result.output)
+            .contains("basePackage : -XepOpt:NullAway:AnnotatedPackages=com.acme pitest=[com.acme.*]")
+            .contains("basePackage :lib -XepOpt:NullAway:AnnotatedPackages=com.acme pitest=[com.acme.*]")
+            .contains("basePackage :other -XepOpt:NullAway:AnnotatedPackages=org.other pitest=[org.other.*]")
+            .doesNotContain("Inferred 'leanish.conventions.basePackage=")
+    }
+
+    /** A build script that resolves the project's base package while it runs, and a task that prints the result. */
+    private fun writeBasePackageDumpBuild(buildFile: File, beforeResolution: String = "") {
+        buildFile.parentFile.mkdirs()
+        buildFile.writeText(
+            $$"""
+            import info.solidsoft.gradle.pitest.PitestPluginExtension
+            import net.ltgt.gradle.errorprone.errorprone
+
+            plugins {
+                id("io.github.leanish.java-conventions")
+            }
+
+            $${beforeResolution}
+
+            val annotatedPackages = tasks.named<JavaCompile>("compileJava").get().options.errorprone.errorproneArgs.get()
+                .single { it.startsWith("-XepOpt:NullAway:AnnotatedPackages=") }
+            val pitestTargets = extensions.getByType<PitestPluginExtension>().targetClasses.get()
+            val projectPath = path
+
+            tasks.register("dumpBasePackage") {
+                // Only this string reaches the action, so the configuration cache can store it.
+                val line = "basePackage $projectPath $annotatedPackages pitest=$pitestTargets"
+                doLast {
+                    println(line)
+                }
+            }
+            """.trimIndent(),
+        )
+    }
+
+    @Test
     fun failsWhenBasePackagePropertyIsBlank() {
         val projectDir = tempDir.resolve("base-package-blank").toFile()
         projectDir.mkdirs()
@@ -1314,6 +1558,166 @@ class GradleConventionsPluginTest {
             .contains("githubPackagesPassword=env-token")
             .doesNotContain("property-user")
             .doesNotContain("property-token")
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = ["", "   "])
+    fun blankGithubCredentialVariablesFallBackToProperties(blank: String) {
+        val projectDir = tempDir.resolve("publishing-credentials-blank-env").toFile()
+        writeCredentialsDumpBuild(projectDir, "gpr.user=property-user\ngpr.key=property-token")
+
+        val result = credentialsDumpRunner(projectDir, mapOf("GITHUB_ACTOR" to blank, "GITHUB_TOKEN" to blank)).build()
+
+        assertThat(result.output)
+            .contains("githubPackagesUsername=property-user")
+            .contains("githubPackagesPassword=property-token")
+    }
+
+    @Test
+    fun blankGithubCredentialVariablesWithoutPropertiesLeaveCredentialsUnset() {
+        val projectDir = tempDir.resolve("publishing-credentials-blank-env-no-properties").toFile()
+        writeCredentialsDumpBuild(projectDir, "")
+
+        val result = credentialsDumpRunner(projectDir, mapOf("GITHUB_ACTOR" to "", "GITHUB_TOKEN" to " ")).build()
+
+        assertThat(result.output)
+            .contains("githubPackagesUsername=null")
+            .contains("githubPackagesPassword=null")
+    }
+
+    @Test
+    fun blankCredentialPropertiesStillFail() {
+        val projectDir = tempDir.resolve("publishing-credentials-blank-property").toFile()
+        writeCredentialsDumpBuild(projectDir, "gpr.key=   ")
+
+        val result = credentialsDumpRunner(projectDir, mapOf("GITHUB_TOKEN" to "")).buildAndFail()
+
+        assertThat(result.output).contains("Property 'gpr.key' must not be blank")
+    }
+
+    @Test
+    fun blankGithubRepositoryOwnerFallsThroughToTheConventionsOwnerVariable() {
+        val projectDir = tempDir.resolve("publishing-owner-blank-env").toFile()
+        writePublishingOwnerBuild(projectDir, ownerProperty = "property-owner")
+
+        generatePom(projectDir, mapOf("GITHUB_REPOSITORY_OWNER" to "", "JAVA_CONVENTIONS_PUBLISHING_GITHUB_OWNER" to "env-owner"))
+
+        assertThat(projectDir.resolve("build/publications/mavenJava/pom-default.xml").readText())
+            .contains("<url>https://github.com/env-owner/publishing-owner-blank-env</url>")
+            .doesNotContain("property-owner")
+    }
+
+    @Test
+    fun blankGithubRepositoryOwnerFallsThroughToTheOwnerProperty() {
+        val projectDir = tempDir.resolve("publishing-owner-blank-env-property").toFile()
+        writePublishingOwnerBuild(projectDir, ownerProperty = "property-owner")
+
+        generatePom(projectDir, mapOf("GITHUB_REPOSITORY_OWNER" to " "))
+
+        assertThat(projectDir.resolve("build/publications/mavenJava/pom-default.xml").readText())
+            .contains("<url>https://github.com/property-owner/publishing-owner-blank-env-property</url>")
+    }
+
+    @Test
+    fun blankGithubRepositoryOwnerFallsThroughToTheGroup() {
+        val projectDir = tempDir.resolve("publishing-owner-blank-env-group").toFile()
+        writePublishingOwnerBuild(projectDir, ownerProperty = null)
+
+        generatePom(projectDir, mapOf("GITHUB_REPOSITORY_OWNER" to ""))
+
+        assertThat(projectDir.resolve("build/publications/mavenJava/pom-default.xml").readText())
+            .contains("<url>https://github.com/group-owner/publishing-owner-blank-env-group</url>")
+    }
+
+    @Test
+    fun blankConventionsVariableFailsNamingTheVariable() {
+        val projectDir = tempDir.resolve("base-package-blank-env").toFile()
+        writeFile(projectDir, "settings.gradle.kts", "rootProject.name = \"base-package-blank-env\"")
+        writeFile(projectDir, "build.gradle.kts", "plugins {\n    id(\"io.github.leanish.java-conventions\")\n}\n")
+        writeFile(projectDir, "src/main/java/com/acme/app/App.java", "package com.acme.app;\n\npublic class App {}\n")
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withArguments("compileJava", "--dry-run")
+            .withEnvironment(environmentWithoutConventionsOverrides(mapOf("JAVA_CONVENTIONS_BASE_PACKAGE" to " ")))
+            .withPluginClasspath()
+            .buildAndFail()
+
+        assertThat(result.output).contains(
+            "Environment variable 'JAVA_CONVENTIONS_BASE_PACKAGE' (for property 'leanish.conventions.basePackage') " +
+                "must not be blank",
+        )
+    }
+
+    /** A project whose GitHub Packages repository is configured (owner `acme`), with a task printing its credentials. */
+    private fun writeCredentialsDumpBuild(projectDir: File, credentialProperties: String) {
+        writeFile(
+            projectDir,
+            "gradle.properties",
+            "leanish.conventions.basePackage=io.github.leanish\nleanish.conventions.publishing.githubOwner=acme\n" +
+                credentialProperties,
+        )
+        writeFile(projectDir, "settings.gradle.kts", "rootProject.name = \"${projectDir.name}\"")
+        writeFile(
+            projectDir,
+            "build.gradle.kts",
+            $$"""
+            import org.gradle.api.artifacts.repositories.MavenArtifactRepository
+            import org.gradle.api.credentials.PasswordCredentials
+            import org.gradle.api.publish.PublishingExtension
+
+            plugins {
+                id("io.github.leanish.java-conventions")
+            }
+
+            tasks.register("dumpGithubPackagesCredentials") {
+                doLast {
+                    val publishing = project.extensions.getByType(PublishingExtension::class.java)
+                    val repository = publishing.repositories.findByName("GitHubPackages") as MavenArtifactRepository?
+                    val credentials = repository?.credentials as PasswordCredentials?
+                    println("githubPackagesUsername=${credentials?.username}")
+                    println("githubPackagesPassword=${credentials?.password}")
+                }
+            }
+            """.trimIndent(),
+        )
+    }
+
+    private fun credentialsDumpRunner(projectDir: File, environment: Map<String, String>): GradleRunner {
+        return GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withArguments("dumpGithubPackagesCredentials")
+            .withEnvironment(environmentWithoutConventionsOverrides(environment))
+            .withPluginClasspath()
+    }
+
+    private fun writePublishingOwnerBuild(projectDir: File, ownerProperty: String?) {
+        // The group comes from gradle.properties, so it is set before the plugin reads it.
+        writeFile(
+            projectDir,
+            "gradle.properties",
+            "leanish.conventions.basePackage=io.github.leanish\ngroup=io.github.group-owner\nversion=1.0.0\n" +
+                (ownerProperty?.let { "leanish.conventions.publishing.githubOwner=$it\n" } ?: ""),
+        )
+        writeFile(projectDir, "settings.gradle.kts", "rootProject.name = \"${projectDir.name}\"")
+        writeFile(
+            projectDir,
+            "build.gradle.kts",
+            """
+            plugins {
+                id("io.github.leanish.java-conventions")
+            }
+            """.trimIndent(),
+        )
+    }
+
+    private fun generatePom(projectDir: File, environment: Map<String, String>) {
+        GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withArguments("generatePomFileForMavenJavaPublication")
+            .withEnvironment(environmentWithoutConventionsOverrides(environment))
+            .withPluginClasspath()
+            .build()
     }
 
     @Test
@@ -2136,8 +2540,8 @@ class GradleConventionsPluginTest {
             """.trimIndent(),
         )
 
+        initGitRepository(projectDir)
         val gitHooksDir = projectDir.resolve(".git/hooks")
-        gitHooksDir.mkdirs()
         val customHook = projectDir.resolve("scripts/git-hooks/pre-commit")
         customHook.parentFile.mkdirs()
         customHook.writeText("custom-hook")
@@ -2169,8 +2573,8 @@ class GradleConventionsPluginTest {
             """.trimIndent(),
         )
 
+        initGitRepository(projectDir)
         val gitHooksDir = projectDir.resolve(".git/hooks")
-        gitHooksDir.mkdirs()
 
         GradleRunner.create()
             .withProjectDir(projectDir)
@@ -2181,6 +2585,123 @@ class GradleConventionsPluginTest {
         val installedHook = gitHooksDir.resolve("pre-commit")
         assertThat(installedHook.readText())
             .isEqualTo(loadBundledPreCommitHook())
+    }
+
+    @Test
+    fun installGitHooksKeepsAPreCommitHookItDidNotInstall() {
+        val projectDir = tempDir.resolve("foreign-hook").toFile()
+        projectDir.mkdirs()
+        writeRequiredConventionsProperties(projectDir)
+        writeFile(projectDir, "settings.gradle.kts", "rootProject.name = \"test-foreign-hook\"")
+        writeFile(
+            projectDir,
+            "build.gradle.kts",
+            """
+            plugins {
+                id("io.github.leanish.java-conventions")
+            }
+            """.trimIndent(),
+        )
+        initGitRepository(projectDir)
+        val foreignHook = projectDir.resolve(".git/hooks/pre-commit")
+        foreignHook.writeText("#!/bin/sh\nexec another-tool\n")
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withArguments("installGitHooks")
+            .withPluginClasspath()
+            .build()
+
+        assertThat(foreignHook).hasContent("#!/bin/sh\nexec another-tool\n")
+        assertThat(result.output).contains("java-conventions didn't install it, or it was edited since")
+    }
+
+    @Test
+    fun installGitHooksLeavesAConfiguredHooksPathAlone() {
+        val projectDir = tempDir.resolve("configured-hooks-path").toFile()
+        initGitRepository(projectDir)
+        git(projectDir, "config", "core.hooksPath", ".githooks")
+        writeRequiredConventionsProperties(projectDir)
+        writeFile(projectDir, "settings.gradle.kts", "rootProject.name = \"test-configured-hooks-path\"")
+        writeFile(
+            projectDir,
+            "build.gradle.kts",
+            """
+            plugins {
+                id("io.github.leanish.java-conventions")
+            }
+            """.trimIndent(),
+        )
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withArguments("installGitHooks", "--info")
+            .withPluginClasspath()
+            .build()
+
+        assertThat(result.output).contains("Didn't install the pre-commit hook: core.hooksPath is set (\".githooks\")")
+        assertThat(projectDir.resolve(".githooks")).doesNotExist()
+        assertThat(projectDir.resolve(".git/hooks/pre-commit")).doesNotExist()
+    }
+
+    @Test
+    fun installGitHooksSkipsAHooksDirectoryLinkedToSomethingMissing() {
+        val projectDir = tempDir.resolve("dangling-hooks-link").toFile()
+        initGitRepository(projectDir)
+        val missing = tempDir.resolve("outside/missing").toFile()
+        projectDir.resolve(".git/hooks").deleteRecursively()
+        java.nio.file.Files.createSymbolicLink(projectDir.resolve(".git/hooks").toPath(), missing.toPath())
+        writeRequiredConventionsProperties(projectDir)
+        writeFile(projectDir, "settings.gradle.kts", "rootProject.name = \"test-dangling-hooks-link\"")
+        writeFile(
+            projectDir,
+            "build.gradle.kts",
+            """
+            plugins {
+                id("io.github.leanish.java-conventions")
+            }
+            """.trimIndent(),
+        )
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withArguments("installGitHooks")
+            .withPluginClasspath()
+            .build()
+
+        assertThat(result.output).contains("Didn't install the pre-commit hook: the hooks directory").contains("which doesn't exist")
+        assertThat(missing).doesNotExist()
+    }
+
+    @Test
+    fun installGitHooksInALinkedWorktreeInstallsWhereGitRunsHooks() {
+        val repository = tempDir.resolve("main-repository").toFile()
+        initGitRepository(repository)
+        val projectDir = tempDir.resolve("linked-worktree").toFile()
+        git(repository, "worktree", "add", "-q", projectDir.path)
+        writeRequiredConventionsProperties(projectDir)
+        writeFile(projectDir, "settings.gradle.kts", "rootProject.name = \"test-linked-worktree\"")
+        writeFile(
+            projectDir,
+            "build.gradle.kts",
+            """
+            plugins {
+                id("io.github.leanish.java-conventions")
+            }
+            """.trimIndent(),
+        )
+        val marker = tempDir.resolve("hook-ran").toFile()
+        writeFile(projectDir, "scripts/git-hooks/pre-commit", "#!/bin/sh\ntouch '${marker.path}'\n")
+
+        GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withArguments("installGitHooks")
+            .withPluginClasspath()
+            .build()
+        git(projectDir, "commit", "-q", "--allow-empty", "-m", "runs the hook")
+
+        assertThat(repository.resolve(".git/hooks/pre-commit")).exists()
+        assertThat(marker).exists()
     }
 
     @Test

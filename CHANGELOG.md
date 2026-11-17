@@ -2,10 +2,61 @@
 
 ## 0.6.6
 
+### Changed
+- The bundled pre-commit hook could commit unformatted code: it formatted and checked the working copy, but Git
+  committed the staged bytes. It now refuses the commit when a staged file differs from its working copy after
+  formatting, listing the files, and never restages anything. Committing part of a file's changes is refused too while
+  the rest is unstaged (stash it, or `--no-verify`). Existing installs pick it up as described for `installGitHooks`.
+- `jacocoTestCoverageVerification` now runs whenever a project has main classes. JaCoCo skipped it when there was no
+  execution data, so a project with classes and no tests passed `check` without its coverage being checked; it now
+  fails at 0 % coverage. To keep such a project passing, add tests, lower its minimum (README, "Override existing
+  values"), or disable `jacocoTestCoverageVerification` there. Projects without main classes still skip it, and so do
+  other `JacocoCoverageVerification` tasks without execution data.
+- The bundled Checkstyle rule against `com.fasterxml.jackson.core` and `com.fasterxml.jackson.databind` imports
+  matched nothing: its pattern had doubled backslashes. It is now an import-aware `IllegalImport` check (id
+  `jacksonTwoImport`) that flags them however they are written, static imports included
+  (`com.fasterxml.jackson.annotation` stays allowed). Builds that passed with such imports fail `checkstyleMain` or
+  `checkstyleTest` until they move to `tools.jackson.*`, or suppress the rule (see README).
+- The plugin no longer declares commonmark core on consumers' Error Prone classpath next to
+  `commonmark-ext-gfm-tables`. The tables extension `0.31.0` depends on core `0.31.0`, so core still resolves to
+  `0.31.0` by default; the separate declaration was redundant, and this repository had already stopped mirroring it.
+  Consumers that exclude the tables extension from `errorprone` now need their own core floor.
+- `installGitHooks` asks Git where it runs hooks (`git rev-parse --git-common-dir --git-path hooks`) instead of reading
+  `.git` itself. In a linked worktree it used to write the hook into the worktree's private git directory, where Git
+  never runs it; now it goes to the main repository's hooks directory, which all linked worktrees share. When
+  `core.hooksPath` is set (in the repository or globally, even to an empty value) it now installs nothing and leaves
+  those hooks alone. It needs `git` on the `PATH` when the project has a `.git`; if git can't run or the lookup fails,
+  it warns and skips instead of falling back to `.git/hooks`. The record of what it installed lives next to the hook.
+- `installGitHooks` (which `build` runs) no longer overwrites a pre-commit hook it didn't install: a hook from another
+  tool, a hand-written one, a symbolic link, or an installed hook edited locally is kept, with a warning. It records
+  the SHA-256 of what it installs in `.git/hooks/pre-commit.java-conventions.sha256` and replaces only a hook that
+  still matches. Migration: a hook installed by an earlier version (the exact bytes of any previously bundled hook) is
+  adopted and updated while there is no record yet; a hand-edited one is kept with the warning (delete
+  `.git/hooks/pre-commit` and run `installGitHooks` once to take the current hook). An installed hook that isn't
+  executable is made executable, and nothing is written through a hook or record that is a symbolic link or not a
+  regular file.
+- The reusable publishing workflow validates the publication version against the dispatched ref in the upload job too,
+  reading the ref from the workflow context, with the same rule as the build job.
+
+### Fixed
+- The check that this repository mirrors what the plugin injects into consumers compared version strings only, so a
+  removed module sharing another's version (or still pulled transitively) went unnoticed. `checkConventionMirrors` is
+  replaced by `ConventionMirrorsTest`, which takes the consumer configurations from a real consumer build (so a removed
+  mirror fails too) and compares coordinates one configuration at a time. The test dependencies' mirror is split into
+  `conventionTestImplementation` and `conventionTestRuntimeOnly`, since those two configurations declare different
+  modules.
+- A blank `GITHUB_TOKEN`, `GITHUB_ACTOR` or `GITHUB_REPOSITORY_OWNER` (for example a secret a workflow run can't read)
+  failed the build while the publishing conventions were configured, with a message about `gpr.key`, `gpr.user` or
+  the owner property. They now count as unset, so the next source is used. A blank `JAVA_CONVENTIONS_*` variable still
+  fails, and the message now names the variable.
+- In a multi-project build, a subproject could take its parent's inferred `leanish.conventions.basePackage` (extra
+  properties are inherited) instead of inferring its own, so NullAway and PIT covered the parent's package there. Each
+  project now infers its own; the inferred value is still stored in the project's extra properties, and values
+  configured in a parent still apply to subprojects.
+
 ### Documentation
 - The README says that Checkstyle override files come from the root project only, how to use a JDK 21 toolchain (lower
-  `options.release` with it), what an aggregator root without Java sources needs, and that coverage verification is
-  skipped when a project has no test execution data.
+  `options.release` with it), and what an aggregator root without Java sources needs.
 
 ## 0.6.5
 
