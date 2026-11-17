@@ -38,7 +38,8 @@ jobs:
     runs-on: ubuntu-26.04
     permissions:
       contents: read
-      # To read a SNAPSHOT's remote metadata; Gradle never sees a write token.
+      # To read a SNAPSHOT's remote metadata. Build code also runs in this job, so it can use this token to read any
+      # package the token may read, a private caller's included; Gradle never sees a write token.
       packages: read
     outputs:
       version: ${{ steps.version.outputs.version }}
