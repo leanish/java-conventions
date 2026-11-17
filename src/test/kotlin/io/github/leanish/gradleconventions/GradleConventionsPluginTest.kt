@@ -2576,7 +2576,7 @@ class GradleConventionsPluginTest {
         initGitRepository(projectDir)
         val gitHooksDir = projectDir.resolve(".git/hooks")
 
-        GradleRunner.create()
+        val result = GradleRunner.create()
             .withProjectDir(projectDir)
             .withArguments("installGitHooks")
             .withPluginClasspath()
@@ -2585,6 +2585,14 @@ class GradleConventionsPluginTest {
         val installedHook = gitHooksDir.resolve("pre-commit")
         assertThat(installedHook.readText())
             .isEqualTo(loadBundledPreCommitHook())
+        // setupProject relies on this line to report where the hook went. Compared canonically: the temp directory
+        // can be reached through a symbolic link (macOS's /var).
+        val installedPrefix = "Installed the pre-commit hook in "
+        assertThat(result.output.lines())
+            .anyMatch {
+                it.startsWith(installedPrefix) &&
+                    File(it.removePrefix(installedPrefix)).canonicalFile == installedHook.canonicalFile
+            }
     }
 
     @Test
@@ -2642,6 +2650,35 @@ class GradleConventionsPluginTest {
         assertThat(result.output).contains("Didn't install the pre-commit hook: core.hooksPath is set (\".githooks\")")
         assertThat(projectDir.resolve(".githooks")).doesNotExist()
         assertThat(projectDir.resolve(".git/hooks/pre-commit")).doesNotExist()
+    }
+
+    @Test
+    fun setupProjectDoesNotClaimHooksWereInstalledWhenTheyWereNot() {
+        val projectDir = tempDir.resolve("setup-with-hooks-path").toFile()
+        initGitRepository(projectDir)
+        git(projectDir, "config", "core.hooksPath", ".githooks")
+        writeRequiredConventionsProperties(projectDir)
+        writeFile(projectDir, "settings.gradle.kts", "rootProject.name = \"test-setup-with-hooks-path\"")
+        writeFile(
+            projectDir,
+            "build.gradle.kts",
+            """
+            plugins {
+                id("io.github.leanish.java-conventions")
+            }
+            """.trimIndent(),
+        )
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withArguments("setupProject")
+            .withPluginClasspath()
+            .build()
+
+        assertThat(projectDir.resolve(".git/hooks/pre-commit")).doesNotExist()
+        assertThat(result.output)
+            .contains("Project setup completed!")
+            .doesNotContain("Git hooks installed in .git/hooks/")
     }
 
     @Test
