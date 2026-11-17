@@ -2,11 +2,6 @@
 
 ## 0.6.6
 
-### Fixed
-- A blank `GITHUB_TOKEN`, `GITHUB_ACTOR` or `GITHUB_REPOSITORY_OWNER` (for example a secret a workflow run can't read)
-  failed the build while the publishing conventions were configured, with a message about `gpr.key`, `gpr.user` or
-  the owner property. They now count as unset, so the next source is used. A blank `JAVA_CONVENTIONS_*` variable still
-  fails, and the message now names the variable.
 ### Changed
 - The plugin no longer declares commonmark core on consumers' Error Prone classpath next to
   `commonmark-ext-gfm-tables`. The tables extension `0.31.0` depends on core `0.31.0`, so core still resolves to
@@ -36,6 +31,10 @@
   mirror fails too) and compares coordinates one configuration at a time. The test dependencies' mirror is split into
   `conventionTestImplementation` and `conventionTestRuntimeOnly`, since those two configurations declare different
   modules.
+- A blank `GITHUB_TOKEN`, `GITHUB_ACTOR` or `GITHUB_REPOSITORY_OWNER` (for example a secret a workflow run can't read)
+  failed the build while the publishing conventions were configured, with a message about `gpr.key`, `gpr.user` or
+  the owner property. They now count as unset, so the next source is used. A blank `JAVA_CONVENTIONS_*` variable still
+  fails, and the message now names the variable.
 
 ## 0.6.5
 
