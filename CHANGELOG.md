@@ -3,6 +3,10 @@
 ## 0.6.6
 
 ### Changed
+- The bundled pre-commit hook could commit unformatted code: it formatted and checked the working copy, but Git
+  committed the staged bytes. It now refuses the commit when a staged file differs from its working copy after
+  formatting, listing the files, and never restages anything. Committing part of a file's changes is refused too while
+  the rest is unstaged (stash it, or `--no-verify`). Existing installs pick it up as described for `installGitHooks`.
 - `jacocoTestCoverageVerification` now runs whenever a project has main classes. JaCoCo skipped it when there was no
   execution data, so a project with classes and no tests passed `check` without its coverage being checked; it now
   fails at 0 % coverage. To keep such a project passing, add tests, lower its minimum (README, "Override existing
