@@ -3,6 +3,11 @@
 ## 0.6.6
 
 ### Changed
+- `jacocoTestCoverageVerification` now runs whenever a project has main classes. JaCoCo skipped it when there was no
+  execution data, so a project with classes and no tests passed `check` without its coverage being checked; it now
+  fails at 0 % coverage. To keep such a project passing, add tests, lower its minimum (README, "Override existing
+  values"), or disable `jacocoTestCoverageVerification` there. Projects without main classes still skip it, and so do
+  other `JacocoCoverageVerification` tasks without execution data.
 - The bundled Checkstyle rule against `com.fasterxml.jackson.core` and `com.fasterxml.jackson.databind` imports
   matched nothing: its pattern had doubled backslashes. It is now an import-aware `IllegalImport` check (id
   `jacksonTwoImport`) that flags them however they are written, static imports included

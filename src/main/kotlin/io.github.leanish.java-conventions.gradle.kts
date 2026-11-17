@@ -381,6 +381,16 @@ tasks.withType<JacocoCoverageVerification>().configureEach {
     }
 }
 
+tasks.named<JacocoCoverageVerification>("jacocoTestCoverageVerification").configure {
+    // JaCoCo skips verification when there is no execution data, so a project with classes and no tests would pass
+    // `check` with its coverage never checked. Verify whenever there are classes: this replaces JaCoCo's condition (and
+    // any set before this one), while conditions a build script adds later still apply. Other verification tasks keep
+    // JaCoCo's condition.
+    setOnlyIf("there are classes to verify") { task ->
+        !(task as JacocoCoverageVerification).classDirectories.asFileTree.matching { include("**/*.class") }.isEmpty
+    }
+}
+
 if (project == rootProject) {
     val gitMarker = layout.projectDirectory.file(".git")
     val projectHookFile = layout.projectDirectory.file("scripts/git-hooks/pre-commit")

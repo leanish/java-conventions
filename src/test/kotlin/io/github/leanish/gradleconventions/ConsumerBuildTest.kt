@@ -107,6 +107,30 @@ class ConsumerBuildTest {
     }
 
     @Test
+    fun jacocoVerificationFailsWhenCodeHasNoTests() {
+        val projectDir = sampleConsumer("consumer-no-tests")
+        projectDir.resolve("src/test").deleteRecursively()
+
+        val result = runner(projectDir, "check").buildAndFail()
+
+        assertThat(result.task(":test")?.outcome).isEqualTo(TaskOutcome.NO_SOURCE)
+        assertThat(result.task(":jacocoTestCoverageVerification")?.outcome).isEqualTo(TaskOutcome.FAILED)
+        assertThat(result.output)
+            .contains("Rule violated for bundle consumer-no-tests: instructions covered ratio is 0.00, but expected minimum is 0.85")
+    }
+
+    @Test
+    fun jacocoVerificationIsSkippedWithoutClasses() {
+        val projectDir = sampleConsumer("consumer-no-classes")
+        projectDir.resolve("src").deleteRecursively()
+        writeFile(projectDir, "src/main/resources/application.properties", "name=sample\n")
+
+        val result = runner(projectDir, "check").build()
+
+        assertThat(result.task(":jacocoTestCoverageVerification")?.outcome).isEqualTo(TaskOutcome.SKIPPED)
+    }
+
+    @Test
     fun checkstyleFailsOnViolation() {
         val projectDir = sampleConsumer("consumer-checkstyle")
         writeSource(
