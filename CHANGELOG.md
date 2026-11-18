@@ -6,7 +6,8 @@
 This release changes what tasks consumers already run, so builds that passed on 0.6.5 can fail or behave differently.
 Each point is detailed in the entries below.
 - In a project with main classes and no test execution data (no tests, or tests that don't run),
-  `jacocoTestCoverageVerification` now runs, so `check` fails at 0 % coverage while the minimum is above zero: add
+  `jacocoTestCoverageVerification` now runs, so `check` fails at 0 % coverage while the verification is enabled (`-DexcludeTags` turns it off) and the
+  minimum is above zero: add
   tests, lower the minimum, or disable that task there.
 - With the bundled Checkstyle configuration, `checkstyleMain` and `checkstyleTest` fail on `com.fasterxml.jackson.core`
   and `com.fasterxml.jackson.databind` imports: move to `tools.jackson.*` or suppress `jacksonTwoImport`. A build
@@ -19,13 +20,13 @@ Each point is detailed in the entries below.
   build set with `.convention(...)` (use `.set(...)` to keep them), and an owner-inferred developer next to any the
   build declares.
 - A blank `GITHUB_ACTOR`, `GITHUB_TOKEN` or `GITHUB_REPOSITORY_OWNER` now counts as unset, so a build that failed on
-  it now takes the owner or credentials from the next source.
+  it now takes the owner or credentials from the next configured source, if there is one.
 - In a multi-project build, each subproject infers its own `leanish.conventions.basePackage` instead of taking its
   parent's inferred one, so NullAway and PIT there can cover other packages than before. A subproject with no package
   declarations under `src/main/java` needs `leanish.conventions.basePackage` set.
 - A build that excludes `commonmark-ext-gfm-tables` from `errorprone` now needs its own commonmark core floor.
 - `installGitHooks` installs nothing when `core.hooksPath` is set, writes to the main repository's hooks directory from
-  a linked worktree (so a build in one worktree updates the hook all of them run), and keeps a pre-commit hook it
+  a linked worktree (so a build in one worktree can update the hook all of them run), and keeps a pre-commit hook it
   didn't install or that was edited locally, which keeps its own behavior. In a project with a
   `.git` it needs `git` on the `PATH`; if git can't run, it warns and skips. The bundled hook refuses a commit when a
   staged file differs from its working copy after formatting, including partial commits it used to accept; a kept
