@@ -67,6 +67,9 @@
 - `test` declares `.github/workflows` as an input, so a workflow change runs the publishing workflow's ref guard test
   again instead of leaving `test` up to date.
 - The dependency graph's submit job skips pull requests from forks, whose token can't submit, instead of failing them.
+- The workflows use `gradle/actions` `v6.4.1`, which fixes
+  [GHSA-chpw-2mqm-95cc](https://github.com/gradle/actions/security/advisories/GHSA-chpw-2mqm-95cc): the dependency
+  graph's submit job, which holds a write token, trusted the graph file handed over by the job that runs the build.
 - Simplified the plugin's own build and workflows without changing their build, test or publishing results: one
   `setup-java` step per job, one JaCoCo class-directory setting for the report and the verification, and no Java
   toolchain block or `JavaExec` launcher setting that had no effect (the Kotlin toolchain `17` already set the Java
