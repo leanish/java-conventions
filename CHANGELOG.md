@@ -1,6 +1,22 @@
 # Changelog
 
-## 0.6.6
+## 0.7.0
+
+### Upgrading from 0.6.x
+This release changes what tasks consumers already run, so builds that passed on 0.6.5 can fail or behave differently.
+Each point is detailed in the entries below.
+- `check` fails at 0 % coverage in a project with main classes and no tests (`jacocoTestCoverageVerification` now
+  runs): add tests, lower the minimum, or disable that task there.
+- `checkstyleMain` and `checkstyleTest` fail on `com.fasterxml.jackson.core` and `com.fasterxml.jackson.databind`
+  imports: move to `tools.jackson.*` or suppress `jacksonTwoImport`.
+- A build whose GitHub owner comes from a `group` set after the `plugins { … }` block now gets the `GitHubPackages`
+  repository, so a plain `publish` also publishes there and needs credentials: set
+  `leanish.conventions.publishing.githubPackages.enabled=false` or run a repository-specific task.
+- A build that excludes `commonmark-ext-gfm-tables` from `errorprone` now needs its own commonmark core floor.
+- `installGitHooks` installs nothing when `core.hooksPath` is set, keeps a pre-commit hook it didn't install, and
+  needs `git` on the `PATH`. The installed hook refuses a commit when a staged file differs from its working copy
+  after formatting, including partial commits it used to accept.
+- Checkstyle `14.4.0` and Error Prone `2.52.0` can report new findings.
 
 ### Changed
 - The bundled pre-commit hook could commit unformatted code: it formatted and checked the working copy, but Git
