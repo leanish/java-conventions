@@ -412,7 +412,7 @@ It:
 - `installGitHooks` asks `git` (it must be on the `PATH`) where Git runs hooks: `.git/hooks`, or in a linked worktree the main repository's hooks directory, which all linked worktrees share (so a worktree with a different `scripts/git-hooks/pre-commit` updates the shared hook). When `core.hooksPath` is set, in the repository or globally, it installs nothing and leaves those hooks to you; set your own `core.hooksPath` if worktrees need separate hooks. If git can't run or the lookup fails, it warns and skips.
 
 ## Plugin project CI (maintainers)
-- Checked-in Linux jobs run on `ubuntu-26.04`, with Gradle `9.8.2` and the existing JDK baselines.
+- Checked-in Linux jobs run on `ubuntu-26.04`, with Gradle `9.9.1` and the existing JDK baselines.
 - `.github/workflows/ci.yml` runs the default build path: compilation toolchain JDK 17 (Kotlin, and the Java toolchain it sets); Gradle runtime and the default test launcher on JDK 25.
 - `.github/workflows/testing-legacy-jdk.yml` runs a matrix on legacy runtime JDKs (`17`, `21`).
 - The legacy matrix uses `-PjavaConventions.runtimeJdkVersion=<version>` to set the plugin project's own `Test` runtime launcher.
