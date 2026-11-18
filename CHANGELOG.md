@@ -62,7 +62,7 @@
   warns when it kept a hook it can't manage; expected skips, such as a set `core.hooksPath`, show with `--info`.
 - The GitHub owner fallback from `group` (for example `io.github.acme` → `acme`) only worked when `group` was set
   before the plugin was applied. With the usual `plugins { … }` followed by `group = "io.github.acme"`, the POM got no
-  GitHub URL, developer or SCM, and no `GitHubPackages` repository was added. When no owner is known at application,
+  GitHub URL, owner-inferred developer or SCM, and no `GitHubPackages` repository was added. When no owner is known at application,
   those owner-dependent parts are now added after the project is evaluated; an owner from a property or the
   environment is still applied immediately, and `mavenJava` is still created immediately. Such builds now get the
   `GitHubPackages` repository (GitHub Packages publishing is on by default), so a plain `publish` also attempts to

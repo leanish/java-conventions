@@ -10,9 +10,13 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
+import org.xml.sax.InputSource
 import java.io.File
+import java.io.StringReader
 import java.nio.file.Path
 import java.util.jar.JarFile
+import javax.xml.parsers.DocumentBuilderFactory
+import javax.xml.xpath.XPathFactory
 
 class GradleConventionsPluginTest {
     @TempDir
@@ -1310,8 +1314,8 @@ class GradleConventionsPluginTest {
 
         val (pom, output) = generatePomAndOutput(projectDir, "tasks", "--all")
 
+        assertThat(projectUrl(pom)).isEqualTo("https://github.com/group-owner/group-after-plugins")
         assertThat(pom)
-            .contains("<url>https://github.com/group-owner/group-after-plugins</url>")
             .contains("<id>group-owner</id>")
             .contains("<connection>scm:git:https://github.com/group-owner/group-after-plugins.git</connection>")
         assertThat(output).contains("publishMavenJavaPublicationToGitHubPackagesRepository")
@@ -1356,9 +1360,8 @@ class GradleConventionsPluginTest {
         val (pom, output) = generatePomAndOutput(projectDir, "--configuration-cache")
 
         assertThat(output).contains("Reusing configuration cache.")
-        assertThat(pom)
-            .contains("<id>group-owner</id>")
-            .contains("<url>https://github.com/group-owner/group-owner-configuration-cache</url>")
+        assertThat(pom).contains("<id>group-owner</id>")
+        assertThat(projectUrl(pom)).isEqualTo("https://github.com/group-owner/group-owner-configuration-cache")
     }
 
     @Test
@@ -1414,6 +1417,13 @@ class GradleConventionsPluginTest {
             .withPluginClasspath()
             .build()
         return projectDir.resolve("build/publications/mavenJava/pom-default.xml").readText() to result.output
+    }
+
+    /** The POM's top-level `project/url`; the SCM URL carries the same value, so a text search can't tell them apart. */
+    private fun projectUrl(pom: String): String {
+        val document = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(InputSource(StringReader(pom)))
+        return XPathFactory.newInstance().newXPath()
+            .evaluate("/*[local-name()='project']/*[local-name()='url']", document)
     }
 
     @Test
