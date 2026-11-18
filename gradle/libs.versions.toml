@@ -4,8 +4,8 @@
 [versions]
 # Injected into consumer builds
 assertj = "3.27.7"
-checkstyle = "14.3.0"
-errorprone = "2.51.0"
+checkstyle = "14.4.0"
+errorprone = "2.52.0"
 # Floor for the Error Prone classpath, where google-java-format parses Markdown javadoc (commonmark-java's advisories)
 commonmark = "0.31.0"
 # Floor for the Checkstyle and Error Prone classpaths (CVE-2026-102554, GHSA-v5x9-67m3-7m56)
@@ -16,12 +16,12 @@ jspecify = "1.0.1"
 junit = "6.1.3"
 lombok = "1.18.48"
 nullaway = "0.14.3"
-pitest = "1.30.1"
+pitest = "1.30.2"
 pitest-junit5-plugin = "1.2.3"
 # Gradle plugins applied to consumer builds
-errorprone-gradle-plugin = "5.1.1"
+errorprone-gradle-plugin = "5.2.0"
 pitest-gradle-plugin = "1.19.0"
-spotless = "8.10.4"
+spotless = "8.11.0"
 # This plugin's own build
 kotlin-dsl = "6.7.13"
 plugin-publish = "2.2.1"
