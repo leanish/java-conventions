@@ -1305,6 +1305,98 @@ class GradleConventionsPluginTest {
     }
 
     @Test
+    fun publishingOwnerFallsBackToAGroupSetAfterThePluginsBlock() {
+        val projectDir = projectWithGroup("group-after-plugins", "io.github.group-owner")
+
+        val (pom, output) = generatePom(projectDir, "tasks", "--all")
+
+        assertThat(pom)
+            .contains("<url>https://github.com/group-owner/group-after-plugins</url>")
+            .contains("<id>group-owner</id>")
+            .contains("<connection>scm:git:https://github.com/group-owner/group-after-plugins.git</connection>")
+        assertThat(output).contains("publishMavenJavaPublicationToGitHubPackagesRepository")
+    }
+
+    @Test
+    fun publishingWithoutAnyOwnerHasNoGithubMetadataOrRepository() {
+        val projectDir = projectWithGroup("no-owner", "com.example")
+
+        val (pom, output) = generatePom(projectDir, "tasks", "--all")
+
+        assertThat(pom).doesNotContain("github.com").contains("<name>no-owner</name>")
+        assertThat(output).doesNotContain("GitHubPackagesRepository")
+    }
+
+    @Test
+    fun theGroupOwnerPathReusesTheConfigurationCache() {
+        val projectDir = projectWithGroup("group-owner-configuration-cache", "io.github.group-owner")
+
+        generatePom(projectDir, "--configuration-cache")
+        projectDir.resolve("build/publications").deleteRecursively()
+        val (pom, output) = generatePom(projectDir, "--configuration-cache")
+
+        assertThat(output).contains("Reusing configuration cache.")
+        assertThat(pom)
+            .contains("<id>group-owner</id>")
+            .contains("<url>https://github.com/group-owner/group-owner-configuration-cache</url>")
+    }
+
+    @Test
+    fun aGroupOwnersRepositoryCanBeReconfiguredAsTheReadmeShows() {
+        val projectDir = projectWithGroup(
+            "group-owner-repository-override",
+            "io.github.group-owner",
+            buildScriptTail = """
+                publishing.repositories.withType<MavenArtifactRepository>()
+                    .matching { it.name == "GitHubPackages" }
+                    .configureEach { url = uri("https://maven.example/override") }
+
+                // Registered after the conventions' own afterEvaluate, so it sees the repository they add.
+                afterEvaluate {
+                    val repository = publishing.repositories.getByName("GitHubPackages") as MavenArtifactRepository
+                    println("GitHubPackages URL: " + repository.url)
+                }
+            """.trimIndent(),
+        )
+
+        val (_, output) = generatePom(projectDir)
+
+        assertThat(output).contains("GitHubPackages URL: https://maven.example/override")
+    }
+
+    /** A project whose build script sets `group` after `plugins {}`, as build scripts usually do. */
+    private fun projectWithGroup(name: String, group: String, buildScriptTail: String = ""): File {
+        val projectDir = tempDir.resolve(name).toFile()
+        projectDir.mkdirs()
+        writeRequiredConventionsProperties(projectDir)
+        writeFile(projectDir, "settings.gradle.kts", "rootProject.name = \"$name\"")
+        writeFile(
+            projectDir,
+            "build.gradle.kts",
+            """
+            plugins {
+                id("io.github.leanish.java-conventions")
+            }
+
+            group = "$group"
+            version = "1.0.0"
+            """.trimIndent() + "\n\n" + buildScriptTail,
+        )
+        return projectDir
+    }
+
+    /** The generated POM and the build output, with no owner in the environment. */
+    private fun generatePom(projectDir: File, vararg extraArguments: String): Pair<String, String> {
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withArguments("generatePomFileForMavenJavaPublication", *extraArguments)
+            .withEnvironment(environmentWithoutConventionsOverrides(emptyMap()))
+            .withPluginClasspath()
+            .build()
+        return projectDir.resolve("build/publications/mavenJava/pom-default.xml").readText() to result.output
+    }
+
+    @Test
     fun publishingOwnerConventionEnvironmentOverridesProperty() {
         val projectDir = tempDir.resolve("publishing-owner-convention-env-precedence").toFile()
         projectDir.mkdirs()

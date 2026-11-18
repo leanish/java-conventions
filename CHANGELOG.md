@@ -56,6 +56,14 @@
 - `setupProject` always printed "Git hooks installed in .git/hooks/", even when `installGitHooks` installed nothing
   or installed elsewhere. It no longer prints it. `installGitHooks` logs where it installed or updated the hook, and
   warns when it kept a hook it can't manage; expected skips, such as a set `core.hooksPath`, show with `--info`.
+- The GitHub owner fallback from `group` (for example `io.github.acme` → `acme`) only worked when `group` was set
+  before the plugin was applied. With the usual `plugins { … }` followed by `group = "io.github.acme"`, the POM got no
+  GitHub URL, developer or SCM, and no `GitHubPackages` repository was added. When no owner is known at application,
+  those owner-dependent parts are now added after the project is evaluated; an owner from a property or the
+  environment is still applied immediately, and `mavenJava` is still created immediately. Such builds now get the
+  `GitHubPackages` repository, so a plain `publish` also publishes there; set
+  `leanish.conventions.publishing.githubPackages.enabled=false` or run a repository-specific task to publish elsewhere
+  only.
 
 ### Documentation
 - The README says that Checkstyle override files come from the root project only, how to use a JDK 21 toolchain (lower
