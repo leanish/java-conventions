@@ -61,9 +61,9 @@
   GitHub URL, developer or SCM, and no `GitHubPackages` repository was added. When no owner is known at application,
   those owner-dependent parts are now added after the project is evaluated; an owner from a property or the
   environment is still applied immediately, and `mavenJava` is still created immediately. Such builds now get the
-  `GitHubPackages` repository, so a plain `publish` also publishes there; set
-  `leanish.conventions.publishing.githubPackages.enabled=false` or run a repository-specific task to publish elsewhere
-  only.
+  `GitHubPackages` repository (GitHub Packages publishing is on by default), so a plain `publish` also attempts to
+  publish there, which needs credentials; set `leanish.conventions.publishing.githubPackages.enabled=false` or run a
+  repository-specific task to publish elsewhere only.
 
 ### Documentation
 - The README says that Checkstyle override files come from the root project only, how to use a JDK 21 toolchain (lower

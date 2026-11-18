@@ -184,7 +184,8 @@ plugins.withId("maven-publish") {
         }
     }
 
-    // What depends on the GitHub owner: POM URL, developer and SCM, and the GitHubPackages repository.
+    // What the GitHub owner can fill in: POM URL and SCM, the developer's missing fields, and the GitHubPackages
+    // repository. Explicitly configured developer fields are applied here too, with or without an owner.
     fun configureOwnerDependentPublishing(resolvedGithubOwner: String?) {
         val resolvedGithubRepository = publishingGithubRepository.get()
         val githubRepoUrl = resolvedGithubOwner?.let { owner ->

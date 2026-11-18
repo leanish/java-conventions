@@ -363,6 +363,8 @@ Two supported patterns:
      SCM and the `GitHubPackages` repository) are added after the project is evaluated, so `named(...)` can't see the
      repository yet; set the owner explicitly, or use
      `repositories.withType<MavenArtifactRepository>().matching { it.name == "GitHubPackages" }.configureEach { ... }`.
+     Override the POM URL or SCM there with `.set(...)`: a `.convention(...)` from the build script is replaced by the
+     owner-derived one, which is applied later.
    - Do not use `create<MavenPublication>("mavenJava")` when conventions are enabled, because `mavenJava` already exists.
 
 2. Fully replace plugin publishing behavior.

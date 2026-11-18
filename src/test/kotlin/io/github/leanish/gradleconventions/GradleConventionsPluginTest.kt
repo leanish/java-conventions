@@ -1308,7 +1308,7 @@ class GradleConventionsPluginTest {
     fun publishingOwnerFallsBackToAGroupSetAfterThePluginsBlock() {
         val projectDir = projectWithGroup("group-after-plugins", "io.github.group-owner")
 
-        val (pom, output) = generatePom(projectDir, "tasks", "--all")
+        val (pom, output) = generatePomAndOutput(projectDir, "tasks", "--all")
 
         assertThat(pom)
             .contains("<url>https://github.com/group-owner/group-after-plugins</url>")
@@ -1321,19 +1321,39 @@ class GradleConventionsPluginTest {
     fun publishingWithoutAnyOwnerHasNoGithubMetadataOrRepository() {
         val projectDir = projectWithGroup("no-owner", "com.example")
 
-        val (pom, output) = generatePom(projectDir, "tasks", "--all")
+        val (pom, output) = generatePomAndOutput(projectDir, "tasks", "--all")
 
         assertThat(pom).doesNotContain("github.com").contains("<name>no-owner</name>")
         assertThat(output).doesNotContain("GitHubPackagesRepository")
     }
 
     @Test
+    fun configuredDeveloperIsPublishedWithoutAnyOwner() {
+        val projectDir = projectWithGroup("developer-without-owner", "com.example")
+        projectDir.resolve("gradle.properties").appendText(
+            "\n" + """
+            leanish.conventions.publishing.developer.id=dev-id
+            leanish.conventions.publishing.developer.name=Dev Name
+            leanish.conventions.publishing.developer.url=https://example.com/dev
+            """.trimIndent(),
+        )
+
+        val (pom, _) = generatePomAndOutput(projectDir)
+
+        assertThat(pom)
+            .contains("<id>dev-id</id>")
+            .contains("<name>Dev Name</name>")
+            .contains("<url>https://example.com/dev</url>")
+            .doesNotContain("github.com")
+    }
+
+    @Test
     fun theGroupOwnerPathReusesTheConfigurationCache() {
         val projectDir = projectWithGroup("group-owner-configuration-cache", "io.github.group-owner")
 
-        generatePom(projectDir, "--configuration-cache")
+        generatePomAndOutput(projectDir, "--configuration-cache")
         projectDir.resolve("build/publications").deleteRecursively()
-        val (pom, output) = generatePom(projectDir, "--configuration-cache")
+        val (pom, output) = generatePomAndOutput(projectDir, "--configuration-cache")
 
         assertThat(output).contains("Reusing configuration cache.")
         assertThat(pom)
@@ -1342,7 +1362,7 @@ class GradleConventionsPluginTest {
     }
 
     @Test
-    fun aGroupOwnersRepositoryCanBeReconfiguredAsTheReadmeShows() {
+    fun aGroupOwnersRepositoryCanBeReconfiguredWithConfigureEach() {
         val projectDir = projectWithGroup(
             "group-owner-repository-override",
             "io.github.group-owner",
@@ -1359,7 +1379,7 @@ class GradleConventionsPluginTest {
             """.trimIndent(),
         )
 
-        val (_, output) = generatePom(projectDir)
+        val (_, output) = generatePomAndOutput(projectDir)
 
         assertThat(output).contains("GitHubPackages URL: https://maven.example/override")
     }
@@ -1386,7 +1406,7 @@ class GradleConventionsPluginTest {
     }
 
     /** The generated POM and the build output, with no owner in the environment. */
-    private fun generatePom(projectDir: File, vararg extraArguments: String): Pair<String, String> {
+    private fun generatePomAndOutput(projectDir: File, vararg extraArguments: String): Pair<String, String> {
         val result = GradleRunner.create()
             .withProjectDir(projectDir)
             .withArguments("generatePomFileForMavenJavaPublication", *extraArguments)
