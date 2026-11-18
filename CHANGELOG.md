@@ -37,6 +37,10 @@
   regular file.
 - The reusable publishing workflow validates the publication version against the dispatched ref in the upload job too,
   reading the ref from the workflow context, with the same rule as the build job.
+- Upgraded the tools injected into consumer builds: Checkstyle from `14.3.0` to `14.4.0`, Error Prone
+  (`error_prone_core` and `error_prone_annotations`) from `2.51.0` to `2.52.0`, PIT from `1.30.1` to `1.30.2`, and
+  the Gradle plugins Spotless from `8.10.4` to `8.11.0` and Error Prone from `5.1.1` to `5.2.0`. Builds that passed on
+  0.6.5 may get new Checkstyle or Error Prone findings, or different mutation results.
 
 ### Fixed
 - The check that this repository mirrors what the plugin injects into consumers compared version strings only, so a
@@ -75,6 +79,10 @@
 - `test` declares `.github/workflows` as an input, so a workflow change runs the publishing workflow's ref guard test
   again instead of leaving `test` up to date.
 - The dependency graph's submit job skips pull requests from forks, whose token can't submit, instead of failing them.
+- Upgraded the Gradle wrapper from `9.8.2` to `9.9.1`.
+- The workflows use `gradle/actions` `v6.4.1`, which fixes
+  [GHSA-chpw-2mqm-95cc](https://github.com/gradle/actions/security/advisories/GHSA-chpw-2mqm-95cc): the dependency
+  graph's submit job, which holds a write token, trusted the graph file handed over by the job that runs the build.
 - Simplified the plugin's own build and workflows without changing their build, test or publishing results: one
   `setup-java` step per job, one JaCoCo class-directory setting for the report and the verification, and no Java
   toolchain block or `JavaExec` launcher setting that had no effect (the Kotlin toolchain `17` already set the Java
