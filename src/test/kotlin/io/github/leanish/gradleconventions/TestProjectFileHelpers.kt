@@ -16,6 +16,10 @@ internal fun writeRequiredConventionsProperties(projectDir: File) {
     )
 }
 
+/**
+ * The test JVM's environment without the variables the conventions read, and with git's global and system config
+ * ignored (a developer's global `core.hooksPath` would otherwise stop hook installation), plus [overrides].
+ */
 internal fun environmentWithoutConventionsOverrides(
     overrides: Map<String, String> = emptyMap(),
 ): Map<String, String> {
@@ -27,6 +31,8 @@ internal fun environmentWithoutConventionsOverrides(
                 key != ConventionProperties.GITHUB_TOKEN_ENV
         }
         .toMutableMap()
+    baseEnvironment["GIT_CONFIG_GLOBAL"] = "/dev/null"
+    baseEnvironment["GIT_CONFIG_NOSYSTEM"] = "1"
     baseEnvironment.putAll(overrides)
     return baseEnvironment
 }

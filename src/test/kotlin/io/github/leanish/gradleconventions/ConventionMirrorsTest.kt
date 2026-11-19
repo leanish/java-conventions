@@ -121,6 +121,7 @@ class ConventionMirrorsTest {
         val output = GradleRunner.create()
             .withProjectDir(projectDir)
             .withArguments("printDeclared", "--no-configuration-cache", "-q")
+            .withEnvironment(environmentWithoutConventionsOverrides())
             .withPluginClasspath()
             .build()
             .output

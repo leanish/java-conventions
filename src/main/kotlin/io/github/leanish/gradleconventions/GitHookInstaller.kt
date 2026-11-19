@@ -36,11 +36,13 @@ internal enum class HookInstallOutcome {
 /**
  * Installs the pre-commit hook without overwriting one the developer owns.
  *
- * Next to the hook it keeps a record of the SHA-256 of the bytes it last wrote. A hook it may replace is one that is
- * absent, already identical, or still matching that record; anything else (a hook from another tool, a hand-written
- * one, an installed hook edited locally, a symbolic link) is kept. Hooks installed before the record existed are
- * recognized by the exact bytes of the previously bundled hooks, but only while there is no record: a record that
- * disagrees means a local edit, whatever the bytes.
+ * Next to the hook it keeps a record of the SHA-256 of the bytes it last wrote. It decides by the hook's bytes, in this
+ * order: an absent hook is installed; one identical to the source is adopted, whatever the record says; otherwise one
+ * matching the record is updated, and, only while there is no record, one with the exact bytes of a previously bundled
+ * hook (installed before the record existed). Anything else (a hook from another tool, a hand-written one, an
+ * installed hook edited locally, a project hook installed before the record existed whose source has changed since, unless its bytes are a
+ * previously bundled hook's, a symbolic link)
+ * is kept.
  */
 internal object GitHookInstaller {
     const val HOOK_NAME = "pre-commit"

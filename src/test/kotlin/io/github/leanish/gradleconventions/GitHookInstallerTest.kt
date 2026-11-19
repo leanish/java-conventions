@@ -1,11 +1,13 @@
 package io.github.leanish.gradleconventions
 
 import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.Path
+import java.nio.file.attribute.PosixFileAttributeView
 import java.nio.file.attribute.PosixFilePermissions
 import java.util.concurrent.TimeUnit
 
@@ -20,7 +22,9 @@ class GitHookInstallerTest {
     private fun previouslyBundled(commit: String): ByteArray =
         checkNotNull(javaClass.getResource("/previously-bundled-hooks/pre-commit-$commit")).readBytes()
 
+    /** Skips the calling test on a filesystem without POSIX permissions, where it can't make such a file. */
     private fun makeNotExecutable(file: File) {
+        assumeTrue(Files.getFileStore(file.toPath()).supportsFileAttributeView(PosixFileAttributeView::class.java))
         Files.setPosixFilePermissions(file.toPath(), PosixFilePermissions.fromString("rw-r--r--"))
     }
 

@@ -399,11 +399,13 @@ tasks.withType<JacocoCoverageVerification>().configureEach {
 
 tasks.named<JacocoCoverageVerification>("jacocoTestCoverageVerification").configure {
     // JaCoCo skips verification when there is no execution data, so a project with classes and no tests would pass
-    // `check` with its coverage never checked. Verify whenever there are classes: this replaces JaCoCo's condition (and
-    // any set before this one), while conditions a build script adds later still apply. Other verification tasks keep
-    // JaCoCo's condition.
-    setOnlyIf("there are classes to verify") { task ->
-        !(task as JacocoCoverageVerification).classDirectories.asFileTree.matching { include("**/*.class") }.isEmpty
+    // `check` with its coverage never checked. Verify when there is execution data (JaCoCo's own condition) or, without
+    // it, when there are loose classes to verify. This replaces JaCoCo's condition (and any set before this one), while
+    // conditions a build script adds later still apply. Other verification tasks keep JaCoCo's condition.
+    setOnlyIf("there is execution data or there are classes to verify") { task ->
+        val verification = task as JacocoCoverageVerification
+        verification.executionData.files.any { it.exists() } ||
+            !verification.allClassDirs.asFileTree.matching { include("**/*.class") }.isEmpty
     }
 }
 
@@ -421,6 +423,8 @@ if (project == rootProject) {
         val exec = providers.exec {
             commandLine(command)
             workingDir(projectDirectoryFile)
+            // Replaced, not edited in place: removing keys from `environment` doesn't reach the started process.
+            setEnvironment(environment.filterKeys { it !in GitHooks.REPOSITORY_SELECTING_VARIABLES })
             isIgnoreExitValue = true
         }
         return providers.provider {
