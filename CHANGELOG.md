@@ -5,10 +5,13 @@
 ### Upgrading from 0.6.x
 This release changes what tasks consumers already run, so builds that passed on 0.6.5 can fail or behave differently.
 Each point is detailed in the entries below.
-- In a project with main classes and no test execution data (no tests, or tests that don't run),
-  `jacocoTestCoverageVerification` now runs, so `check` fails at 0 % coverage while the verification is enabled (`-DexcludeTags` turns it off) and the
-  minimum is above zero: add
-  tests, lower the minimum, or disable that task there.
+- In a project with loose `.class` files with measurable instructions and no test execution data (no tests, or tests
+  that don't run),
+  `jacocoTestCoverageVerification` now runs, so `check` fails at 0 % coverage while the verification is enabled (a
+  non-empty list of tags in `-DexcludeTags`, such as `-DexcludeTags=integration`, turns it off) and the minimum is
+  above zero: add
+  tests, lower the minimum to `0`, or disable that task there. A condition a build put on that task before the
+  conventions applied is replaced: register an `onlyIf` after them to keep a conditional skip, or set `enabled = false`.
 - With the bundled Checkstyle configuration, `checkstyleMain` and `checkstyleTest` fail on `com.fasterxml.jackson.core`
   and `com.fasterxml.jackson.databind` imports: move to `tools.jackson.*` or suppress `jacksonTwoImport`. A build
   whose root project has its own `config/checkstyle/checkstyle.xml` doesn't get the rule (a subproject's own file
@@ -30,8 +33,13 @@ Each point is detailed in the entries below.
   didn't install or that was edited locally, which keeps its own behavior. In a project with a
   `.git` it needs `git` on the `PATH`; if git can't run, it warns and skips. The bundled hook refuses a commit when a
   staged file differs from its working copy after formatting, including partial commits it used to accept; a kept
-  hand-edited hook doesn't get this until it's deleted and `installGitHooks` installs the bundled hook (a project's
-  own `scripts/git-hooks/pre-commit` is installed instead when present).
+  hand-edited hook doesn't get this until `pre-commit` is deleted from the hooks directory (`.git/hooks` in a normal
+  checkout, the main repository's in a linked worktree) and `installGitHooks` installs the bundled hook (a project's
+  own `scripts/git-hooks/pre-commit` is installed instead when present). A project hook a 0.6.x version installed can
+  be kept the same way once `scripts/git-hooks/pre-commit` has changed (see the decision order under Changed).
+- `installGitHooks` is no longer a `Copy` task: `tasks.named<Copy>("installGitHooks")` fails its type check and
+  `withType<Copy>()` no longer matches it. Untyped `tasks.named("installGitHooks")` still works for general task
+  settings.
 - Upgraded tools can report new findings or format differently: Checkstyle `14.4.0`, Error Prone `2.52.0` (and its
   Gradle plugin `5.2.0`), Spotless `8.11.0`, and PIT `1.30.2`, whose mutation results can change against a
   `pitest` threshold.
@@ -41,14 +49,19 @@ Each point is detailed in the entries below.
   committed the staged bytes. It now refuses the commit when a staged file differs from its working copy after
   formatting, listing the files, and never restages anything. Committing part of a file's changes is refused too while
   the rest is unstaged (stash it, or `--no-verify`). Existing installs pick it up as described for `installGitHooks`.
-- `jacocoTestCoverageVerification` now runs whenever a project has main classes. JaCoCo skipped it when there was no
-  execution data, so a project with classes and no tests passed `check` without its coverage being checked; it now
-  fails at 0 % coverage. To keep such a project passing, add tests, lower its minimum (README, "Override existing
-  values"), or disable `jacocoTestCoverageVerification` there. Projects without main classes still skip it, and so do
-  other `JacocoCoverageVerification` tasks without execution data.
+- `jacocoTestCoverageVerification` now also runs without execution data when its class directories
+  (`additionalClassDirs` included) contain loose `.class` files; JARs given as class input don't count for this.
+  JaCoCo skipped it when there was no execution data, so a project with classes and no tests passed `check` without
+  its coverage being checked; it now fails at 0 % coverage. To keep such a project passing, add tests, lower its
+  minimum to `0` (README, "Override existing values"), or disable `jacocoTestCoverageVerification` there. Classes with
+  no measurable instructions (interfaces with only abstract methods, for example) have nothing to measure and pass.
+  With execution data it runs as before; without it, projects without loose classes still skip it, and so do other
+  `JacocoCoverageVerification` tasks. The conventions replace the
+  task's run condition, so a condition another plugin or the build put on it earlier no longer applies; one added
+  after the conventions still does.
 - The bundled Checkstyle rule against `com.fasterxml.jackson.core` and `com.fasterxml.jackson.databind` imports
   matched nothing: its pattern had doubled backslashes. It is now an import-aware `IllegalImport` check (id
-  `jacksonTwoImport`) that flags them however they are written, static imports included
+  `jacksonTwoImport`) that flags ordinary and static imports of them, indented or split over lines included
   (`com.fasterxml.jackson.annotation` stays allowed). Builds that passed with such imports fail `checkstyleMain` or
   `checkstyleTest` until they move to `tools.jackson.*`, or suppress the rule (see README).
 - The plugin no longer declares commonmark core on consumers' Error Prone classpath next to
@@ -56,19 +69,23 @@ Each point is detailed in the entries below.
   `0.31.0` by default; the separate declaration was redundant, and this repository had already stopped mirroring it.
   Consumers that exclude the tables extension from `errorprone` now need their own core floor.
 - `installGitHooks` asks Git where it runs hooks (`git rev-parse --git-common-dir --git-path hooks`) instead of reading
-  `.git` itself. In a linked worktree it used to write the hook into the worktree's private git directory, where Git
-  never runs it; now it goes to the main repository's hooks directory, which all linked worktrees share. When
+  `.git` itself, with `GIT_DIR`, `GIT_WORK_TREE` and `GIT_COMMON_DIR` removed from git's environment so an inherited
+  value can't point the lookup at another repository. In a linked worktree it used to write the hook into the
+  worktree's private git directory, where Git never runs it; now it goes to the main repository's hooks directory,
+  which all linked worktrees share. When
   `core.hooksPath` is set (in the repository or globally, even to an empty value) it now installs nothing and leaves
   those hooks alone. It needs `git` on the `PATH` when the project has a `.git`; if git can't run or the lookup fails,
   it warns and skips instead of falling back to `.git/hooks`. The record of what it installed lives next to the hook.
 - `installGitHooks` (which `build` runs) no longer overwrites a pre-commit hook it didn't install: a hook from another
   tool, a hand-written one, a symbolic link, or an installed hook edited locally is kept, with a warning. It records
-  the SHA-256 of what it installs in `.git/hooks/pre-commit.java-conventions.sha256` and replaces only a hook that
-  still matches. Migration: a hook installed by an earlier version (the exact bytes of any previously bundled hook) is
-  adopted and updated while there is no record yet; a hand-edited one is kept with the warning (delete
-  `.git/hooks/pre-commit` and run `installGitHooks` once to take the current hook). An installed hook that isn't
-  executable is made executable, and nothing is written through a hook or record that is a symbolic link or not a
-  regular file.
+  the SHA-256 of what it installs next to the hook (`pre-commit.java-conventions.sha256`) and decides by the hook's
+  bytes: a hook identical to the one it would install is adopted; otherwise one that matches its record is updated;
+  while there is no record, the exact bytes of any previously bundled hook are adopted and updated. Anything else is
+  kept with the warning, so a project hook a 0.6.x version installed from `scripts/git-hooks/pre-commit` can be kept
+  once that file has changed: there is no record for it, and it's updated only if its bytes are a previously bundled
+  hook's (delete `pre-commit` from the hooks directory and run `installGitHooks` once to take the
+  current hook). An installed hook that isn't executable is made executable, and nothing is written through a hook or
+  record that is a symbolic link or not a regular file.
 - The reusable publishing workflow validates the publication version against the dispatched ref in the upload job too,
   reading the ref from the workflow context, with the same rule as the build job.
 - Upgraded the tools injected into consumer builds: Checkstyle from `14.3.0` to `14.4.0`, Error Prone
@@ -85,8 +102,9 @@ Each point is detailed in the entries below.
   modules.
 - A blank `GITHUB_TOKEN`, `GITHUB_ACTOR` or `GITHUB_REPOSITORY_OWNER` (for example a secret a workflow run can't read)
   failed the build while the publishing conventions were configured, with a message about `gpr.key`, `gpr.user` or
-  the owner property. They now count as unset, so the next source is used. A blank `JAVA_CONVENTIONS_*` variable still
-  fails, and the message now names the variable.
+  the owner property. They now count as unset, so the next source is used. A blank `JAVA_CONVENTIONS_*` variable that
+  is the value used still fails; for a string setting the message now names the variable, while a boolean one still
+  names the Gradle property.
 - In a multi-project build, a subproject could take its parent's inferred `leanish.conventions.basePackage` (extra
   properties are inherited) instead of inferring its own, so NullAway and PIT covered the parent's package there. Each
   project now infers its own; the inferred value is still stored in the project's extra properties, and values

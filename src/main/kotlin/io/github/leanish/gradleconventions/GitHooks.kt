@@ -39,6 +39,12 @@ internal object GitHooks {
     val GIT_PATHS_COMMAND = listOf("git", "rev-parse", "--git-common-dir", "--git-path", "hooks")
 
     /**
+     * Removed from both lookups' environment: inherited from whatever started the build, they would make Git describe
+     * another repository than the project's own `.git`.
+     */
+    val REPOSITORY_SELECTING_VARIABLES = listOf("GIT_DIR", "GIT_WORK_TREE", "GIT_COMMON_DIR")
+
+    /**
      * Where to install, from [hooksPathConfig] ([HOOKS_PATH_CONFIG_COMMAND]) and [gitPaths] ([GIT_PATHS_COMMAND]), both
      * run in [projectDirectory]. A configured `core.hooksPath` is left alone: hooks there belong to whoever set it (a
      * global one would apply to every repository on the machine). So is a hooks directory that resolves outside the

@@ -2671,6 +2671,7 @@ class GradleConventionsPluginTest {
         GradleRunner.create()
             .withProjectDir(projectDir)
             .withArguments("installGitHooks")
+            .withEnvironment(environmentWithoutConventionsOverrides())
             .withPluginClasspath()
             .build()
 
@@ -2701,6 +2702,7 @@ class GradleConventionsPluginTest {
         val result = GradleRunner.create()
             .withProjectDir(projectDir)
             .withArguments("installGitHooks")
+            .withEnvironment(environmentWithoutConventionsOverrides())
             .withPluginClasspath()
             .build()
 
@@ -2739,6 +2741,7 @@ class GradleConventionsPluginTest {
         val result = GradleRunner.create()
             .withProjectDir(projectDir)
             .withArguments("installGitHooks")
+            .withEnvironment(environmentWithoutConventionsOverrides())
             .withPluginClasspath()
             .build()
 
@@ -2766,6 +2769,7 @@ class GradleConventionsPluginTest {
         val result = GradleRunner.create()
             .withProjectDir(projectDir)
             .withArguments("installGitHooks", "--info")
+            .withEnvironment(environmentWithoutConventionsOverrides())
             .withPluginClasspath()
             .build()
 
@@ -2794,6 +2798,7 @@ class GradleConventionsPluginTest {
         val result = GradleRunner.create()
             .withProjectDir(projectDir)
             .withArguments("setupProject")
+            .withEnvironment(environmentWithoutConventionsOverrides())
             .withPluginClasspath()
             .build()
 
@@ -2825,6 +2830,7 @@ class GradleConventionsPluginTest {
         val result = GradleRunner.create()
             .withProjectDir(projectDir)
             .withArguments("installGitHooks")
+            .withEnvironment(environmentWithoutConventionsOverrides())
             .withPluginClasspath()
             .build()
 
@@ -2855,12 +2861,42 @@ class GradleConventionsPluginTest {
         GradleRunner.create()
             .withProjectDir(projectDir)
             .withArguments("installGitHooks")
+            .withEnvironment(environmentWithoutConventionsOverrides())
             .withPluginClasspath()
             .build()
         git(projectDir, "commit", "-q", "--allow-empty", "-m", "runs the hook")
 
         assertThat(repository.resolve(".git/hooks/pre-commit")).exists()
         assertThat(marker).exists()
+    }
+
+    @Test
+    fun installGitHooksIgnoresAnInheritedGitDirPointingElsewhere() {
+        val foreignRepository = tempDir.resolve("foreign-repository").toFile()
+        initGitRepository(foreignRepository)
+        val projectDir = tempDir.resolve("inherited-git-dir").toFile()
+        initGitRepository(projectDir)
+        writeRequiredConventionsProperties(projectDir)
+        writeFile(projectDir, "settings.gradle.kts", "rootProject.name = \"test-inherited-git-dir\"")
+        writeFile(
+            projectDir,
+            "build.gradle.kts",
+            """
+            plugins {
+                id("io.github.leanish.java-conventions")
+            }
+            """.trimIndent(),
+        )
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withArguments("installGitHooks", "--info")
+            .withEnvironment(environmentWithoutConventionsOverrides(mapOf("GIT_DIR" to foreignRepository.resolve(".git").path)))
+            .withPluginClasspath()
+            .build()
+
+        assertThat(projectDir.resolve(".git/hooks/pre-commit")).describedAs(result.output).hasContent(loadBundledPreCommitHook())
+        assertThat(foreignRepository.resolve(".git/hooks/pre-commit")).doesNotExist()
     }
 
     @Test

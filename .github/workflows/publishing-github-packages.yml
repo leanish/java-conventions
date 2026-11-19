@@ -182,9 +182,10 @@ jobs:
           path: ${{ runner.temp }}/handover
 
       # prepare runs build code, so it can't widen what may be written: the coordinates and path rules come from this
-      # workflow (the version and SNAPSHOT build it hands over only fill them in), the version must match the ref this
-      # run was dispatched from (read here from the workflow context, not from prepare), and a missing, extra or
-      # non-regular file fails before any upload.
+      # workflow (the version and SNAPSHOT build it hands over only fill them in), the version must fit the ref this
+      # run was dispatched from (a release only from its tag v<version>, a SNAPSHOT from any branch or from the tag
+      # naming its full version; the ref is read here from the workflow context, not from prepare), and a missing,
+      # extra or non-regular file fails before any upload.
       - name: Check the hand-over
         env:
           VERSION: ${{ needs.prepare.outputs.version }}

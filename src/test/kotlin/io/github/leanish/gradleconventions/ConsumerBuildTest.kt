@@ -71,30 +71,26 @@ class ConsumerBuildTest {
     @Test
     fun jacocoVerificationFailsBelowMinimum() {
         val projectDir = sampleConsumer("consumer-coverage")
-        writeSource(
-            projectDir,
-            "src/main/java/io/github/leanish/sample/Untested.java",
+        writeUntestedSource(projectDir)
+
+        val result = runner(projectDir, "check").buildAndFail()
+
+        assertThat(result.task(":test")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
+        assertThat(result.task(":jacocoTestCoverageVerification")?.outcome).isEqualTo(TaskOutcome.FAILED)
+        assertThat(result.output).contains("Rule violated for bundle consumer-coverage: instructions covered ratio is")
+    }
+
+    @Test
+    fun jacocoVerificationFailsBelowMinimumForClassesGivenAsAdditionalClassDirs() {
+        val projectDir = sampleConsumer("consumer-additional-classes")
+        writeUntestedSource(projectDir)
+        projectDir.resolve("build.gradle.kts").appendText(
             """
-            package io.github.leanish.sample;
 
-            public final class Untested {
-                public int sum(int first, int second) {
-                    int total = first;
-                    for (int i = 0; i < second; i++) {
-                        total++;
-                    }
-                    return total;
-                }
-
-                public String describe(int value) {
-                    if (value > 0) {
-                        return "positive " + value;
-                    }
-                    if (value < 0) {
-                        return "negative " + value;
-                    }
-                    return "zero";
-                }
+            val classesToVerify = sourceSets.main.get().output.classesDirs
+            tasks.named<JacocoCoverageVerification>("jacocoTestCoverageVerification") {
+                classDirectories.setFrom(emptyList<File>())
+                additionalClassDirs.from(classesToVerify)
             }
             """.trimIndent(),
         )
@@ -103,7 +99,8 @@ class ConsumerBuildTest {
 
         assertThat(result.task(":test")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
         assertThat(result.task(":jacocoTestCoverageVerification")?.outcome).isEqualTo(TaskOutcome.FAILED)
-        assertThat(result.output).contains("Rule violated for bundle consumer-coverage: instructions covered ratio is")
+        assertThat(result.output)
+            .contains("Rule violated for bundle consumer-additional-classes: instructions covered ratio is")
     }
 
     @Test
@@ -117,6 +114,29 @@ class ConsumerBuildTest {
         assertThat(result.task(":jacocoTestCoverageVerification")?.outcome).isEqualTo(TaskOutcome.FAILED)
         assertThat(result.output)
             .contains("Rule violated for bundle consumer-no-tests: instructions covered ratio is 0.00, but expected minimum is 0.85")
+    }
+
+    @Test
+    fun jacocoVerificationFailsWhenClassesGivenAsAdditionalClassDirsHaveNoTests() {
+        val projectDir = sampleConsumer("consumer-additional-no-tests")
+        projectDir.resolve("src/test").deleteRecursively()
+        projectDir.resolve("build.gradle.kts").appendText(
+            """
+
+            val classesToVerify = sourceSets.main.get().output.classesDirs
+            tasks.named<JacocoCoverageVerification>("jacocoTestCoverageVerification") {
+                classDirectories.setFrom(emptyList<File>())
+                additionalClassDirs.from(classesToVerify)
+            }
+            """.trimIndent(),
+        )
+
+        val result = runner(projectDir, "check").buildAndFail()
+
+        assertThat(result.task(":test")?.outcome).isEqualTo(TaskOutcome.NO_SOURCE)
+        assertThat(result.task(":jacocoTestCoverageVerification")?.outcome).isEqualTo(TaskOutcome.FAILED)
+        assertThat(result.output)
+            .contains("Rule violated for bundle consumer-additional-no-tests: instructions covered ratio is 0.00")
     }
 
     @Test
@@ -247,6 +267,37 @@ class ConsumerBuildTest {
     // Spotless requires a trailing newline, which trimIndent() drops.
     private fun writeSource(projectDir: File, name: String, content: String) {
         writeFile(projectDir, name, content + "\n")
+    }
+
+    /** A class the sample's tests don't reach, enough to bring coverage below the minimum. */
+    private fun writeUntestedSource(projectDir: File) {
+        writeSource(
+            projectDir,
+            "src/main/java/io/github/leanish/sample/Untested.java",
+            """
+            package io.github.leanish.sample;
+
+            public final class Untested {
+                public int sum(int first, int second) {
+                    int total = first;
+                    for (int i = 0; i < second; i++) {
+                        total++;
+                    }
+                    return total;
+                }
+
+                public String describe(int value) {
+                    if (value > 0) {
+                        return "positive " + value;
+                    }
+                    if (value < 0) {
+                        return "negative " + value;
+                    }
+                    return "zero";
+                }
+            }
+            """.trimIndent(),
+        )
     }
 
     private fun sampleConsumer(name: String): File {

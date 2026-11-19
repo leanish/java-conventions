@@ -159,7 +159,8 @@ Publishing owner/developer metadata is optional:
 - Developer fields (`id`, `name`, `url`) are optional and independent; missing values are inferred from resolved owner when possible (`id=<owner>`, `name=<owner>`, `url=https://github.com/<owner>`), and the `developers` block is emitted only when all three resolve.
 - GitHub Packages credentials resolve by environment first (`GITHUB_ACTOR`, `GITHUB_TOKEN`), then properties (`gpr.user`, `gpr.key`).
 - A blank `GITHUB_ACTOR`, `GITHUB_TOKEN` or `GITHUB_REPOSITORY_OWNER` counts as unset (for example a secret a workflow run
-  can't read), so the next source is used. A blank `JAVA_CONVENTIONS_*` variable or property fails the build, naming it.
+  can't read), so the next source is used. A blank `JAVA_CONVENTIONS_*` variable or property fails the build when it is
+  the value used: a string setting names the variable or property, a boolean one names the Gradle property.
 
 ## Publishing
 - For Gradle Plugin Portal, set `gradle.publish.key` and `gradle.publish.secret` in `~/.gradle/gradle.properties`,
@@ -273,11 +274,15 @@ components.named<AdhocComponentWithVariants>("java") {
 ## Coverage behavior
 - Enforces instruction coverage via `jacocoTestCoverageVerification`.
 - Default minimum is `0.85` unless overridden.
-- Set `-DexcludeTags=integration` (or any tags) to skip those tests and disable coverage verification.
+- Set `-DexcludeTags=integration` (or any other non-blank tags) to skip those tests and disable coverage verification.
   The same tags are excluded from mutation testing.
-- `jacocoTestCoverageVerification` runs whenever the project has main classes, so a project with classes and no tests
-  fails it (0 % coverage); a project without main classes skips it. Other `JacocoCoverageVerification` tasks keep
-  JaCoCo's behavior and skip when they have no execution data.
+- `jacocoTestCoverageVerification` runs when there is execution data, as JaCoCo does, and also without it when its
+  class directories (`additionalClassDirs` included) contain loose `.class` files. So a project with classes and no
+  tests fails it (0 % coverage; lower the minimum to `0` to accept that), while without execution data a project
+  without loose classes (none, or only JARs given as class input) skips it. Classes with no measurable
+  instructions (interfaces with only abstract methods, for example) pass. The conventions replace the task's run
+  condition: a condition added before them is dropped, one added after them still applies. Other
+  `JacocoCoverageVerification` tasks keep JaCoCo's behavior and skip when they have no execution data.
 
 ## Mutation testing
 - Applies `info.solidsoft.pitest` (gradle-pitest-plugin) with PIT and its JUnit 5 plugin, at the versions in
@@ -414,7 +419,7 @@ It:
 - The plugin does not add a toolchain resolver; ensure the configured JDK is available locally or add a resolver in the consuming project.
 - Dependencies added by the plugin are additive; your project dependencies remain in effect.
 - The bundled pre-commit hook runs `./gradlew spotlessApply` and `./gradlew checkstyleMain checkstyleTest` on the working copy, then refuses the commit if any staged file differs from its working copy: formatting changed it, or it has unstaged changes. It never stages anything itself: review the changes, `git add` them and commit again. Committing part of a file's changes (partial staging) is therefore refused while the rest is unstaged; stash it first, or use `git commit --no-verify`.
-- `installGitHooks` installs `scripts/git-hooks/pre-commit` if the project has one, else the bundled hook, and keeps a pre-commit hook it didn't install (or one edited since, or a symbolic link) with a warning; it records what it installed in `pre-commit.java-conventions.sha256` next to the hook, and recognizes hooks bundled by earlier versions. To switch to the conventions' hook, delete the existing one and run `installGitHooks`.
+- `installGitHooks` installs `scripts/git-hooks/pre-commit` if the project has one, else the bundled hook, and keeps a pre-commit hook it didn't install (an installed hook edited locally, a symbolic link, or, when its bytes aren't a previously bundled hook's, a project hook a 0.6.x version installed whose source has changed since) with a warning; it records what it installed in `pre-commit.java-conventions.sha256` next to the hook, adopts a hook already identical to what it would install, and recognizes hooks bundled by earlier versions. To switch to the conventions' hook, delete `pre-commit` from the hooks directory (below) and run `installGitHooks`.
 - `installGitHooks` asks `git` (it must be on the `PATH`) where Git runs hooks: `.git/hooks`, or in a linked worktree the main repository's hooks directory, which all linked worktrees share (so a worktree with a different `scripts/git-hooks/pre-commit` updates the shared hook). When `core.hooksPath` is set, in the repository or globally, it installs nothing and leaves those hooks to you; set your own `core.hooksPath` if worktrees need separate hooks. If git can't run or the lookup fails, it warns and skips.
 
 ## Plugin project CI (maintainers)
