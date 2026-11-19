@@ -1,5 +1,7 @@
 # Changelog
 
+## 0.7.1
+
 ## 0.7.0
 
 ### Upgrading from 0.6.x
